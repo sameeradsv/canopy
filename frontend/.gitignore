@@ -1,3 +1,6 @@
+# Next.js static export (CI builds this for GitHub Pages)
+out/
+
 # PWA service worker (generated at build time)
 public/sw.js
 public/sw.js.map

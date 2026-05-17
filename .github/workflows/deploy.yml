@@ -1,3 +1,4 @@
+# Deploy API (Fly.io) then UI (GitHub Pages) on each push to main.
 name: Deploy Canopy
 
 on:
