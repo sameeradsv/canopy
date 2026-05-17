@@ -1,10 +1,21 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Interaction, Person, Tag
-from app.schemas import InteractionCreate, InteractionUpdate, PersonCreate, PersonUpdate
+from app.dimensions_utils import merge_dimension_update, parse_dimensions, serialize_dimensions
+from app.models import Interaction, Person, Tag, Task
+from app.schemas import (
+    InteractionCreate,
+    InteractionUpdate,
+    PersonCreate,
+    PersonUpdate,
+    TaskCreate,
+    TaskUpdate,
+)
 
 
 def _normalize_tag(name: str) -> str:
@@ -45,7 +56,7 @@ def interaction_query(db: Session):
     )
 
 
-def list_people(db: Session, q: str | None = None) -> list[Person]:
+def list_people(db: Session, q: Optional[str] = None) -> list[Person]:
     stmt = select(Person).options(selectinload(Person.interactions)).order_by(Person.name)
     if q:
         pattern = f"%{q}%"
@@ -85,8 +96,8 @@ def delete_person(db: Session, person: Person) -> None:
 def list_interactions(
     db: Session,
     *,
-    person_id: int | None = None,
-    tag: str | None = None,
+    person_id: Optional[int] = None,
+    tag: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[Interaction]:
@@ -199,3 +210,49 @@ def get_summary(db: Session) -> dict:
 
 def list_tags(db: Session) -> list[Tag]:
     return list(db.scalars(select(Tag).order_by(Tag.name)).all())
+
+
+def task_to_read(task: Task) -> dict:
+    return {
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "dimensions": parse_dimensions(task.dimensions_json),
+        "created_at": task.created_at,
+        "updated_at": task.updated_at,
+    }
+
+
+def list_tasks(db: Session) -> list[Task]:
+    return list(db.scalars(select(Task).order_by(Task.updated_at.desc())).all())
+
+
+def create_task(db: Session, data: TaskCreate) -> Task:
+    task = Task(
+        title=data.title.strip(),
+        description=data.description,
+        dimensions_json=serialize_dimensions(data.dimensions),
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def update_task(db: Session, task: Task, data: TaskUpdate) -> Task:
+    if data.title is not None:
+        task.title = data.title.strip()
+    if data.description is not None:
+        task.description = data.description
+    if data.dimensions is not None:
+        current = parse_dimensions(task.dimensions_json)
+        merged = merge_dimension_update(current, data.dimensions)
+        task.dimensions_json = serialize_dimensions(merged)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def delete_task(db: Session, task: Task) -> None:
+    db.delete(task)
+    db.commit()

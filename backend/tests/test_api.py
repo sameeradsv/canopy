@@ -1,7 +1,11 @@
+import os
+
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, engine, SessionLocal, init_db
+from app.database import Base, engine, init_db
 from app.main import app
 
 
@@ -84,3 +88,38 @@ def test_person_with_relationship(client):
         json={"name": "Jordan", "relationship": "colleague", "notes": "Team lead"},
     ).json()
     assert person["relationship"] == "colleague"
+
+
+def test_task_dimensions(client):
+    task = client.post(
+        "/api/tasks",
+        json={
+            "title": "Quarterly review prep",
+            "description": "Invisible coordination work",
+            "dimensions": {"urgency": 0.7, "effort": 0.5},
+        },
+    ).json()
+    assert task["title"] == "Quarterly review prep"
+    assert task["dimensions"]["urgency"] == 0.7
+    assert task["dimensions"]["visibility"] is None
+
+    updated = client.patch(
+        f"/api/tasks/{task['id']}",
+        json={"dimensions": {"visibility": 0.2}},
+    ).json()
+    assert updated["dimensions"]["urgency"] == 0.7
+    assert updated["dimensions"]["visibility"] == 0.2
+
+
+def test_encrypted_export_import(client):
+    client.post("/api/people", json={"name": "Alex"})
+    blob = client.post(
+        "/api/sync/export",
+        json={"passphrase": "local-only-secret"},
+    ).json()
+    assert blob["format"] == "canopy-encrypted-export"
+    preview = client.post(
+        "/api/sync/import",
+        json={"passphrase": "local-only-secret", "blob": blob},
+    ).json()
+    assert preview["counts"]["people"] == 1

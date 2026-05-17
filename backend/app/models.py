@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship as orm_relationship
 
 from app.database import Base
 
@@ -33,7 +33,7 @@ class Person(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    interactions: Mapped[list["Interaction"]] = relationship(
+    interactions: Mapped[list["Interaction"]] = orm_relationship(
         secondary=interaction_participants, back_populates="participants"
     )
 
@@ -45,7 +45,7 @@ class Tag(Base):
     name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    interactions: Mapped[list["Interaction"]] = relationship(
+    interactions: Mapped[list["Interaction"]] = orm_relationship(
         secondary=interaction_tags, back_populates="tags"
     )
 
@@ -64,11 +64,24 @@ class Interaction(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    participants: Mapped[list[Person]] = relationship(
+    participants: Mapped[list[Person]] = orm_relationship(
         secondary=interaction_participants, back_populates="interactions"
     )
-    tags: Mapped[list[Tag]] = relationship(
+    tags: Mapped[list[Tag]] = orm_relationship(
         secondary=interaction_tags, back_populates="interactions"
+    )
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dimensions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
 

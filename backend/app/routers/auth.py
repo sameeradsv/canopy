@@ -1,29 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth_utils import create_session, hash_password, get_user_for_token, verify_password
+from app.auth_utils import create_session, hash_password, verify_password
 from app.database import get_db
+from app.deps.auth import require_user
 from app.models import User
 from app.schemas import AuthResponse, LoginRequest, RegisterRequest, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def optional_user(
-    authorization: str | None = Header(None),
-    db: Session = Depends(get_db),
-) -> User | None:
-    token = None
-    if authorization and authorization.lower().startswith("bearer "):
-        token = authorization[7:].strip()
-    return get_user_for_token(db, token)
-
-
-def require_user(user: User | None = Depends(optional_user)) -> User:
-    if user is None:
-        raise HTTPException(401, "Authentication required")
-    return user
 
 
 @router.get("/status")

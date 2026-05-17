@@ -48,8 +48,9 @@ export default function DimensionsPage() {
       <header>
         <h1 className="text-2xl font-medium text-canopy-text">Dimensions</h1>
         <p className="mt-1 text-sm text-canopy-muted">
-          Task and responsibility lenses — saved locally. Adjust when they help
-          you think; leave unset when they do not.
+          Global default lenses for tasks — saved locally. Per-task values are
+          set on the Tasks page. Adjust when they help you think; leave unset
+          when they do not.
         </p>
       </header>
 

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -10,7 +14,7 @@ router = APIRouter(prefix="/people", tags=["people"])
 
 
 @router.get("", response_model=list[PersonRead])
-def get_people(q: str | None = None, db: Session = Depends(get_db)):
+def get_people(q: Optional[str] = None, db: Session = Depends(get_db)):
     return [PersonRead(**person_to_read(p)) for p in list_people(db, q)]
 
 

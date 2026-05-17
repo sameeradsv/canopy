@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -32,8 +36,8 @@ def _to_read(interaction: Interaction) -> InteractionRead:
 
 @router.get("", response_model=list[InteractionRead])
 def get_interactions(
-    person_id: int | None = None,
-    tag: str | None = None,
+    person_id: Optional[int] = None,
+    tag: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),

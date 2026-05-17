@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -90,11 +92,11 @@ class Summary(BaseModel):
 
 
 class DimensionsRead(BaseModel):
-    values: dict[str, float | None]
+    values: Dict[str, Optional[float]]
 
 
 class DimensionsUpdate(BaseModel):
-    values: dict[str, float | None] = Field(default_factory=dict)
+    values: Dict[str, Optional[float]] = Field(default_factory=dict)
 
 
 class RegisterRequest(BaseModel):
@@ -123,3 +125,39 @@ class AuthResponse(BaseModel):
 class RelationshipDefaults(BaseModel):
     types: list[str]
     defaults: dict[str, dict[str, str]]
+
+
+class TaskBase(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = None
+    dimensions: Dict[str, Optional[float]] = Field(default_factory=dict)
+
+
+class TaskCreate(TaskBase):
+    pass
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    dimensions: Optional[Dict[str, Optional[float]]] = None
+
+
+class TaskRead(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    dimensions: Dict[str, Optional[float]]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EncryptedExportRequest(BaseModel):
+    passphrase: str = Field(min_length=8, max_length=200)
+
+
+class EncryptedImportRequest(BaseModel):
+    passphrase: str = Field(min_length=8, max_length=200)
+    blob: dict
