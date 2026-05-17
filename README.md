@@ -35,6 +35,8 @@ npm run dev
 
 App: http://localhost:3000 — requests to `/api/*` are proxied to the backend (see `frontend/next.config.ts`).
 
+**Install as PWA:** Run a production build (`npm run build && npm run start` in `frontend`), open the app in Chrome or Edge, and use “Install app” from the address bar or browser menu. The service worker is disabled in `npm run dev`; use production mode to test offline shell caching. Capture and API calls still need the backend running.
+
 ### Docker Compose (optional)
 
 From the repo root:

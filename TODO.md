@@ -23,7 +23,7 @@ Tracked ideas and future work. Not a commitment order.
 
 - [x] **Task / responsibility entity** — per-task ontology dimensions via `/api/tasks` and Tasks UI.
 - [ ] **Tauri desktop shell** — feasible: Next.js static export or standalone server + Tauri webview; not started (non-trivial, ~1–2 days).
-- [ ] **PWA / mobile shell** — feasible with Next.js PWA plugin + same API; needed for Shortcuts; not started.
+- [x] **PWA / mobile shell** — Next.js PWA plugin, web manifest, installable icons; API still requires local backend when online.
 
 ## Done (pass 2)
 
