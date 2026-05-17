@@ -1,5 +1,18 @@
 # Architecture
 
+## Implementation status (v0.1)
+
+| Layer | Status |
+|-------|--------|
+| Next.js UI (capture, timeline, people, search, dimensions) | Shipped |
+| FastAPI + SQLAlchemy (SQLite local / Postgres in Compose) | Shipped |
+| Person `relationship` + editable defaults | Shipped |
+| Dimension sliders (settings store) | Shipped |
+| Auth register/login (session token; sync not yet) | Scaffold |
+| pgvector / embeddings / local LLM | Planned |
+
+---
+
 # High-Level Architecture
 
 ```text

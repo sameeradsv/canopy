@@ -45,3 +45,42 @@ def test_capture_flow(client):
     summary = client.get("/api/summary").json()
     assert summary["total_interactions"] == 1
     assert summary["total_people"] == 1
+
+
+def test_dimensions_persist(client):
+    payload = {"values": {"urgency": 0.8, "effort": 0.3}}
+    client.put("/api/settings/dimensions", json=payload)
+    saved = client.get("/api/settings/dimensions").json()
+    assert saved["values"]["urgency"] == 0.8
+    assert saved["values"]["reversibility"] is None
+
+
+def test_auth_register_login(client):
+    reg = client.post(
+        "/api/auth/register",
+        json={"username": "sam", "password": "secret12"},
+    )
+    assert reg.status_code == 201
+    token = reg.json()["token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.json()["username"] == "sam"
+
+    login = client.post(
+        "/api/auth/login",
+        json={"username": "sam", "password": "secret12"},
+    )
+    assert login.status_code == 200
+
+
+def test_relationship_defaults(client):
+    defaults = client.get("/api/relationship-defaults").json()
+    assert "colleague" in defaults["types"]
+    assert "notes" in defaults["defaults"]["friend"]
+
+
+def test_person_with_relationship(client):
+    person = client.post(
+        "/api/people",
+        json={"name": "Jordan", "relationship": "colleague", "notes": "Team lead"},
+    ).json()
+    assert person["relationship"] == "colleague"

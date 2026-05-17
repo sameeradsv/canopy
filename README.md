@@ -59,4 +59,4 @@ canopy/
 
 Canopy is not a CRM, therapy app, or gamified productivity tool. It focuses on cognitive offloading and contextual continuity — remembering nuance and uncertainty so you spend less mental energy recomputing the same interpretations.
 
-See [canopy-docs](https://github.com/your-org/canopy-docs) for architecture, ontology, and roadmap.
+Product docs live in [`docs/`](docs/) (vision, architecture, ontology, roadmap). Backlog: [`TODO.md`](TODO.md).

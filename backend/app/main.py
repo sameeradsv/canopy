@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import interactions, people, search
+from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
+from app.routers import auth, interactions, people, search, settings
+from app.schemas import RelationshipDefaults
 
 app = FastAPI(
     title="Canopy API",
@@ -22,6 +24,13 @@ app.add_middleware(
 app.include_router(people.router, prefix="/api")
 app.include_router(interactions.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+
+
+@app.get("/api/relationship-defaults", response_model=RelationshipDefaults)
+def relationship_defaults():
+    return RelationshipDefaults(types=RELATIONSHIP_TYPES, defaults=RELATIONSHIP_DEFAULTS)
 
 
 @app.on_event("startup")
@@ -53,7 +62,13 @@ def export_data():
         ).all()
         payload = {
             "people": [
-                {"id": p.id, "name": p.name, "notes": p.notes, "created_at": p.created_at.isoformat()}
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "relationship": p.relationship,
+                    "notes": p.notes,
+                    "created_at": p.created_at.isoformat(),
+                }
                 for p in people
             ],
             "tags": [{"id": t.id, "name": t.name} for t in tags],
@@ -79,11 +94,11 @@ def export_data():
 @app.delete("/api/data", status_code=204)
 def delete_all_data():
     from app.database import SessionLocal
-    from app.models import Interaction, Person, Tag
+    from app.models import AuthSession, Interaction, Person, Setting, Tag, User
 
     db = SessionLocal()
     try:
-        for model in (Interaction, Person, Tag):
+        for model in (Interaction, Person, Tag, Setting, AuthSession, User):
             for row in db.query(model).all():
                 db.delete(row)
         db.commit()

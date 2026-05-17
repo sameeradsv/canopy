@@ -30,6 +30,7 @@ def person_to_read(person: Person) -> dict:
     return {
         "id": person.id,
         "name": person.name,
+        "relationship": person.relationship,
         "notes": person.notes,
         "created_at": person.created_at,
         "updated_at": person.updated_at,
@@ -53,7 +54,11 @@ def list_people(db: Session, q: str | None = None) -> list[Person]:
 
 
 def create_person(db: Session, data: PersonCreate) -> Person:
-    person = Person(name=data.name.strip(), notes=data.notes)
+    person = Person(
+        name=data.name.strip(),
+        relationship=data.relationship,
+        notes=data.notes,
+    )
     db.add(person)
     db.commit()
     db.refresh(person)
@@ -63,6 +68,8 @@ def create_person(db: Session, data: PersonCreate) -> Person:
 def update_person(db: Session, person: Person, data: PersonUpdate) -> Person:
     if data.name is not None:
         person.name = data.name.strip()
+    if data.relationship is not None:
+        person.relationship = data.relationship
     if data.notes is not None:
         person.notes = data.notes
     db.commit()

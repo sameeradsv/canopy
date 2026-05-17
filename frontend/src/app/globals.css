@@ -5,3 +5,62 @@
 body {
   @apply bg-canopy-bg text-canopy-text antialiased;
 }
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  will-change: transform;
+}
+
+.ambient-orb-a {
+  width: 55vw;
+  height: 55vw;
+  top: -20%;
+  left: -15%;
+  background: radial-gradient(circle, rgba(107, 155, 122, 0.45), transparent 70%);
+  animation: drift-a 28s ease-in-out infinite;
+}
+
+.ambient-orb-b {
+  width: 50vw;
+  height: 50vw;
+  bottom: -25%;
+  right: -10%;
+  background: radial-gradient(circle, rgba(74, 109, 84, 0.35), transparent 70%);
+  animation: drift-b 34s ease-in-out infinite;
+}
+
+.ambient-mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(107, 155, 122, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(42, 53, 48, 0.5), transparent),
+    linear-gradient(180deg, rgba(15, 20, 18, 0.2), rgba(15, 20, 18, 0.95));
+}
+
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8%, 6%) scale(1.05);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-6%, -4%) scale(1.08);
+  }
+}
+
+.panel {
+  @apply rounded-lg border border-canopy-border/80 bg-canopy-surface/80 backdrop-blur-sm;
+}

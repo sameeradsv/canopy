@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AmbientBackground } from "@/components/AmbientBackground";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
@@ -13,10 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen font-sans">
+    <html lang="en" className="dark">
+      <body className="relative min-h-screen font-sans">
+        <AmbientBackground />
         <Nav />
-        <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>
+        <main className="relative mx-auto max-w-3xl px-4 py-8">{children}</main>
       </body>
     </html>
   );

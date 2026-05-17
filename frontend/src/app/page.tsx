@@ -10,11 +10,29 @@ export default async function HomePage() {
     summary = await api.summary();
   } catch {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-medium text-canopy-text">Canopy</h1>
-        <p className="text-canopy-muted">
-          Cannot reach the API. Start the backend on port 8000.
-        </p>
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-medium text-canopy-text">Canopy</h1>
+          <p className="mt-1 text-sm text-canopy-muted">
+            Local-first contextual memory
+          </p>
+        </header>
+        <div className="panel space-y-3 p-5">
+          <p className="text-sm text-canopy-text">Backend not reachable</p>
+          <p className="text-sm text-canopy-muted">
+            Start the API so captures and people persist:
+          </p>
+          <pre className="overflow-x-auto rounded border border-canopy-border bg-canopy-bg/80 p-3 text-xs text-canopy-muted">
+            {`cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000`}
+          </pre>
+          <p className="text-sm text-canopy-muted">
+            Run the UI from <span className="text-canopy-accent">frontend</span> with{" "}
+            <span className="text-canopy-accent">npm run dev</span> — not the repo README
+            file alone.
+          </p>
+        </div>
       </div>
     );
   }

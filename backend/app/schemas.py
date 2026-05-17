@@ -13,6 +13,7 @@ class TagRead(BaseModel):
 
 class PersonBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    relationship: Optional[str] = Field(None, max_length=40)
     notes: Optional[str] = None
 
 
@@ -22,6 +23,7 @@ class PersonCreate(PersonBase):
 
 class PersonUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
+    relationship: Optional[str] = Field(None, max_length=40)
     notes: Optional[str] = None
 
 
@@ -85,3 +87,39 @@ class Summary(BaseModel):
     total_tags: int
     recent_interactions: list[InteractionRead]
     top_tags: list[TagRead]
+
+
+class DimensionsRead(BaseModel):
+    values: dict[str, float | None]
+
+
+class DimensionsUpdate(BaseModel):
+    values: dict[str, float | None] = Field(default_factory=dict)
+
+
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=80)
+    password: str = Field(min_length=6, max_length=200)
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserRead
+
+
+class RelationshipDefaults(BaseModel):
+    types: list[str]
+    defaults: dict[str, dict[str, str]]
