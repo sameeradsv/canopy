@@ -1,14 +1,25 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { InteractionCard } from "@/components/InteractionCard";
-import { api } from "@/lib/api";
+import { api, type Summary } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
+export default function HomePage() {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [unreachable, setUnreachable] = useState(false);
 
-export default async function HomePage() {
-  let summary;
-  try {
-    summary = await api.summary();
-  } catch {
+  useEffect(() => {
+    api
+      .summary()
+      .then((data) => {
+        setSummary(data);
+        setUnreachable(false);
+      })
+      .catch(() => setUnreachable(true));
+  }, []);
+
+  if (unreachable) {
     return (
       <div className="space-y-6">
         <header>
@@ -20,19 +31,24 @@ export default async function HomePage() {
         <div className="panel space-y-3 p-5">
           <p className="text-sm text-canopy-text">Backend not reachable</p>
           <p className="text-sm text-canopy-muted">
-            Start the API so captures and people persist:
+            If you use the hosted app, ensure the API is deployed (see README)
+            and sign in under <Link href="/login" className="text-canopy-accent">Account</Link>.
+            For local dev, start the backend below.
           </p>
           <pre className="overflow-x-auto rounded border border-canopy-border bg-canopy-bg/80 p-3 text-xs text-canopy-muted">
             {`cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000`}
           </pre>
-          <p className="text-sm text-canopy-muted">
-            Run the UI from <span className="text-canopy-accent">frontend</span> with{" "}
-            <span className="text-canopy-accent">npm run dev</span> — not the repo README
-            file alone.
-          </p>
         </div>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <div className="space-y-6">
+        <p className="text-sm text-canopy-muted">Loading…</p>
       </div>
     );
   }
@@ -59,7 +75,7 @@ uvicorn app.main:app --reload --port 8000`}
             {summary.top_tags.map((tag) => (
               <span
                 key={tag.id}
-                className="rounded bg-canopy-surface border border-canopy-border px-2 py-1 text-xs text-canopy-muted"
+                className="rounded border border-canopy-border bg-canopy-surface px-2 py-1 text-xs text-canopy-muted"
               >
                 {tag.name}
               </span>

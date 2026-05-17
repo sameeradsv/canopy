@@ -1,18 +1,35 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { InteractionCard } from "@/components/InteractionCard";
-import { api } from "@/lib/api";
+import { api, type Interaction } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
+export default function TimelinePage() {
+  const [interactions, setInteractions] = useState<Interaction[] | null>(null);
+  const [unreachable, setUnreachable] = useState(false);
 
-export default async function TimelinePage() {
-  let interactions;
-  try {
-    interactions = await api.interactions({ limit: 200 });
-  } catch {
+  useEffect(() => {
+    api
+      .interactions({ limit: 200 })
+      .then(setInteractions)
+      .catch(() => setUnreachable(true));
+  }, []);
+
+  if (unreachable) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-medium text-canopy-text">Timeline</h1>
         <p className="text-canopy-muted">Cannot reach the API.</p>
+      </div>
+    );
+  }
+
+  if (!interactions) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-medium text-canopy-text">Timeline</h1>
+        <p className="text-sm text-canopy-muted">Loading…</p>
       </div>
     );
   }
