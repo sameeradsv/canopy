@@ -1,2 +1,62 @@
-# canopy
-A local-first contextual memory and personal knowledge system for capturing interactions, decisions, tasks, and recurring patterns. Built with a privacy-first and human-in-the-loop approach, it focuses on lightweight retrieval, semantic recall, and cognitive offloading without relying on intrusive tracking or rigid behavioral profiling.
+# Canopy
+
+Local-first contextual memory — preserve what you notice, who you interact with, and patterns over time without sending data to the cloud.
+
+## v0.1 features
+
+- **Quick capture** — log an observation in under 30 seconds (context, outcome, confidence, participants, tags)
+- **Timeline** — chronological view of all interactions
+- **People** — entity list linked to captures
+- **Tagging** — comma-separated tags on each interaction
+- **Search** — keyword search across interactions and people
+- **Dashboard** — counts and recent activity summary
+
+Data stays on your machine (SQLite by default). Export and delete-all endpoints are available on the API for backup and reset.
+
+## Run locally
+
+### Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API: http://127.0.0.1:8000 — health check at `/api/health`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+App: http://localhost:3000 — requests to `/api/*` are proxied to the backend (see `frontend/next.config.ts`).
+
+### Docker Compose (optional)
+
+From the repo root:
+
+```bash
+docker compose up --build
+```
+
+Starts PostgreSQL (pgvector), backend on port 8000, and frontend on port 3000.
+
+## Project layout
+
+```
+canopy/
+├── backend/     FastAPI + SQLAlchemy
+├── frontend/    Next.js + Tailwind
+├── data/        SQLite database (local dev)
+└── docker-compose.yml
+```
+
+## Philosophy
+
+Canopy is not a CRM, therapy app, or gamified productivity tool. It focuses on cognitive offloading and contextual continuity — remembering nuance and uncertainty so you spend less mental energy recomputing the same interpretations.
+
+See [canopy-docs](https://github.com/your-org/canopy-docs) for architecture, ontology, and roadmap.
