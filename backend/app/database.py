@@ -37,13 +37,20 @@ def _migrate_sqlite() -> None:
     from sqlalchemy import inspect
 
     with engine.begin() as conn:
-        if "people" not in inspect(conn).get_table_names():
+        tables = inspect(conn).get_table_names()
+        if "people" not in tables:
             return
+
         cols = _sqlite_column_names(conn, "people")
         if "relationship" not in cols:
-            conn.exec_driver_sql(
-                "ALTER TABLE people ADD COLUMN relationship VARCHAR(40)"
-            )
+            conn.exec_driver_sql("ALTER TABLE people ADD COLUMN relationship VARCHAR(40)")
+
+        for table in ("people", "interactions", "tasks"):
+            if table in tables:
+                if "user_id" not in _sqlite_column_names(conn, table):
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)"
+                    )
 
 
 def init_db() -> None:

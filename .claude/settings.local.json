@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"D:\\\\Downloads\\\\Personal\\\\Development\\\\canopy\" -Force)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(Format-Table)",
+      "Bash(grep -E '\\\\.py$')",
+      "Bash(git -C \"D:\\\\Downloads\\\\Personal\\\\Development\\\\canopy\" log --oneline -20)",
+      "Bash(python -m pytest tests/test_api.py -v)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Downloads\\\\Personal\\\\Development\\\\canopy\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)"
+    ]
+  }
+}

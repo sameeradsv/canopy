@@ -22,6 +22,13 @@ def _normalize_tag(name: str) -> str:
     return name.strip().lower()
 
 
+def _settings_key(user_id: Optional[int], key: str) -> str:
+    """Namespace a settings key by user so each user has isolated settings."""
+    if user_id is None:
+        return key
+    return f"{user_id}:{key}"
+
+
 def get_or_create_tags(db: Session, names: list[str]) -> list[Tag]:
     tags: list[Tag] = []
     for raw in names:
@@ -56,16 +63,18 @@ def interaction_query(db: Session):
     )
 
 
-def list_people(db: Session, q: Optional[str] = None) -> list[Person]:
+def list_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None) -> list[Person]:
     stmt = select(Person).options(selectinload(Person.interactions)).order_by(Person.name)
+    stmt = stmt.where(Person.user_id == user_id)
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
     return list(db.scalars(stmt).all())
 
 
-def create_person(db: Session, data: PersonCreate) -> Person:
+def create_person(db: Session, data: PersonCreate, user_id: Optional[int] = None) -> Person:
     person = Person(
+        user_id=user_id,
         name=data.name.strip(),
         relationship=data.relationship,
         notes=data.notes,
@@ -100,8 +109,15 @@ def list_interactions(
     tag: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
+    user_id: Optional[int] = None,
 ) -> list[Interaction]:
-    stmt = interaction_query(db).order_by(Interaction.occurred_at.desc()).offset(offset).limit(limit)
+    stmt = (
+        interaction_query(db)
+        .where(Interaction.user_id == user_id)
+        .order_by(Interaction.occurred_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     if person_id is not None:
         stmt = stmt.join(Interaction.participants).where(Person.id == person_id)
     if tag:
@@ -109,8 +125,9 @@ def list_interactions(
     return list(db.scalars(stmt).unique().all())
 
 
-def create_interaction(db: Session, data: InteractionCreate) -> Interaction:
+def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[int] = None) -> Interaction:
     interaction = Interaction(
+        user_id=user_id,
         occurred_at=data.occurred_at or datetime.utcnow(),
         context=data.context,
         observation=data.observation.strip(),
@@ -153,7 +170,9 @@ def delete_interaction(db: Session, interaction: Interaction) -> None:
     db.commit()
 
 
-def search(db: Session, query: str, limit: int = 50) -> tuple[list[Interaction], list[Person]]:
+def search(
+    db: Session, query: str, limit: int = 50, user_id: Optional[int] = None
+) -> tuple[list[Interaction], list[Person]]:
     pattern = f"%{query.strip()}%"
     if not query.strip():
         return [], []
@@ -161,6 +180,7 @@ def search(db: Session, query: str, limit: int = 50) -> tuple[list[Interaction],
     interactions = list(
         db.scalars(
             interaction_query(db)
+            .where(Interaction.user_id == user_id)
             .where(
                 or_(
                     Interaction.observation.ilike(pattern),
@@ -177,6 +197,7 @@ def search(db: Session, query: str, limit: int = 50) -> tuple[list[Interaction],
         db.scalars(
             select(Person)
             .options(selectinload(Person.interactions))
+            .where(Person.user_id == user_id)
             .where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
             .order_by(Person.name)
             .limit(limit)
@@ -185,15 +206,27 @@ def search(db: Session, query: str, limit: int = 50) -> tuple[list[Interaction],
     return interactions, people
 
 
-def get_summary(db: Session) -> dict:
-    total_interactions = db.scalar(select(func.count()).select_from(Interaction)) or 0
-    total_people = db.scalar(select(func.count()).select_from(Person)) or 0
+def get_summary(db: Session, user_id: Optional[int] = None) -> dict:
+    total_interactions = (
+        db.scalar(select(func.count()).select_from(Interaction).where(Interaction.user_id == user_id)) or 0
+    )
+    total_people = (
+        db.scalar(select(func.count()).select_from(Person).where(Person.user_id == user_id)) or 0
+    )
     total_tags = db.scalar(select(func.count()).select_from(Tag)) or 0
-    recent = list(db.scalars(interaction_query(db).order_by(Interaction.occurred_at.desc()).limit(5)).all())
+    recent = list(
+        db.scalars(
+            interaction_query(db)
+            .where(Interaction.user_id == user_id)
+            .order_by(Interaction.occurred_at.desc())
+            .limit(5)
+        ).all()
+    )
     top_tags = list(
         db.scalars(
             select(Tag)
             .join(Tag.interactions)
+            .where(Interaction.user_id == user_id)
             .group_by(Tag.id)
             .order_by(func.count(Interaction.id).desc())
             .limit(5)
@@ -212,6 +245,24 @@ def list_tags(db: Session) -> list[Tag]:
     return list(db.scalars(select(Tag).order_by(Tag.name)).all())
 
 
+def get_setting(db: Session, key: str, user_id: Optional[int] = None):
+    from app.models import Setting
+    return db.get(Setting, _settings_key(user_id, key))
+
+
+def set_setting(db: Session, key: str, value: str, user_id: Optional[int] = None):
+    from app.models import Setting
+    namespaced = _settings_key(user_id, key)
+    setting = db.get(Setting, namespaced)
+    if setting is None:
+        setting = Setting(key=namespaced, value=value)
+        db.add(setting)
+    else:
+        setting.value = value
+    db.commit()
+    return setting
+
+
 def task_to_read(task: Task) -> dict:
     return {
         "id": task.id,
@@ -223,12 +274,17 @@ def task_to_read(task: Task) -> dict:
     }
 
 
-def list_tasks(db: Session) -> list[Task]:
-    return list(db.scalars(select(Task).order_by(Task.updated_at.desc())).all())
+def list_tasks(db: Session, user_id: Optional[int] = None) -> list[Task]:
+    return list(
+        db.scalars(
+            select(Task).where(Task.user_id == user_id).order_by(Task.updated_at.desc())
+        ).all()
+    )
 
 
-def create_task(db: Session, data: TaskCreate) -> Task:
+def create_task(db: Session, data: TaskCreate, user_id: Optional[int] = None) -> Task:
     task = Task(
+        user_id=user_id,
         title=data.title.strip(),
         description=data.description,
         dimensions_json=serialize_dimensions(data.dimensions),

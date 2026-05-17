@@ -25,6 +25,7 @@ class Person(Base):
     __tablename__ = "people"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(200), index=True)
     relationship: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -54,6 +55,7 @@ class Interaction(Base):
     __tablename__ = "interactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
     context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     observation: Mapped[str] = mapped_column(Text)
@@ -76,6 +78,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200), index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     dimensions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -88,7 +91,7 @@ class Task(Base):
 class Setting(Base):
     __tablename__ = "settings"
 
-    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

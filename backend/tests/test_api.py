@@ -112,14 +112,76 @@ def test_task_dimensions(client):
 
 
 def test_encrypted_export_import(client):
-    client.post("/api/people", json={"name": "Alex"})
-    blob = client.post(
-        "/api/sync/export",
-        json={"passphrase": "local-only-secret"},
-    ).json()
+    # Register a user so import (which requires auth) works
+    reg = client.post("/api/auth/register", json={"username": "exporter", "password": "secret99"})
+    token = reg.json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    client.post("/api/people", json={"name": "Alex"}, headers=auth)
+    blob = client.post("/api/sync/export", json={"passphrase": "local-only-secret"}, headers=auth).json()
     assert blob["format"] == "canopy-encrypted-export"
-    preview = client.post(
+
+    result = client.post(
         "/api/sync/import",
         json={"passphrase": "local-only-secret", "blob": blob},
+        headers=auth,
     ).json()
-    assert preview["counts"]["people"] == 1
+    assert result["status"] == "merged"
+    assert result["created"]["people"] == 0  # Alex already exists; upsert skips duplicate
+    assert result["skipped"]["people"] == 1
+
+
+def test_user_isolation(client):
+    """Each user sees only their own data."""
+    # Register two users
+    token_a = client.post(
+        "/api/auth/register", json={"username": "alice", "password": "alicepass1"}
+    ).json()["token"]
+    token_b = client.post(
+        "/api/auth/register", json={"username": "bob", "password": "bobpass123"}
+    ).json()["token"]
+    auth_a = {"Authorization": f"Bearer {token_a}"}
+    auth_b = {"Authorization": f"Bearer {token_b}"}
+
+    # Alice creates a person and interaction
+    alice_person = client.post("/api/people", json={"name": "Alice Contact"}, headers=auth_a).json()
+    client.post(
+        "/api/interactions",
+        json={"observation": "Alice's private note", "participant_ids": [alice_person["id"]]},
+        headers=auth_a,
+    )
+
+    # Bob creates a person and interaction
+    bob_person = client.post("/api/people", json={"name": "Bob Contact"}, headers=auth_b).json()
+    client.post(
+        "/api/interactions",
+        json={"observation": "Bob's private note", "participant_ids": [bob_person["id"]]},
+        headers=auth_b,
+    )
+
+    # Alice should see only her data
+    alice_people = client.get("/api/people", headers=auth_a).json()
+    assert len(alice_people) == 1
+    assert alice_people[0]["name"] == "Alice Contact"
+
+    alice_interactions = client.get("/api/interactions", headers=auth_a).json()
+    assert len(alice_interactions) == 1
+    assert alice_interactions[0]["observation"] == "Alice's private note"
+
+    # Bob should see only his data
+    bob_people = client.get("/api/people", headers=auth_b).json()
+    assert len(bob_people) == 1
+    assert bob_people[0]["name"] == "Bob Contact"
+
+    bob_interactions = client.get("/api/interactions", headers=auth_b).json()
+    assert len(bob_interactions) == 1
+    assert bob_interactions[0]["observation"] == "Bob's private note"
+
+    # Alice cannot access Bob's person by ID
+    r = client.get(f"/api/people/{bob_person['id']}", headers=auth_a)
+    assert r.status_code == 404
+
+    # Summaries are isolated too
+    alice_summary = client.get("/api/summary", headers=auth_a).json()
+    assert alice_summary["total_interactions"] == 1
+    assert alice_summary["total_people"] == 1

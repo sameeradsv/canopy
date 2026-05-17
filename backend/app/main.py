@@ -53,61 +53,14 @@ def health():
 
 
 @app.get("/api/export")
-def export_data():
+def export_data(_user: Optional[User] = Depends(optional_auth_user)):
     from app.database import SessionLocal
-    from app.dimensions_utils import parse_dimensions
-    from app.models import Interaction, Person, Tag, Task
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
+    from app.routers.sync import _collect_export_payload
 
     db = SessionLocal()
     try:
-        people = db.scalars(select(Person)).all()
-        tags = db.scalars(select(Tag)).all()
-        interactions = db.scalars(
-            select(Interaction).options(
-                selectinload(Interaction.participants),
-                selectinload(Interaction.tags),
-            )
-        ).all()
-        tasks = db.scalars(select(Task)).all()
-        payload = {
-            "people": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "relationship": p.relationship,
-                    "notes": p.notes,
-                    "created_at": p.created_at.isoformat(),
-                }
-                for p in people
-            ],
-            "tags": [{"id": t.id, "name": t.name} for t in tags],
-            "interactions": [
-                {
-                    "id": i.id,
-                    "occurred_at": i.occurred_at.isoformat(),
-                    "context": i.context,
-                    "observation": i.observation,
-                    "outcome": i.outcome,
-                    "confidence": i.confidence,
-                    "participant_ids": [p.id for p in i.participants],
-                    "tag_names": [t.name for t in i.tags],
-                }
-                for i in interactions
-            ],
-            "tasks": [
-                {
-                    "id": t.id,
-                    "title": t.title,
-                    "description": t.description,
-                    "dimensions": parse_dimensions(t.dimensions_json),
-                    "created_at": t.created_at.isoformat(),
-                }
-                for t in tasks
-            ],
-        }
-        return payload
+        uid = _user.id if _user else None
+        return _collect_export_payload(db, user_id=uid)
     finally:
         db.close()
 
