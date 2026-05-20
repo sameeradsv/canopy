@@ -5,13 +5,14 @@
 | Layer | Status |
 |-------|--------|
 | Next.js UI (capture, timeline, people, search, dimensions, tasks) | Shipped |
-| FastAPI + SQLAlchemy (SQLite local / Postgres in Compose) | Shipped |
+| FastAPI + SQLAlchemy (SQLite local / Postgres via `DATABASE_URL`) | Shipped |
 | Person `relationship` + editable defaults | Shipped |
 | Global dimension defaults (`/api/settings/dimensions`) | Shipped |
 | Per-task dimension values (`Task` entity, `/api/tasks`) | Shipped |
-| Auth register/login (session token; sync not yet) | Scaffold |
+| Auth register/login (bearer token, 30-day session) | Shipped |
 | Optional auth gate (`AUTH_REQUIRED=true`) | Shipped |
-| Encrypted export/import preview (`/api/sync/*`) | Scaffold |
+| Encrypted export/import (`/api/sync/*`, XOR+PBKDF2+HMAC) | Shipped |
+| Cross-device sync (same backend, same credentials) | Shipped |
 | pgvector / embeddings / local LLM | Planned (v0.2) |
 
 ---
@@ -51,11 +52,10 @@ Responsibilities:
 
 # Backend
 
-Recommended:
-- Python
-- FastAPI
-- SQLAlchemy
-- Alembic
+Stack:
+- Python / FastAPI
+- SQLAlchemy 2.0 (sync sessions)
+- No migrations — schema via `Base.metadata.create_all` at startup; additive column changes applied by `_migrate_sqlite()` in `database.py`
 
 Responsibilities:
 - ingestion
@@ -69,23 +69,21 @@ Responsibilities:
 # Database
 
 ## Structured Storage
-- PostgreSQL
+
+Default: **SQLite** (`data/canopy.db`) — zero-config for local and single-user hosted use.
+
+Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connection string (Neon, Render, self-hosted). Docker Compose brings up pgvector-enabled Postgres for local production-shaped dev.
 
 Stores:
-- entities
+- entities (Person, Tag)
 - interactions
 - tasks
-- contexts
-- observations
-- metadata
+- settings
+- users / auth sessions
 
-## Semantic Layer
-- pgvector
+## Semantic Layer (v0.2 — planned)
 
-Supports:
-- semantic recall
-- contextual similarity
-- historical retrieval
+pgvector column on `interaction_embeddings` table, local embedding model hook, semantic `/api/search` mode. SQLite builds will stub vector storage; Postgres + pgvector in Compose for production-shaped dev.
 
 ---
 
@@ -111,22 +109,18 @@ Required:
 - export/delete capability
 - local-first processing
 
-## Authentication (optional)
+## Authentication
 
-- Register/login issues a bearer token stored client-side (`localStorage`).
-- `optional_user` / `optional_auth_user` dependencies validate `Authorization: Bearer …` when present.
-- Set `AUTH_REQUIRED=true` in the backend environment to require a valid session for destructive routes (e.g. `DELETE /api/data`) and encrypted sync endpoints. When unset (default), the API remains open for local single-user use.
-- Full cross-device sync is not implemented; auth prepares identity for a future sync layer.
+- Register/login issues a 30-day bearer token stored client-side in `localStorage`.
+- `optional_auth_user` dependency validates `Authorization: Bearer …` when present; most write endpoints use this.
+- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production — already set in `render.yaml` / `fly.toml`.
+- Cross-device sync works by logging in with the same credentials on any device pointing at the same backend.
 
 ## Encrypted export format
 
-`POST /api/sync/export` accepts a user passphrase (never stored server-side). Response blob:
+`POST /api/sync/export` accepts a user passphrase (never stored server-side). Returns a blob encrypted with XOR stream cipher + PBKDF2-SHA256 key derivation + HMAC (Python stdlib only, no server key storage):
 
 - `format`: `canopy-encrypted-export`
-- `salt`, `nonce`, `iterations`, `ciphertext`, `mac` (PBKDF2-SHA256 key + stream cipher + HMAC; stdlib-only, no server key storage)
+- `salt`, `nonce`, `iterations`, `ciphertext`, `mac`
 
-`POST /api/sync/import` decrypts and returns entity counts as a preview only; merge/conflict resolution is future work.
-
-## Semantic layer (v0.2 — next)
-
-Per `docs/ROADMAP.md` v0.2: add `interaction_embeddings` table with pgvector column, local embedding model hook, and `/api/search` semantic mode. SQLite dev builds can stub vector storage; Postgres + pgvector in Compose for production-shaped dev.
+`POST /api/sync/import` decrypts the blob and merges it into the current user's data, deduplicating people by name, interactions by `(occurred_at, first 50 chars of observation)`, and tasks by title.
