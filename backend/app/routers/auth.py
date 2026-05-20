@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -54,3 +56,19 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 def me(user: User = Depends(require_user)):
     return UserRead(id=user.id, username=user.username, created_at=user.created_at)
+
+
+@router.delete("/logout", status_code=204)
+def logout(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_user),
+):
+    """Invalidate the current session token."""
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+        from app.models import AuthSession
+        session = db.get(AuthSession, token)
+        if session:
+            db.delete(session)
+            db.commit()

@@ -131,6 +131,42 @@ def test_encrypted_export_import(client):
     assert result["skipped"]["people"] == 1
 
 
+def test_logout(client):
+    token = client.post(
+        "/api/auth/register", json={"username": "logoutuser", "password": "pass1234"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    # Token works before logout
+    assert client.get("/api/auth/me", headers=auth).status_code == 200
+
+    # Logout invalidates the session
+    r = client.delete("/api/auth/logout", headers=auth)
+    assert r.status_code == 204
+
+    # Token is now rejected
+    assert client.get("/api/auth/me", headers=auth).status_code == 401
+
+
+def test_encrypted_export_import_roundtrip(client):
+    reg = client.post("/api/auth/register", json={"username": "roundtrip", "password": "secret99"})
+    token = reg.json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    client.post("/api/people", json={"name": "RoundtripPerson"}, headers=auth)
+    blob = client.post("/api/sync/export", json={"passphrase": "strongpass1"}, headers=auth).json()
+    assert blob["format"] == "canopy-encrypted-export"
+    assert blob["cipher"] == "aes-gcm-256"
+
+    result = client.post(
+        "/api/sync/import",
+        json={"passphrase": "strongpass1", "blob": blob},
+        headers=auth,
+    ).json()
+    assert result["status"] == "merged"
+    assert result["skipped"]["people"] == 1  # already exists
+
+
 def test_user_isolation(client):
     """Each user sees only their own data."""
     # Register two users
