@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AmbientBackground } from "@/components/AmbientBackground";
+import { AuthProvider } from "@/lib/AuthContext";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
@@ -45,8 +46,13 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="relative min-h-screen font-sans">
         <AmbientBackground />
-        <Nav />
-        <main className="relative mx-auto max-w-3xl px-4 py-8">{children}</main>
+        <AuthProvider
+          apiBase={process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? ""}
+          tokenKey="canopy_auth_token"
+        >
+          <Nav />
+          <main className="relative mx-auto max-w-3xl px-4 py-8">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

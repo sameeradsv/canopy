@@ -3,17 +3,25 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 import { setAuthToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading, refetch } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [mode, setMode] = useState<"login" | "register">("register");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+
+  // Redirect already-authenticated users to their account page
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/account");
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     api
@@ -29,15 +37,14 @@ export default function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    setMessage(null);
     try {
       const result =
         mode === "register"
           ? await api.register(username.trim(), password)
           : await api.login(username.trim(), password);
       setAuthToken(result.token);
-      setMessage(`Signed in as ${result.user.username}`);
-      router.push("/");
+      await refetch();
+      router.push("/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -45,13 +52,15 @@ export default function LoginPage() {
     }
   }
 
+  if (loading || user) return null;
+
   return (
     <div className="mx-auto max-w-md space-y-6">
       <header>
-        <h1 className="text-2xl font-medium text-canopy-text">Account</h1>
+        <h1 className="text-2xl font-medium text-canopy-text">Sign in</h1>
         <p className="mt-1 text-sm text-canopy-muted">
-          Optional local account for future cross-device sync. Data stays on your
-          machine; credentials are hashed, never stored in plain text.
+          Your account keeps data private and enables cross-device sync via
+          the hosted backend. Credentials are hashed and never stored in plain text.
         </p>
       </header>
 
@@ -61,9 +70,11 @@ export default function LoginPage() {
         ) : (
           <>
             <p className="text-xs text-canopy-muted">
-              {hasUsers
-                ? "Sign in to continue on this device."
-                : "Create the first account on this instance."}
+              {mode === "register"
+                ? hasUsers
+                  ? "Create a new account on this instance."
+                  : "Create the first account on this instance."
+                : "Sign in to continue."}
             </p>
             <input
               type="text"
@@ -85,7 +96,6 @@ export default function LoginPage() {
               className={inputClass}
             />
             {error && <p className="text-sm text-red-400">{error}</p>}
-            {message && <p className="text-sm text-canopy-accent">{message}</p>}
             <button
               type="submit"
               disabled={submitting}
@@ -97,25 +107,18 @@ export default function LoginPage() {
                   ? "Create account"
                   : "Sign in"}
             </button>
-            {hasUsers && (
-              <button
-                type="button"
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
-                className="w-full text-center text-xs text-canopy-muted hover:text-canopy-text"
-              >
-                {mode === "login"
-                  ? "Need an account? Register"
-                  : "Already have an account? Sign in"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              className="w-full text-center text-xs text-canopy-muted hover:text-canopy-text"
+            >
+              {mode === "login"
+                ? "Need an account? Register"
+                : "Already have an account? Sign in"}
+            </button>
           </>
         )}
       </form>
-
-      <p className="text-xs text-canopy-muted">
-        Sync across devices is not enabled yet — this scaffolds identity for a
-        future encrypted sync layer.
-      </p>
     </div>
   );
 }

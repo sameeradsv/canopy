@@ -219,3 +219,6 @@ __marimo__/
 node_modules/
 .next/
 *.tsbuildinfo
+
+# The Python rule `lib/` above would otherwise swallow frontend/src/lib/
+!frontend/src/lib/
