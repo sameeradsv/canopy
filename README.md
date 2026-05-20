@@ -42,27 +42,39 @@ App: http://localhost:3000 — requests to `/api/*` are proxied to the backend (
 | Piece | URL |
 |-------|-----|
 | UI | https://sameeradsv.github.io/canopy/ |
-| API | https://canopy-api.fly.dev (after Fly setup below) |
+| API | https://canopy-api.onrender.com (after Render setup below) |
 
-Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): deploys the FastAPI backend to **Fly.io**, then builds the Next.js UI with `NEXT_PUBLIC_API_URL` and publishes to **GitHub Pages**.
+Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): triggers a **Render** deploy for the API, then builds the Next.js UI with `NEXT_PUBLIC_API_URL` and publishes to **GitHub Pages**.
+
+#### Render (recommended)
+
+Render’s free plan allows **only one managed PostgreSQL database per account**. Chef or Circuit may already use that slot, so Canopy’s [`render.yaml`](render.yaml) deploys **only the web service** — you supply `DATABASE_URL` yourself (e.g. [Neon](https://neon.tech) free PostgreSQL).
 
 **One-time setup**
 
 1. **GitHub Pages:** Repo **Settings → Pages → Source** → **GitHub Actions**.
-2. **Fly.io API** (free tier; persistent SQLite on a volume):
-   ```bash
-   # Install: https://fly.io/docs/hands-on/install-flyctl/
-   fly auth login
-   fly apps create canopy-api
-   fly volumes create canopy_data --region iad --size 1 -a canopy-api
-   fly deploy --config backend/fly.toml backend
-   ```
-3. **GitHub secret:** `FLY_API_TOKEN` from `fly tokens create deploy -x 999999h`
-4. Optional repo variable `CANOPY_API_URL` if your API host differs from `https://canopy-api.fly.dev`.
+2. **Database:** Create a PostgreSQL instance (Neon, or a second logical database on an existing host). Copy the connection string.
+3. **Render:** [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → connect this repo → apply `render.yaml`. On the `canopy-api` service, set **`DATABASE_URL`** to your connection string (Blueprint leaves it unset via `sync: false`).
+4. **GitHub secret:** `RENDER_DEPLOY_HOOK` — from the Render service **Settings → Deploy Hook**.
+5. Optional repo variable **`CANOPY_API_URL`** if your API host differs from `https://canopy-api.onrender.com`.
 
-On first visit from the hosted UI, open **Account** and register — production API has `AUTH_REQUIRED=true`. Data stays on your Fly volume (still your instance, not shared multi-tenant SaaS).
+On first visit from the hosted UI, open **Account** and register — production API has `AUTH_REQUIRED=true`.
 
-Without `FLY_API_TOKEN`, only the UI is deployed; use the API locally as in **Run locally** above.
+Without `RENDER_DEPLOY_HOOK`, only the UI is deployed on push; trigger Render deploys manually or from the dashboard.
+
+#### Fly.io (alternative)
+
+If you prefer SQLite on a persistent volume and no external Postgres:
+
+```bash
+# Install: https://fly.io/docs/hands-on/install-flyctl/
+fly auth login
+fly apps create canopy-api
+fly volumes create canopy_data --region iad --size 1 -a canopy-api
+fly deploy --config backend/fly.toml backend
+```
+
+Set repo variable **`CANOPY_API_URL`** to `https://canopy-api.fly.dev` and deploy the API via Fly (not the Render workflow). See [`backend/fly.toml`](backend/fly.toml).
 
 ### Docker Compose (optional)
 
