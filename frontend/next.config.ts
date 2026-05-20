@@ -15,6 +15,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@shared/cortex"],
   ...(isGithubPages
     ? {
         output: "export",
