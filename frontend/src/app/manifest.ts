@@ -2,37 +2,39 @@ import type { MetadataRoute } from "next";
 
 export const dynamic = "force-static";
 
+const base = process.env.GITHUB_PAGES === "true" ? "/canopy" : "";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Canopy",
     short_name: "Canopy",
     description: "Local-first contextual memory",
-    start_url: "/",
+    start_url: base + "/",
     display: "standalone",
     background_color: "#0f1412",
     theme_color: "#0f1412",
     orientation: "portrait-primary",
     icons: [
       {
-        src: "/icons/icon-192x192.png",
+        src: base + "/icons/icon-192x192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-384x384.png",
+        src: base + "/icons/icon-384x384.png",
         sizes: "384x384",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-512x512.png",
+        src: base + "/icons/icon-512x512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-512x512.png",
+        src: base + "/icons/icon-512x512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
