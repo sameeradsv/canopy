@@ -10,12 +10,10 @@ export default function AccountPage() {
   const { user, loading, logout } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
 
-  // Export state
   const [exportPass, setExportPass] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  // Import state
   const [importPass, setImportPass] = useState("");
   const [importBlob, setImportBlob] = useState<Record<string, unknown> | null>(null);
   const [importing, setImporting] = useState(false);
@@ -24,15 +22,11 @@ export default function AccountPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
+    if (!loading && !user) router.replace("/login");
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user) {
-      api.summary().then(setSummary).catch(() => null);
-    }
+    if (user) api.summary().then(setSummary).catch(() => null);
   }, [user]);
 
   async function handleExport(e: FormEvent) {
@@ -94,62 +88,54 @@ export default function AccountPage() {
   if (loading || !user) return null;
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-medium text-canopy-text">Account</h1>
-        <p className="mt-1 text-sm text-canopy-muted">
-          Identity, data sync, and encrypted backup.
-        </p>
-      </header>
+    <>
+      <div className="page-header">
+        <div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Account · /account</div>
+          <h1 className="page-title">Your <em>account.</em></h1>
+        </div>
+        <button onClick={logout} className="btn" style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
+          Sign out
+        </button>
+      </div>
 
       {/* Identity */}
-      <section className="panel space-y-4 p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-canopy-text">{user.username}</p>
-            <p className="text-xs text-canopy-muted">
-              Account created{" "}
-              {new Date(user.created_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+      <div className="card" style={{ marginBottom: "var(--pad-5)" }}>
+        <div className="kicker" style={{ marginBottom: 12 }}>Identity</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="avatar big" style={{ width: 44, height: 44, fontSize: 18 }}>
+            {user.username.slice(0, 2).toUpperCase()}
           </div>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-canopy-border px-3 py-1.5 text-sm text-canopy-muted hover:border-red-500/50 hover:text-red-400"
-          >
-            Sign out
-          </button>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>{user.username}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)", marginTop: 2 }}>
+              {new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+            </div>
+          </div>
         </div>
         {summary && (
-          <div className="grid grid-cols-3 gap-3 border-t border-canopy-border pt-4">
-            <Stat label="Interactions" value={summary.total_interactions} />
-            <Stat label="People" value={summary.total_people} />
-            <Stat label="Tags" value={summary.total_tags} />
+          <div className="grid-3" style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--line-soft)" }}>
+            <StatCard label="Interactions" value={summary.total_interactions} />
+            <StatCard label="People" value={summary.total_people} />
+            <StatCard label="Tags" value={summary.total_tags} />
           </div>
         )}
-      </section>
+      </div>
 
-      {/* Cross-device sync note */}
-      <section className="rounded-lg border border-canopy-border/50 bg-canopy-surface/40 p-4">
-        <p className="text-xs text-canopy-muted">
-          <span className="font-medium text-canopy-text">Cross-device sync</span> — log
-          in with the same username and passcode on any device that points to the same
-          backend. Use the encrypted export below to migrate data or keep an offline
-          backup.
+      {/* Sync note */}
+      <div className="card" style={{ marginBottom: "var(--pad-5)", background: "var(--accent-soft)", borderColor: "color-mix(in oklch, var(--accent) 25%, var(--line))" }}>
+        <p style={{ fontSize: 13, color: "var(--fg-mute)" }}>
+          <strong style={{ color: "var(--fg)" }}>Cross-device sync</strong> — sign in with the same credentials on any device pointing to the same backend. Use the encrypted export below to migrate data or keep an offline backup.
         </p>
-      </section>
+      </div>
 
-      {/* Encrypted export */}
-      <section className="panel space-y-3 p-5">
-        <h2 className="text-sm font-medium text-canopy-text">Encrypted export</h2>
-        <p className="text-xs text-canopy-muted">
-          Downloads all your data as an AES-GCM encrypted JSON file. Keep the
-          passphrase safe — it is never stored.
+      {/* Export */}
+      <div className="card" style={{ marginBottom: "var(--pad-5)" }}>
+        <div className="kicker" style={{ marginBottom: 12 }}>Encrypted export</div>
+        <p style={{ fontSize: 13, color: "var(--fg-mute)", marginBottom: 14 }}>
+          Downloads all your data as an encrypted JSON file. The passphrase is never stored.
         </p>
-        <form onSubmit={handleExport} className="flex gap-2">
+        <form onSubmit={handleExport} style={{ display: "flex", gap: 8 }}>
           <input
             type="password"
             value={exportPass}
@@ -157,40 +143,36 @@ export default function AccountPage() {
             placeholder="Passphrase (min 8 characters)"
             required
             minLength={8}
-            className={inputClass + " flex-1"}
+            className="input"
+            style={{ flex: 1 }}
           />
-          <button
-            type="submit"
-            disabled={exporting}
-            className="rounded-lg bg-canopy-accent px-4 py-2 text-sm font-medium text-canopy-bg disabled:opacity-50"
-          >
+          <button type="submit" disabled={exporting} className="btn primary">
             {exporting ? "Exporting…" : "Export"}
           </button>
         </form>
-        {exportError && <p className="text-sm text-red-400">{exportError}</p>}
-      </section>
+        {exportError && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{exportError}</p>}
+      </div>
 
-      {/* Encrypted import */}
-      <section className="panel space-y-3 p-5">
-        <h2 className="text-sm font-medium text-canopy-text">Import / restore</h2>
-        <p className="text-xs text-canopy-muted">
-          Merges an export file into this account. Duplicate people, interactions, and
-          tasks are skipped automatically.
+      {/* Import */}
+      <div className="card">
+        <div className="kicker" style={{ marginBottom: 12 }}>Import / restore</div>
+        <p style={{ fontSize: 13, color: "var(--fg-mute)", marginBottom: 14 }}>
+          Merges an export file into this account. Duplicates are skipped automatically.
         </p>
-        <form onSubmit={handleImport} className="space-y-3">
+        <form onSubmit={handleImport} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             ref={fileRef}
             type="file"
             accept=".json,application/json"
             onChange={handleFileChange}
-            className="block w-full text-xs text-canopy-muted file:mr-3 file:rounded file:border file:border-canopy-border file:bg-canopy-surface file:px-3 file:py-1.5 file:text-xs file:text-canopy-text"
+            style={{ fontSize: 13, color: "var(--fg-mute)" }}
           />
           {importBlob && (
-            <p className="text-xs text-canopy-accent">
-              Export file loaded (version {String(importBlob.version ?? "?")})
+            <p style={{ fontSize: 12, color: "var(--accent)" }}>
+              File loaded (version {String(importBlob.version ?? "?")})
             </p>
           )}
-          <div className="flex gap-2">
+          <div style={{ display: "flex", gap: 8 }}>
             <input
               type="password"
               value={importPass}
@@ -198,44 +180,32 @@ export default function AccountPage() {
               placeholder="Passphrase used during export"
               required
               minLength={8}
-              className={inputClass + " flex-1"}
+              className="input"
+              style={{ flex: 1 }}
             />
-            <button
-              type="submit"
-              disabled={importing || !importBlob}
-              className="rounded-lg bg-canopy-accent px-4 py-2 text-sm font-medium text-canopy-bg disabled:opacity-50"
-            >
+            <button type="submit" disabled={importing || !importBlob} className="btn primary">
               {importing ? "Importing…" : "Import"}
             </button>
           </div>
         </form>
-        {importError && <p className="text-sm text-red-400">{importError}</p>}
+        {importError && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{importError}</p>}
         {importResult && (
-          <div className="rounded border border-canopy-border bg-canopy-bg/60 p-3 text-xs text-canopy-muted">
-            <p className="font-medium text-canopy-text">Import complete</p>
-            <p>
-              Created — people: {importResult.created.people ?? 0}, interactions:{" "}
-              {importResult.created.interactions ?? 0}, tasks: {importResult.created.tasks ?? 0}
-            </p>
-            <p>
-              Skipped (duplicates) — people: {importResult.skipped.people ?? 0}, interactions:{" "}
-              {importResult.skipped.interactions ?? 0}, tasks: {importResult.skipped.tasks ?? 0}
-            </p>
+          <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg)", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", fontSize: 12, color: "var(--fg-mute)" }}>
+            <p style={{ fontWeight: 600, color: "var(--fg)", marginBottom: 4 }}>Import complete</p>
+            <p>Created — people: {importResult.created.people ?? 0}, interactions: {importResult.created.interactions ?? 0}, tasks: {importResult.created.tasks ?? 0}</p>
+            <p>Skipped — people: {importResult.skipped.people ?? 0}, interactions: {importResult.skipped.interactions ?? 0}, tasks: {importResult.skipped.tasks ?? 0}</p>
           </div>
         )}
-      </section>
-    </div>
+      </div>
+    </>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div>
-      <p className="text-lg font-medium text-canopy-text">{value}</p>
-      <p className="text-xs text-canopy-muted">{label}</p>
+    <div className="stat">
+      <div className="stat-lbl">{label}</div>
+      <div className="stat-num">{value}</div>
     </div>
   );
 }
-
-const inputClass =
-  "rounded-lg border border-canopy-border bg-canopy-bg px-3 py-2 text-sm text-canopy-text placeholder:text-canopy-muted/60 focus:border-canopy-accent focus:outline-none";

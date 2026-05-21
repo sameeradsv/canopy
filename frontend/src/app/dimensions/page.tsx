@@ -20,7 +20,7 @@ export default function DimensionsPage() {
     api
       .dimensions()
       .then((data) => setValues(data.values))
-      .catch(() => setError("Cannot load dimensions. Is the backend running?"))
+      .catch(() => setError("Cannot load dimensions."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -44,61 +44,75 @@ export default function DimensionsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-medium text-canopy-text">Dimensions</h1>
-        <p className="mt-1 text-sm text-canopy-muted">
-          Global default lenses for tasks — saved locally. Per-task values are
-          set on the Tasks page. Adjust when they help you think; leave unset
-          when they do not.
-        </p>
-      </header>
+    <>
+      <div className="page-header">
+        <div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Dimensions · /dimensions</div>
+          <h1 className="page-title">Score with <em>intent.</em></h1>
+          <p className="page-sub">
+            Global default weights for tasks — each dimension gives you a lens to prioritize differently.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || loading}
+          className="btn primary"
+        >
+          {saving ? "Saving…" : "Save defaults"}
+        </button>
+      </div>
 
       {loading ? (
-        <p className="text-sm text-canopy-muted">Loading…</p>
+        <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>Loading…</p>
       ) : (
-        <div className="panel space-y-6 p-5">
+        <div className="card">
+          <div className="kicker" style={{ marginBottom: 18 }}>Default dimension weights</div>
+
           {DIMENSION_KEYS.map((key) => {
-            const pct =
-              values[key] != null ? Math.round((values[key] as number) * 100) : 50;
+            const pct = values[key] != null ? Math.round((values[key] as number) * 100) : 50;
             return (
-              <label key={key} className="block space-y-2">
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-sm font-medium text-canopy-text">
-                    {DIMENSION_LABELS[key]}
-                  </span>
-                  <span className="text-xs text-canopy-muted">
-                    {values[key] != null ? `${pct}%` : "unset"}
-                  </span>
+              <div key={key} style={{ marginBottom: 24 }}>
+                <div className="dim-row">
+                  <div>
+                    <div className="dim-label">{DIMENSION_LABELS[key]}</div>
+                    <div className="dim-hint">{DIMENSION_HINTS[key]}</div>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={pct}
+                    onChange={(e) => setDimension(key, Number(e.target.value))}
+                    className="slider"
+                    style={{
+                      backgroundImage: `linear-gradient(var(--accent), var(--accent))`,
+                      backgroundSize: `${pct}% 100%`,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                  <div className="dim-val">{pct}</div>
                 </div>
-                <p className="text-xs text-canopy-muted">{DIMENSION_HINTS[key]}</p>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={pct}
-                  onChange={(e) => setDimension(key, Number(e.target.value))}
-                  className="w-full accent-canopy-accent"
-                />
-              </label>
+                <hr className="divider" />
+              </div>
             );
           })}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>}
           {saved && !error && (
-            <p className="text-sm text-canopy-accent">Saved to local database.</p>
+            <p style={{ color: "var(--good)", fontSize: 13, marginBottom: 12 }}>Saved to local database.</p>
           )}
 
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-canopy-accent px-4 py-2 text-sm font-medium text-canopy-bg disabled:opacity-50"
+            className="btn primary"
           >
             {saving ? "Saving…" : "Save dimensions"}
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

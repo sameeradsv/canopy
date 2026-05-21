@@ -4,14 +4,27 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
 
+const KINDS = [
+  { id: "meeting",  label: "Meeting",  icon: "◧" },
+  { id: "call",     label: "Call",     icon: "◌" },
+  { id: "message",  label: "Message",  icon: "⌘" },
+  { id: "meal",     label: "Meal",     icon: "◇" },
+  { id: "walk",     label: "Walk",     icon: "⌒" },
+  { id: "one-on-one", label: "1:1",   icon: "◉" },
+];
+
+function initials(name: string) {
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
 export default function CapturePage() {
   const router = useRouter();
   const [people, setPeople] = useState<Person[]>([]);
   const [observation, setObservation] = useState("");
   const [context, setContext] = useState("");
-  const [outcome, setOutcome] = useState("");
   const [confidence, setConfidence] = useState(0.7);
   const [participantIds, setParticipantIds] = useState<number[]>([]);
+  const [selectedKind, setSelectedKind] = useState<string>("meeting");
   const [tagsInput, setTagsInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,22 +39,20 @@ export default function CapturePage() {
     );
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: FormEvent) {
+    e?.preventDefault();
     if (!observation.trim()) return;
 
     setSubmitting(true);
     setError(null);
     try {
-      const tag_names = tagsInput
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-
+      const tag_names = [
+        selectedKind,
+        ...tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
+      ];
       await api.createInteraction({
         observation: observation.trim(),
         context: context.trim() || undefined,
-        outcome: outcome.trim() || undefined,
         confidence,
         participant_ids: participantIds,
         tag_names,
@@ -53,126 +64,189 @@ export default function CapturePage() {
     }
   }
 
+  // Cmd+Enter to submit
+  function onKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }
+
+  const confidencePct = Math.round(confidence * 100);
+
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <header>
-        <h1 className="text-2xl font-medium text-canopy-text">Quick capture</h1>
-        <p className="mt-1 text-sm text-canopy-muted">
-          Under 30 seconds — observation is all you need.
-        </p>
-      </header>
+    <>
+      <div className="page-header">
+        <div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Capture · /capture</div>
+          <h1 className="page-title">Log <em>an</em> interaction.</h1>
+          <p className="page-sub">Write it down before the day moves on.</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button onClick={() => router.back()} className="btn ghost">cancel</button>
+          <button
+            onClick={() => handleSubmit()}
+            disabled={submitting || !observation.trim()}
+            className="btn primary"
+          >
+            {submitting ? "Saving…" : "save interaction →"}
+          </button>
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Field label="Observation" required>
-          <textarea
-            value={observation}
-            onChange={(e) => setObservation(e.target.value)}
-            required
-            rows={3}
-            autoFocus
-            placeholder="What happened or what did you notice?"
-            className={inputClass}
-          />
-        </Field>
+      <form onSubmit={handleSubmit} onKeyDown={onKeyDown}>
+        <div className="capture-grid">
+          {/* Left column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <Field label="Context">
-          <input
-            type="text"
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            placeholder="Where, when, setting"
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="Outcome">
-          <input
-            type="text"
-            value={outcome}
-            onChange={(e) => setOutcome(e.target.value)}
-            placeholder="Result or follow-up"
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label={`Confidence — ${Math.round(confidence * 100)}%`}>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(confidence * 100)}
-            onChange={(e) => setConfidence(Number(e.target.value) / 100)}
-            className="w-full accent-canopy-accent"
-          />
-        </Field>
-
-        {people.length > 0 && (
-          <Field label="Participants">
-            <div className="flex flex-wrap gap-2">
-              {people.map((person) => {
-                const selected = participantIds.includes(person.id);
-                return (
-                  <button
-                    key={person.id}
-                    type="button"
-                    onClick={() => toggleParticipant(person.id)}
-                    className={`rounded border px-3 py-1 text-sm transition-colors ${
-                      selected
-                        ? "border-canopy-accent bg-canopy-accentDim/40 text-canopy-text"
-                        : "border-canopy-border text-canopy-muted hover:border-canopy-muted"
-                    }`}
-                  >
-                    {person.name}
-                  </button>
-                );
-              })}
+            {/* With whom */}
+            <div className="field">
+              <div className="field-label">With whom</div>
+              <div className="person-pick">
+                {people.map((person) => {
+                  const on = participantIds.includes(person.id);
+                  return (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onClick={() => toggleParticipant(person.id)}
+                      className={`chip ${on ? "on" : ""}`}
+                    >
+                      {!on && (
+                        <span
+                          style={{
+                            width: 18, height: 18, borderRadius: "50%",
+                            background: "var(--accent-soft)", color: "var(--accent)",
+                            display: "grid", placeItems: "center",
+                            fontSize: 9, fontWeight: 600, flexShrink: 0,
+                          }}
+                        >
+                          {initials(person.name)}
+                        </span>
+                      )}
+                      {person.name}
+                    </button>
+                  );
+                })}
+                <span className="chip add">+ new person</span>
+              </div>
             </div>
-          </Field>
-        )}
 
-        <Field label="Tags">
-          <input
-            type="text"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="work, follow-up (comma-separated)"
-            className={inputClass}
-          />
-        </Field>
+            {/* Kind */}
+            <div className="field">
+              <div className="field-label">Kind</div>
+              <div className="kind-grid">
+                {KINDS.map((k) => (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => setSelectedKind(k.id)}
+                    className={`kind-btn ${selectedKind === k.id ? "on" : ""}`}
+                  >
+                    <span style={{ fontSize: 16 }}>{k.icon}</span>
+                    <b>{k.label}</b>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+            {/* Note */}
+            <div className="field">
+              <div className="field-label">Note</div>
+              <textarea
+                value={observation}
+                onChange={(e) => setObservation(e.target.value)}
+                required
+                autoFocus
+                placeholder="What happened? What did you notice?"
+                className="textarea"
+                style={{ minHeight: 120 }}
+              />
+            </div>
 
-        <button
-          type="submit"
-          disabled={submitting || !observation.trim()}
-          className="w-full rounded-lg bg-canopy-accent px-4 py-2.5 text-sm font-medium text-canopy-bg transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting ? "Saving…" : "Save interaction"}
-        </button>
+            {/* Tags */}
+            <div className="field">
+              <div className="field-label">Tags</div>
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="follow-up, work (comma-separated)"
+                className="input"
+              />
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* When */}
+            <div className="field">
+              <div className="field-label">When</div>
+              <div
+                className="input"
+                style={{ color: "var(--fg-mute)", fontFamily: "var(--font-mono)", fontSize: 13 }}
+              >
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "short", month: "short", day: "numeric",
+                  hour: "2-digit", minute: "2-digit",
+                })}
+              </div>
+            </div>
+
+            {/* Context */}
+            <div className="field">
+              <div className="field-label">Context</div>
+              <input
+                type="text"
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="Where, setting, circumstance"
+                className="input"
+              />
+            </div>
+
+            {/* Confidence / energy */}
+            <div className="field">
+              <div className="field-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Confidence</span>
+                <span style={{ color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                  {confidencePct}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={confidencePct}
+                onChange={(e) => setConfidence(Number(e.target.value) / 100)}
+                className="slider"
+                style={{
+                  backgroundImage: `linear-gradient(var(--accent), var(--accent))`,
+                  backgroundSize: `${confidencePct}% 100%`,
+                  backgroundRepeat: "no-repeat",
+                }}
+              />
+            </div>
+
+            {error && (
+              <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting || !observation.trim()}
+              className="btn primary"
+              style={{ marginTop: "auto" }}
+            >
+              {submitting ? "Saving…" : "Save interaction →"}
+            </button>
+            <p style={{ fontSize: 11, color: "var(--fg-faint)", textAlign: "center" }}>
+              or <span style={{ fontFamily: "var(--font-mono)" }}>⌘ Enter</span> from anywhere
+            </p>
+          </div>
+        </div>
       </form>
-    </div>
+    </>
   );
 }
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm text-canopy-muted">
-        {label}
-        {required && <span className="text-canopy-accent"> *</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass =
-  "w-full rounded-lg border border-canopy-border bg-canopy-surface px-3 py-2 text-sm text-canopy-text placeholder:text-canopy-muted/60 focus:border-canopy-accent focus:outline-none";

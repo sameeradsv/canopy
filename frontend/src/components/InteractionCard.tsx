@@ -1,62 +1,40 @@
 import type { Interaction } from "@/lib/api";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short", day: "numeric", year: "numeric",
   });
+}
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 export function InteractionCard({ interaction }: { interaction: Interaction }) {
-  const confidencePct = Math.round(interaction.confidence * 100);
-
   return (
-    <article className="rounded-lg border border-canopy-border bg-canopy-surface p-4">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-canopy-muted">
-        <time dateTime={interaction.occurred_at}>
-          {formatDate(interaction.occurred_at)}
-        </time>
-        <span className="text-canopy-border">·</span>
-        <span>{confidencePct}% confidence</span>
+    <div className="tl-item">
+      <div className="tl-time">
+        <div>{formatDate(interaction.occurred_at)}</div>
+        <div style={{ marginTop: 2, opacity: 0.7 }}>{formatTime(interaction.occurred_at)}</div>
       </div>
-
-      {interaction.participants.length > 0 && (
-        <p className="mb-2 text-sm text-canopy-accent">
-          {interaction.participants.map((p) => p.name).join(", ")}
-        </p>
-      )}
-
-      <p className="text-canopy-text">{interaction.observation}</p>
-
-      {interaction.context && (
-        <p className="mt-2 text-sm text-canopy-muted">
-          <span className="text-canopy-border">Context: </span>
-          {interaction.context}
-        </p>
-      )}
-
-      {interaction.outcome && (
-        <p className="mt-1 text-sm text-canopy-muted">
-          <span className="text-canopy-border">Outcome: </span>
-          {interaction.outcome}
-        </p>
-      )}
-
-      {interaction.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {interaction.tags.map((tag) => (
-            <span
-              key={tag.id}
-              className="rounded bg-canopy-accentDim/30 px-2 py-0.5 text-xs text-canopy-muted"
-            >
-              {tag.name}
+      <div className="tl-body">
+        {interaction.participants.length > 0 && (
+          <div className="who">
+            {interaction.participants.map((p) => <b key={p.id}>{p.name}</b>)}
+            <span style={{ fontSize: 11, color: "var(--fg-faint)" }}>
+              · {Math.round(interaction.confidence * 100)}%
             </span>
-          ))}
-        </div>
-      )}
-    </article>
+          </div>
+        )}
+        <div className="note">{interaction.observation}</div>
+        {interaction.context && (
+          <div style={{ marginTop: 6, fontSize: 13, color: "var(--fg-mute)" }}>{interaction.context}</div>
+        )}
+        {interaction.tags.length > 0 && (
+          <div className="tags">
+            {interaction.tags.map((t) => <span key={t.id} className="tag">{t.name}</span>)}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

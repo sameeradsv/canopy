@@ -17,6 +17,10 @@ interface PersonRow {
   interaction_count: number;
 }
 
+function initials(name: string) {
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
 export default function PeoplePage() {
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [defaults, setDefaults] = useState<RelationshipDefaults | null>(null);
@@ -25,13 +29,11 @@ export default function PeoplePage() {
   const [notes, setNotes] = useState("");
   const [notesTouched, setNotesTouched] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function applyRelationshipDefault(
-    rel: RelationshipType,
-    source: RelationshipDefaults | null
-  ) {
+  function applyRelationshipDefault(rel: RelationshipType, source: RelationshipDefaults | null) {
     const fromApi = source?.defaults[rel]?.notes;
     const fallback = FALLBACK_DEFAULTS[rel].notes;
     setNotes(fromApi ?? fallback);
@@ -67,18 +69,14 @@ export default function PeoplePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-
     setSubmitting(true);
     setError(null);
     try {
-      await api.createPerson({
-        name: name.trim(),
-        relationship,
-        notes: notes.trim() || undefined,
-      });
+      await api.createPerson({ name: name.trim(), relationship, notes: notes.trim() || undefined });
       setName("");
       setRelationship("colleague");
       setNotesTouched(false);
+      setShowForm(false);
       applyRelationshipDefault("colleague", defaults);
       await load();
     } catch (err) {
@@ -89,89 +87,102 @@ export default function PeoplePage() {
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-medium text-canopy-text">People</h1>
-        <p className="mt-1 text-sm text-canopy-muted">
-          Entities you interact with — choose a relationship for contextual
-          defaults you can edit.
-        </p>
-      </header>
-
-      <form onSubmit={handleSubmit} className="panel space-y-3 p-4">
-        <h2 className="text-sm font-medium text-canopy-muted">Add person</h2>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
-          required
-          className={inputClass}
-        />
-        <select
-          value={relationship}
-          onChange={(e) => onRelationshipChange(e.target.value as RelationshipType)}
-          className={inputClass}
-        >
-          {RELATIONSHIP_TYPES.map((rel) => (
-            <option key={rel} value={rel}>
-              {RELATIONSHIP_LABELS[rel]}
-            </option>
-          ))}
-        </select>
-        <textarea
-          value={notes}
-          onChange={(e) => {
-            setNotes(e.target.value);
-            setNotesTouched(true);
-          }}
-          placeholder="Notes (prefilled from relationship — edit freely)"
-          rows={2}
-          className={inputClass}
-        />
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting || !name.trim()}
-          className="rounded-lg bg-canopy-accent px-4 py-2 text-sm font-medium text-canopy-bg disabled:opacity-50"
-        >
-          {submitting ? "Adding…" : "Add person"}
+    <>
+      <div className="page-header">
+        <div>
+          <div className="kicker" style={{ marginBottom: 10 }}>People · /people</div>
+          <h1 className="page-title">The <em>people.</em></h1>
+          <p className="page-sub">Everyone you interact with — with context and history.</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="btn primary">
+          {showForm ? "cancel" : "+ Add person"}
         </button>
-      </form>
+      </div>
+
+      {/* Add person form */}
+      {showForm && (
+        <div className="card" style={{ marginBottom: "var(--pad-6)", maxWidth: 500 }}>
+          <div className="kicker" style={{ marginBottom: 14 }}>New person</div>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="field">
+              <div className="field-label">Name</div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                required
+                autoFocus
+                className="input"
+              />
+            </div>
+            <div className="field">
+              <div className="field-label">Relationship</div>
+              <select
+                value={relationship}
+                onChange={(e) => onRelationshipChange(e.target.value as RelationshipType)}
+                className="select"
+              >
+                {RELATIONSHIP_TYPES.map((rel) => (
+                  <option key={rel} value={rel}>{RELATIONSHIP_LABELS[rel]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <div className="field-label">Notes</div>
+              <textarea
+                value={notes}
+                onChange={(e) => { setNotes(e.target.value); setNotesTouched(true); }}
+                placeholder="Context about this person"
+                rows={2}
+                className="textarea"
+                style={{ minHeight: 60 }}
+              />
+            </div>
+            {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting || !name.trim()}
+              className="btn primary"
+            >
+              {submitting ? "Adding…" : "Add person"}
+            </button>
+          </form>
+        </div>
+      )}
 
       {loading ? (
-        <p className="text-sm text-canopy-muted">Loading…</p>
+        <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>Loading…</p>
       ) : people.length === 0 ? (
-        <p className="text-sm text-canopy-muted">No people yet.</p>
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>No people yet.</p>
+          <button onClick={() => setShowForm(true)} className="btn primary">Add your first person</button>
+        </div>
       ) : (
-        <ul className="panel divide-y divide-canopy-border">
+        <div className="people-grid">
           {people.map((person) => (
-            <li
-              key={person.id}
-              className="flex items-start justify-between gap-4 px-4 py-3"
-            >
-              <div>
-                <p className="font-medium text-canopy-text">{person.name}</p>
-                {person.relationship && (
-                  <p className="mt-0.5 text-xs capitalize text-canopy-accent">
-                    {person.relationship}
-                  </p>
-                )}
-                {person.notes && (
-                  <p className="mt-0.5 text-sm text-canopy-muted">{person.notes}</p>
-                )}
+            <div key={person.id} className="person-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="avatar big">{initials(person.name)}</div>
+                <div>
+                  <div className="p-name">{person.name}</div>
+                  {person.relationship && (
+                    <div className="p-rel">{person.relationship}</div>
+                  )}
+                </div>
               </div>
-              <span className="shrink-0 text-xs text-canopy-muted">
-                {person.interaction_count} interaction
-                {person.interaction_count === 1 ? "" : "s"}
-              </span>
-            </li>
+              {person.notes && (
+                <div className="p-notes" style={{ lineClamp: 2, overflow: "hidden" }}>
+                  {person.notes.length > 100 ? person.notes.slice(0, 100) + "…" : person.notes}
+                </div>
+              )}
+              <div className="p-count">
+                {person.interaction_count} interaction{person.interaction_count === 1 ? "" : "s"}
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </div>
+    </>
   );
 }
-
-const inputClass =
-  "w-full rounded-lg border border-canopy-border bg-canopy-bg px-3 py-2 text-sm text-canopy-text placeholder:text-canopy-muted/60 focus:border-canopy-accent focus:outline-none";

@@ -16,16 +16,12 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect already-authenticated users to their account page
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/account");
-    }
+    if (!loading && user) router.replace("/account");
   }, [user, loading, router]);
 
   useEffect(() => {
-    api
-      .authStatus()
+    api.authStatus()
       .then((status) => {
         setHasUsers(status.has_users);
         setMode(status.has_users ? "login" : "register");
@@ -38,10 +34,9 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const result =
-        mode === "register"
-          ? await api.register(username.trim(), password)
-          : await api.login(username.trim(), password);
+      const result = mode === "register"
+        ? await api.register(username.trim(), password)
+        : await api.login(username.trim(), password);
       setAuthToken(result.token);
       await refetch();
       router.push("/account");
@@ -55,73 +50,86 @@ export default function LoginPage() {
   if (loading || user) return null;
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <header>
-        <h1 className="text-2xl font-medium text-canopy-text">Sign in</h1>
-        <p className="mt-1 text-sm text-canopy-muted">
-          Your account keeps data private and enables cross-device sync via
-          the hosted backend. Credentials are hashed and never stored in plain text.
-        </p>
-      </header>
+    <div className="login-wrap">
+      {/* Form side */}
+      <div className="login-side">
+        {/* Brand */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48 }}>
+            <div className="brand-mark" style={{ width: 28, height: 28, fontSize: 16 }}>C</div>
+            <div className="brand-name" style={{ fontSize: 18 }}>Canop<em>y</em></div>
+          </div>
 
-      <form onSubmit={handleSubmit} className="panel space-y-4 p-5">
-        {hasUsers === null ? (
-          <p className="text-sm text-canopy-muted">Checking status…</p>
-        ) : (
-          <>
-            <p className="text-xs text-canopy-muted">
-              {mode === "register"
-                ? hasUsers
-                  ? "Create a new account on this instance."
-                  : "Create the first account on this instance."
-                : "Sign in to continue."}
-            </p>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
-              required
-              autoComplete="username"
-              className={inputClass}
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password or passcode (min 6 characters)"
-              required
-              minLength={6}
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-              className={inputClass}
-            />
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-canopy-accent px-4 py-2 text-sm font-medium text-canopy-bg disabled:opacity-50"
-            >
-              {submitting
-                ? "Please wait…"
-                : mode === "register"
-                  ? "Create account"
-                  : "Sign in"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode(mode === "login" ? "register" : "login")}
-              className="w-full text-center text-xs text-canopy-muted hover:text-canopy-text"
-            >
-              {mode === "login"
-                ? "Need an account? Register"
-                : "Already have an account? Sign in"}
-            </button>
-          </>
-        )}
-      </form>
+          <div className="kicker" style={{ marginBottom: 10 }}>
+            {mode === "register" ? "Create account" : "Sign in"}
+          </div>
+          <h1 style={{ fontSize: 32, marginBottom: 8 }}>
+            {mode === "register" ? <>Welcome <em>aboard.</em></> : <>Good to <em>see you.</em></>}
+          </h1>
+          <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: 40 + "ch" }}>
+            {mode === "register"
+              ? "Create an account to keep your data private and enable sync."
+              : "Sign in to continue to your workspace."}
+          </p>
+
+          {hasUsers === null ? (
+            <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>Checking…</p>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="field">
+                <div className="field-label">Username</div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="your username"
+                  required
+                  autoComplete="username"
+                  autoFocus
+                  className="input"
+                />
+              </div>
+              <div className="field">
+                <div className="field-label">Password</div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="min 6 characters"
+                  required
+                  minLength={6}
+                  autoComplete={mode === "register" ? "new-password" : "current-password"}
+                  className="input"
+                />
+              </div>
+              {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
+              <button type="submit" disabled={submitting} className="btn primary" style={{ marginTop: 8 }}>
+                {submitting ? "Please wait…" : mode === "register" ? "Create account →" : "Sign in →"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode(mode === "login" ? "register" : "login")}
+                className="btn ghost"
+                style={{ justifyContent: "center", fontSize: 12 }}
+              >
+                {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
+              </button>
+            </form>
+          )}
+        </div>
+
+        <p style={{ fontSize: 11, color: "var(--fg-faint)", fontFamily: "var(--font-mono)" }}>
+          Credentials are hashed and never stored in plain text.
+        </p>
+      </div>
+
+      {/* Art side */}
+      <div className="login-art">
+        <div className="quote">
+          &ldquo;The quality of your life is the quality of your relationships.&rdquo;
+          <div className="quote-attr">— Tony Robbins</div>
+        </div>
+      </div>
     </div>
   );
 }
-
-const inputClass =
-  "w-full rounded-lg border border-canopy-border bg-canopy-bg px-3 py-2 text-sm text-canopy-text placeholder:text-canopy-muted/60 focus:border-canopy-accent focus:outline-none";
