@@ -8,11 +8,11 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Canopy",
     short_name: "Canopy",
-    description: "Local-first contextual memory",
+    description: "A quiet planner for people & intent",
     start_url: base + "/",
     display: "standalone",
-    background_color: "#0f1412",
-    theme_color: "#0f1412",
+    background_color: "#f5efe2",
+    theme_color: "#f5efe2",
     orientation: "portrait-primary",
     icons: [
       {
@@ -34,7 +34,7 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: base + "/icons/icon-512x512.png",
+        src: base + "/icons/icon-512x512-maskable.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
