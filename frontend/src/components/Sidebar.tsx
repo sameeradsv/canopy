@@ -4,8 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 
-type Theme = "paper" | "slate" | "ink";
-
 const NAV = [
   { href: "/",           label: "Dashboard",  section: "today", kbd: "1" },
   { href: "/capture",    label: "Capture",    section: "today", kbd: "2" },
@@ -14,6 +12,7 @@ const NAV = [
   { href: "/tasks",      label: "Tasks",      section: "plan",  kbd: "5" },
   { href: "/dimensions", label: "Dimensions", section: "plan",  kbd: "6" },
   { href: "/search",     label: "Search",     section: "meta",  kbd: "K" },
+  { href: "/settings",   label: "Settings",   section: "meta",  kbd: "," },
 ];
 
 const SECTIONS = [
@@ -22,16 +21,6 @@ const SECTIONS = [
   { id: "plan",  label: "Plan" },
   { id: "meta",  label: "Meta" },
 ];
-
-const THEMES: Theme[] = ["paper", "slate", "ink"];
-
-function cycleTheme() {
-  const current = (document.documentElement.getAttribute("data-theme") ?? "paper") as Theme;
-  const idx = THEMES.indexOf(current);
-  const next = THEMES[(idx + 1) % THEMES.length];
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem("canopy.theme", next);
-}
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -73,14 +62,9 @@ export function Sidebar() {
             <div className="avatar" title={user.username}>{initials(user.username)}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="user-name">{user.username}</div>
-              <button
-                onClick={cycleTheme}
-                className="user-mail"
-                style={{ background: "none", border: "none", padding: 0, cursor: "default" }}
-                title="Click to cycle theme"
-              >
-                theme ·
-              </button>
+              <Link href="/settings" className="user-mail" style={{ textDecoration: "none" }}>
+                settings
+              </Link>
             </div>
             <button
               onClick={logout}

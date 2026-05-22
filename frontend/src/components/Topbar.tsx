@@ -12,16 +12,19 @@ const LABELS: Record<string, string> = {
   "/dimensions": "dimensions",
   "/search":     "search",
   "/account":    "account",
+  "/settings":   "settings",
 };
 
 export function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const label = LABELS[pathname] ?? pathname.replace("/", "");
+  // Strip trailing slash (Next.js trailingSlash:true adds it on GitHub Pages)
+  const clean = pathname.replace(/\/$/, "") || "/";
+  const label = LABELS[clean] ?? clean.replace(/^\//, "");
 
   return (
     <div className="topbar">
-      <span className="crumb">canopy · {label} · {pathname}</span>
+      <span className="crumb">canopy · {label} · {clean}</span>
       <div className="grow" />
       <button
         className="topbar-search"

@@ -35,6 +35,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
       const map: Record<string, string> = {
         "1": "/", "2": "/capture", "3": "/timeline",
         "4": "/people", "5": "/tasks", "6": "/dimensions",
+        ",": "/settings",
       };
       if (map[e.key]) router.push(map[e.key]);
     }
