@@ -1,6 +1,7 @@
 /**
  * Generates PWA icons from a programmatic SVG design.
- * The icon is a bold geometric "C" arc on a cream (paper-theme) background.
+ * The icon is a tree-canopy mark: three concentric upper-semicircle arcs
+ * (foliage layers) above a short trunk, on a cream (paper-theme) background.
  * Run via: npm run icons
  */
 import { mkdir, writeFile, copyFile } from "node:fs/promises";
@@ -21,48 +22,52 @@ const LINE = "#d6cdbc";   // oklch(0.86 0.012 70)
  *
  * Design:
  *  - Cream background rectangle (rounded for standard, full-bleed for maskable)
- *  - A bold arc forming the letter "C", opening to the right
+ *  - Three concentric upper-semicircle arcs (canopy foliage layers)
+ *  - A short rounded-rectangle trunk below the arcs
  *  - Thin border line (standard only)
  *
- * The "C" arc:
- *  - Radius = 27.4% of size (≈ 140 @ 512px)
- *  - Stroke width = 13.3% of size (≈ 68 @ 512px)
- *  - Opening: ±40° from the right-most point (leaving 280° of arc)
+ * Geometry (all values relative to `size`):
+ *  - Arc junction Y: 58% down (where arcs meet the trunk)
+ *  - Arc radii: 13%, 24%, 35% of size (innermost → outermost)
+ *  - Arc stroke: 6% of size
+ *  - Trunk: 7.5% wide × 18% tall, starting at the arc junction
  */
 function buildSVG(size, { maskable = false } = {}) {
   const cx = size / 2;
-  const cy = size / 2;
 
-  // Arc geometry
-  const r  = size * 0.274;          // arc radius
-  const sw = size * 0.133;          // stroke width
+  // Arcs: concentric upper-semicircles sharing this Y as their flat base
+  const arcCY  = size * 0.58;
+  const radii  = [size * 0.13, size * 0.24, size * 0.35];
+  const sw     = Math.max(1, size * 0.06);
 
-  // Opening half-angle in degrees (gap = 2 × gap°)
-  const gapDeg = 40;
-  const gapRad = (gapDeg * Math.PI) / 180;
+  // Trunk below the arcs
+  const trunkW = size * 0.075;
+  const trunkH = size * 0.18;
+  const trunkR = trunkW * 0.3;
 
-  // Start point: upper-right edge of the opening
-  const x1 = cx + r * Math.cos(-gapRad);
-  const y1 = cy + r * Math.sin(-gapRad);
-
-  // End point: lower-right edge of the opening
-  const x2 = cx + r * Math.cos(gapRad);
-  const y2 = cy + r * Math.sin(gapRad);
-
-  // SVG arc: large-arc-flag=1, sweep-flag=0 → 280° counter-clockwise = body on the left
-  const arcPath = `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${r.toFixed(2)},${r.toFixed(2)},0,1,0,${x2.toFixed(2)},${y2.toFixed(2)}`;
-
-  const rr = maskable ? 0 : Math.round(size * 0.1875);  // ≈ 96 @ 512px
+  const rr = maskable ? 0 : Math.round(size * 0.1875);
   const borderW = Math.max(1, Math.round(size * 0.004));
 
   const border = maskable
     ? ""
     : `<rect width="${size}" height="${size}" rx="${rr}" fill="none" stroke="${LINE}" stroke-width="${borderW}"/>`;
 
+  // Each arc: M (cx-r, arcCY) A r,r,0,0,1 (cx+r, arcCY)  → upper half-circle
+  const arcs = radii.map(r => {
+    const x1 = (cx - r).toFixed(2);
+    const x2 = (cx + r).toFixed(2);
+    const cy  = arcCY.toFixed(2);
+    return `<path d="M ${x1},${cy} A ${r.toFixed(2)},${r.toFixed(2)},0,0,1,${x2},${cy}" fill="none" stroke="${FG}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round"/>`;
+  }).join("\n  ");
+
+  const tx = (cx - trunkW / 2).toFixed(2);
+  const trunk = `<rect x="${tx}" y="${arcCY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${FG}"/>`;
+
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
   <rect width="${size}" height="${size}" rx="${rr}" fill="${BG}"/>
   ${border}
-  <path d="${arcPath}" fill="none" stroke="${FG}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round"/>
+  ${arcs}
+  ${trunk}
 </svg>`;
 }
 
