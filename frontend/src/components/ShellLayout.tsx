@@ -2,14 +2,25 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-
-const NO_SHELL = ["/login"];
 
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, loading } = useAuth();
+
+  // Normalize trailing slash (GitHub Pages trailingSlash:true adds it)
+  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  const isLoginPage = normalizedPath === "/login";
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!loading && !user && !isLoginPage) {
+      router.replace("/login");
+    }
+  }, [loading, user, isLoginPage, router]);
 
   // ⌘K → search, 1-6 keyboard shortcuts
   useEffect(() => {
@@ -31,8 +42,13 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  if (NO_SHELL.includes(pathname)) {
+  if (isLoginPage) {
     return <>{children}</>;
+  }
+
+  // Show nothing while auth resolves or redirect is in-flight
+  if (loading || !user) {
+    return null;
   }
 
   return (
