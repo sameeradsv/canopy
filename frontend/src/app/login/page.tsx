@@ -82,6 +82,7 @@ export default function LoginPage() {
                 cortexApiBase={CORTEX_URL}
                 tokenKey="canopy_auth_token"
                 appName="Canopy"
+                showHeader={false}
                 onSuccess={async () => {
                   await refetch();
                   router.push("/account");
