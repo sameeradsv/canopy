@@ -46,7 +46,7 @@ export default function SearchPage() {
     <>
       <div className="page-header" style={{ marginBottom: "var(--pad-5)" }}>
         <div>
-          <div className="kicker" style={{ marginBottom: 10 }}>Search · /search</div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Search</div>
           <h1 className="page-title">What are you <em>looking for?</em></h1>
         </div>
       </div>
@@ -61,7 +61,6 @@ export default function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search people, interactions, notes…"
           />
-          <span className="shot">⌘K</span>
           {loading && (
             <span style={{ color: "var(--fg-faint)", fontSize: 12, fontFamily: "var(--font-mono)" }}>…</span>
           )}

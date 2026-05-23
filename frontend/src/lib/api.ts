@@ -20,6 +20,7 @@ export interface Interaction {
   observation: string;
   outcome: string | null;
   confidence: number;
+  energy: number | null;
   created_at: string;
   updated_at: string;
   participants: Person[];
@@ -45,6 +46,7 @@ export interface InteractionCreate {
   context?: string | null;
   outcome?: string | null;
   confidence?: number;
+  energy?: number | null;
   participant_ids?: number[];
   tag_names?: string[];
   occurred_at?: string;
@@ -54,8 +56,15 @@ export interface InteractionUpdate {
   observation?: string;
   context?: string | null;
   confidence?: number;
+  energy?: number | null;
   occurred_at?: string;
   tag_names?: string[];
+}
+
+export interface PersonUpdate {
+  name?: string;
+  relationship?: string | null;
+  notes?: string | null;
 }
 
 export interface PersonCreate {
@@ -145,6 +154,15 @@ export const api = {
 
   deleteInteraction: (id: number) =>
     request<void>(`/api/interactions/${id}`, { method: "DELETE" }),
+
+  updatePerson: (id: number, data: PersonUpdate) =>
+    request<Person>(`/api/people/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deletePerson: (id: number) =>
+    request<void>(`/api/people/${id}`, { method: "DELETE" }),
 
   search: (q: string) =>
     request<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),

@@ -52,6 +52,10 @@ def _migrate_sqlite() -> None:
                         f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)"
                     )
 
+        if "interactions" in tables:
+            if "energy" not in _sqlite_column_names(conn, "interactions"):
+                conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN energy REAL")
+
 
 def _migrate_postgres() -> None:
     if not settings.database_url.startswith(("postgresql", "postgres")):
@@ -64,13 +68,18 @@ def _migrate_postgres() -> None:
         if "users" not in tables:
             return
 
-        existing = {c["name"] for c in inspector.get_columns("users")}
-        if "cortex_user_id" not in existing:
+        existing_users = {c["name"] for c in inspector.get_columns("users")}
+        if "cortex_user_id" not in existing_users:
             conn.execute(text("ALTER TABLE users ADD COLUMN cortex_user_id INTEGER"))
             conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_cortex_user_id "
                 "ON users (cortex_user_id)"
             ))
+
+        if "interactions" in tables:
+            existing_ix = {c["name"] for c in inspector.get_columns("interactions")}
+            if "energy" not in existing_ix:
+                conn.execute(text("ALTER TABLE interactions ADD COLUMN energy FLOAT"))
 
 
 def init_db() -> None:

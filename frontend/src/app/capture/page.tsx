@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
@@ -7,7 +8,7 @@ import { api, type Person } from "@/lib/api";
 const KINDS = [
   { id: "meeting",    label: "Meeting",  icon: "◧" },
   { id: "call",       label: "Call",     icon: "◌" },
-  { id: "message",    label: "Message",  icon: "⌘" },
+  { id: "message",    label: "Message",  icon: "✉" },
   { id: "meal",       label: "Meal",     icon: "◇" },
   { id: "walk",       label: "Walk",     icon: "⌒" },
   { id: "one-on-one", label: "1:1",      icon: "◉" },
@@ -44,6 +45,7 @@ export default function CapturePage() {
   const [selectedKind, setSelectedKind] = useState<string>("meeting");
   const [tagsInput, setTagsInput] = useState("");
   const [occurredAt, setOccurredAt] = useState(nowDatetimeLocal);
+  const [energy, setEnergy] = useState(50);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +74,7 @@ export default function CapturePage() {
         observation: observation.trim(),
         context: context.trim() || undefined,
         confidence,
+        energy: energy / 100,
         participant_ids: participantIds,
         tag_names,
         occurred_at: new Date(occurredAt).toISOString(),
@@ -146,7 +149,7 @@ export default function CapturePage() {
                     </button>
                   );
                 })}
-                <span className="chip add">+ new person</span>
+                <Link href="/people" className="chip add">+ new person</Link>
               </div>
             </div>
 
@@ -243,18 +246,32 @@ export default function CapturePage() {
                 </span>
               </div>
               <input
-                type="range"
-                min={0}
-                max={100}
-                value={confidencePct}
+                type="range" min={0} max={100} value={confidencePct}
                 onChange={(e) => setConfidence(Number(e.target.value) / 100)}
                 className="slider"
-                style={{
-                  backgroundImage: `linear-gradient(var(--accent), var(--accent))`,
-                  backgroundSize: `${confidencePct}% 100%`,
-                  backgroundRepeat: "no-repeat",
-                }}
+                style={{ backgroundImage: `linear-gradient(var(--accent), var(--accent))`, backgroundSize: `${confidencePct}% 100%`, backgroundRepeat: "no-repeat" }}
               />
+            </div>
+
+            <div className="field">
+              <div className="field-label" style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>
+                  Energy
+                  <Tip text="How energising or draining was this interaction? Left = draining, right = energising. Used to track your daily battery." />
+                </span>
+                <span style={{ color: energy < 35 ? "var(--danger)" : energy > 65 ? "var(--good)" : "var(--fg-mute)", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+                  {energy < 35 ? "draining" : energy > 65 ? "energising" : "neutral"}
+                </span>
+              </div>
+              <input
+                type="range" min={0} max={100} value={energy}
+                onChange={(e) => setEnergy(Number(e.target.value))}
+                className="slider"
+                style={{ backgroundImage: `linear-gradient(var(--accent), var(--accent))`, backgroundSize: `${energy}% 100%`, backgroundRepeat: "no-repeat" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--fg-faint)", marginTop: 2 }}>
+                <span>draining</span><span>energising</span>
+              </div>
             </div>
 
             {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
