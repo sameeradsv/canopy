@@ -56,7 +56,10 @@ export default function LoginPage() {
         {/* Brand */}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48 }}>
-            <div className="brand-mark" style={{ width: 28, height: 28, fontSize: 16 }}>C</div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width={28} height={28} style={{ display: "block" }}>
+              <path d="M 44 56 C 42 66 38 76 34 88 L 66 88 C 62 76 58 66 56 56 Z" fill="#7a4015" />
+              <path d="M 6 36 C 6 24 12 12 22 10 C 27 6 34 10 37 18 C 39 9 43 5 50 5 C 57 5 61 9 63 18 C 66 10 73 6 78 10 C 88 12 94 24 94 36 C 94 50 82 60 68 65 C 62 68 56 65 54 60 L 50 59 L 46 60 C 44 65 38 68 32 65 C 18 60 6 50 6 36 Z" fill="#2d7040" />
+            </svg>
             <div className="brand-name" style={{ fontSize: 18 }}>Canop<em>y</em></div>
           </div>
 
