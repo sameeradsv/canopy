@@ -47,6 +47,7 @@ export interface InteractionCreate {
   confidence?: number;
   participant_ids?: number[];
   tag_names?: string[];
+  occurred_at?: string;
 }
 
 export interface PersonCreate {

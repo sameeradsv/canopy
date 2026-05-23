@@ -5,16 +5,33 @@ import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
 
 const KINDS = [
-  { id: "meeting",  label: "Meeting",  icon: "◧" },
-  { id: "call",     label: "Call",     icon: "◌" },
-  { id: "message",  label: "Message",  icon: "⌘" },
-  { id: "meal",     label: "Meal",     icon: "◇" },
-  { id: "walk",     label: "Walk",     icon: "⌒" },
-  { id: "one-on-one", label: "1:1",   icon: "◉" },
+  { id: "meeting",    label: "Meeting",  icon: "◧" },
+  { id: "call",       label: "Call",     icon: "◌" },
+  { id: "message",    label: "Message",  icon: "⌘" },
+  { id: "meal",       label: "Meal",     icon: "◇" },
+  { id: "walk",       label: "Walk",     icon: "⌒" },
+  { id: "one-on-one", label: "1:1",      icon: "◉" },
 ];
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function nowDatetimeLocal(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function Tip({ text }: { text: string }) {
+  return (
+    <span
+      title={text}
+      style={{ cursor: "help", marginLeft: 4, opacity: 0.4, fontSize: 10, userSelect: "none" }}
+    >
+      ⓘ
+    </span>
+  );
 }
 
 export default function CapturePage() {
@@ -26,6 +43,7 @@ export default function CapturePage() {
   const [participantIds, setParticipantIds] = useState<number[]>([]);
   const [selectedKind, setSelectedKind] = useState<string>("meeting");
   const [tagsInput, setTagsInput] = useState("");
+  const [occurredAt, setOccurredAt] = useState(nowDatetimeLocal);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +74,7 @@ export default function CapturePage() {
         confidence,
         participant_ids: participantIds,
         tag_names,
+        occurred_at: new Date(occurredAt).toISOString(),
       });
       router.push("/timeline");
     } catch (err) {
@@ -64,7 +83,6 @@ export default function CapturePage() {
     }
   }
 
-  // Cmd+Enter to submit
   function onKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
@@ -78,7 +96,7 @@ export default function CapturePage() {
     <>
       <div className="page-header">
         <div>
-          <div className="kicker" style={{ marginBottom: 10 }}>Capture · /capture</div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Capture</div>
           <h1 className="page-title">Log <em>an</em> interaction.</h1>
           <p className="page-sub">Write it down before the day moves on.</p>
         </div>
@@ -99,9 +117,11 @@ export default function CapturePage() {
           {/* Left column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-            {/* With whom */}
             <div className="field">
-              <div className="field-label">With whom</div>
+              <div className="field-label">
+                With whom
+                <Tip text="Select everyone involved. Add new people from the People page first." />
+              </div>
               <div className="person-pick">
                 {people.map((person) => {
                   const on = participantIds.includes(person.id);
@@ -113,14 +133,12 @@ export default function CapturePage() {
                       className={`chip ${on ? "on" : ""}`}
                     >
                       {!on && (
-                        <span
-                          style={{
-                            width: 18, height: 18, borderRadius: "50%",
-                            background: "var(--accent-soft)", color: "var(--accent)",
-                            display: "grid", placeItems: "center",
-                            fontSize: 9, fontWeight: 600, flexShrink: 0,
-                          }}
-                        >
+                        <span style={{
+                          width: 18, height: 18, borderRadius: "50%",
+                          background: "var(--accent-soft)", color: "var(--accent)",
+                          display: "grid", placeItems: "center",
+                          fontSize: 9, fontWeight: 600, flexShrink: 0,
+                        }}>
                           {initials(person.name)}
                         </span>
                       )}
@@ -132,9 +150,11 @@ export default function CapturePage() {
               </div>
             </div>
 
-            {/* Kind */}
             <div className="field">
-              <div className="field-label">Kind</div>
+              <div className="field-label">
+                Kind
+                <Tip text="The type of interaction — saved as a tag for filtering and search." />
+              </div>
               <div className="kind-grid">
                 {KINDS.map((k) => (
                   <button
@@ -150,9 +170,11 @@ export default function CapturePage() {
               </div>
             </div>
 
-            {/* Note */}
             <div className="field">
-              <div className="field-label">Note</div>
+              <div className="field-label">
+                Note
+                <Tip text="What happened? What did you observe or feel? This is the core of the entry." />
+              </div>
               <textarea
                 value={observation}
                 onChange={(e) => setObservation(e.target.value)}
@@ -164,9 +186,11 @@ export default function CapturePage() {
               />
             </div>
 
-            {/* Tags */}
             <div className="field">
-              <div className="field-label">Tags</div>
+              <div className="field-label">
+                Tags
+                <Tip text="Comma-separated labels to categorise and search this interaction later." />
+              </div>
               <input
                 type="text"
                 value={tagsInput}
@@ -180,23 +204,25 @@ export default function CapturePage() {
           {/* Right column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-            {/* When */}
             <div className="field">
-              <div className="field-label">When</div>
-              <div
-                className="input"
-                style={{ color: "var(--fg-mute)", fontFamily: "var(--font-mono)", fontSize: 13 }}
-              >
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: "short", month: "short", day: "numeric",
-                  hour: "2-digit", minute: "2-digit",
-                })}
+              <div className="field-label">
+                When
+                <Tip text="When this interaction took place. Defaults to now — edit to backdate an entry." />
               </div>
+              <input
+                type="datetime-local"
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+                className="input"
+                style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}
+              />
             </div>
 
-            {/* Context */}
             <div className="field">
-              <div className="field-label">Context</div>
+              <div className="field-label">
+                Context
+                <Tip text="Where it happened or what prompted it — e.g. 'office kitchen', 'after standup', 'Slack DM'." />
+              </div>
               <input
                 type="text"
                 value={context}
@@ -206,10 +232,12 @@ export default function CapturePage() {
               />
             </div>
 
-            {/* Confidence / energy */}
             <div className="field">
               <div className="field-label" style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Confidence</span>
+                <span>
+                  Confidence
+                  <Tip text="How accurately you remember this. Keep it low when recalling from hours ago; raise it when writing right after it happened." />
+                </span>
                 <span style={{ color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
                   {confidencePct}%
                 </span>
@@ -229,9 +257,7 @@ export default function CapturePage() {
               />
             </div>
 
-            {error && (
-              <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>
-            )}
+            {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
 
             <button
               type="submit"
@@ -242,7 +268,7 @@ export default function CapturePage() {
               {submitting ? "Saving…" : "Save interaction →"}
             </button>
             <p style={{ fontSize: 11, color: "var(--fg-faint)", textAlign: "center" }}>
-              or <span style={{ fontFamily: "var(--font-mono)" }}>⌘ Enter</span> from anywhere
+              or Ctrl+Enter from anywhere
             </p>
           </div>
         </div>
