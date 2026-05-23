@@ -2,38 +2,91 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 
 const NAV = [
-  { href: "/",           label: "Dashboard",  section: "today", kbd: "1" },
-  { href: "/capture",    label: "Capture",    section: "today", kbd: "2" },
-  { href: "/timeline",   label: "Timeline",   section: "log",   kbd: "3" },
-  { href: "/people",     label: "People",     section: "log",   kbd: "4" },
-  { href: "/tasks",      label: "Tasks",      section: "plan",  kbd: "5" },
-  { href: "/dimensions", label: "Dimensions", section: "plan",  kbd: "6" },
-  { href: "/search",     label: "Search",     section: "meta",  kbd: "K" },
-  { href: "/settings",   label: "Settings",   section: "meta",  kbd: "," },
+  { href: "/",         label: "Dashboard", section: "today", kbd: "1" },
+  { href: "/capture",  label: "Capture",   section: "today", kbd: "2" },
+  { href: "/timeline", label: "Timeline",  section: "log",   kbd: "3" },
+  { href: "/people",   label: "People",    section: "log",   kbd: "4" },
+  { href: "/search",   label: "Search",    section: "meta",  kbd: "K" },
+  { href: "/settings", label: "Settings",  section: "meta",  kbd: "," },
 ];
 
 const SECTIONS = [
   { id: "today", label: "Today" },
   { id: "log",   label: "Log" },
-  { id: "plan",  label: "Plan" },
   { id: "meta",  label: "Meta" },
+];
+
+const THEMES = [
+  { id: "paper", color: "#c26a40", title: "Paper" },
+  { id: "slate", color: "#4a6fa5", title: "Slate" },
+  { id: "ink",   color: "#2a2f3d", title: "Ink" },
 ];
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
+// Inline SVG tree — three overlapping circles (crown) + rounded rect trunk
+function TreeMark({ size = 28 }: { size?: number }) {
+  const cx = size / 2;
+  const circles = [
+    { x: cx,              y: size * 0.41, r: size * 0.22 },
+    { x: cx - size * 0.11, y: size * 0.47, r: size * 0.18 },
+    { x: cx + size * 0.11, y: size * 0.47, r: size * 0.18 },
+  ];
+  const trunkY = circles[0].y + circles[0].r;
+  const trunkW = size * 0.075;
+  const trunkH = size * 0.18;
+  const trunkR = trunkW * 0.3;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox={`0 0 ${size} ${size}`}
+      width={size}
+      height={size}
+      style={{ display: "block" }}
+    >
+      {circles.map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r={c.r} fill="#3d6b4f" />
+      ))}
+      <rect
+        x={cx - trunkW / 2}
+        y={trunkY}
+        width={trunkW}
+        height={trunkH}
+        rx={trunkR}
+        fill="#7a5c3a"
+      />
+    </svg>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [theme, setTheme] = useState<string>("paper");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("canopy.theme") ?? "paper";
+    setTheme(stored);
+  }, []);
+
+  function applyTheme(id: string) {
+    setTheme(id);
+    localStorage.setItem("canopy.theme", id);
+    document.documentElement.setAttribute("data-theme", id);
+  }
 
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">C</div>
+        <div className="brand-mark" style={{ background: "transparent", border: "none", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <TreeMark size={28} />
+        </div>
         <div className="brand-name">Canop<em>y</em></div>
       </div>
 
@@ -55,6 +108,28 @@ export function Sidebar() {
       ))}
 
       <div style={{ flex: 1 }} />
+
+      {/* Theme switcher */}
+      <div style={{ display: "flex", gap: 6, padding: "8px 16px 4px" }}>
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            title={t.title}
+            onClick={() => applyTheme(t.id)}
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              background: t.color,
+              border: theme === t.id ? "2px solid var(--fg)" : "2px solid transparent",
+              cursor: "pointer",
+              padding: 0,
+              outline: "none",
+              boxShadow: theme === t.id ? "0 0 0 1px var(--bg)" : undefined,
+            }}
+          />
+        ))}
+      </div>
 
       <div className="sidebar-foot">
         {user ? (

@@ -10,7 +10,7 @@ from app.database import init_db
 from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
 from app.deps.auth import optional_auth_user
 from app.models import User
-from app.routers import auth, interactions, people, search, sync, tasks
+from app.routers import auth, interactions, people, search, sync
 from app.routers import settings as settings_router
 from app.schemas import RelationshipDefaults
 
@@ -33,7 +33,6 @@ app.include_router(interactions.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
-app.include_router(tasks.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
 
 
@@ -68,11 +67,11 @@ def export_data(_user: Optional[User] = Depends(optional_auth_user)):
 @app.delete("/api/data", status_code=204)
 def delete_all_data(_user: Optional[User] = Depends(optional_auth_user)):
     from app.database import SessionLocal
-    from app.models import AuthSession, Interaction, Person, Setting, Tag, Task, User
+    from app.models import AuthSession, Interaction, Person, Setting, Tag, User
 
     db = SessionLocal()
     try:
-        for model in (Interaction, Person, Tag, Task, Setting, AuthSession, User):
+        for model in (Interaction, Person, Tag, Setting, AuthSession, User):
             for row in db.query(model).all():
                 db.delete(row)
         db.commit()

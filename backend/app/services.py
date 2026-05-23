@@ -6,15 +6,13 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.dimensions_utils import merge_dimension_update, parse_dimensions, serialize_dimensions
-from app.models import Interaction, Person, Tag, Task
+from app.dimensions_utils import parse_dimensions, serialize_dimensions
+from app.models import Interaction, Person, Tag
 from app.schemas import (
     InteractionCreate,
     InteractionUpdate,
     PersonCreate,
     PersonUpdate,
-    TaskCreate,
-    TaskUpdate,
 )
 
 
@@ -263,52 +261,3 @@ def set_setting(db: Session, key: str, value: str, user_id: Optional[int] = None
     return setting
 
 
-def task_to_read(task: Task) -> dict:
-    return {
-        "id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "dimensions": parse_dimensions(task.dimensions_json),
-        "created_at": task.created_at,
-        "updated_at": task.updated_at,
-    }
-
-
-def list_tasks(db: Session, user_id: Optional[int] = None) -> list[Task]:
-    return list(
-        db.scalars(
-            select(Task).where(Task.user_id == user_id).order_by(Task.updated_at.desc())
-        ).all()
-    )
-
-
-def create_task(db: Session, data: TaskCreate, user_id: Optional[int] = None) -> Task:
-    task = Task(
-        user_id=user_id,
-        title=data.title.strip(),
-        description=data.description,
-        dimensions_json=serialize_dimensions(data.dimensions),
-    )
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    return task
-
-
-def update_task(db: Session, task: Task, data: TaskUpdate) -> Task:
-    if data.title is not None:
-        task.title = data.title.strip()
-    if data.description is not None:
-        task.description = data.description
-    if data.dimensions is not None:
-        current = parse_dimensions(task.dimensions_json)
-        merged = merge_dimension_update(current, data.dimensions)
-        task.dimensions_json = serialize_dimensions(merged)
-    db.commit()
-    db.refresh(task)
-    return task
-
-
-def delete_task(db: Session, task: Task) -> None:
-    db.delete(task)
-    db.commit()

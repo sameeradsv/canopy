@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{_db_path}"
     cors_origins: str = _default_cors
     auth_required: bool = False
+    # Optional: URL of the shared Cortex Auth Server, e.g. "http://localhost:7000"
+    cortex_auth_url: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

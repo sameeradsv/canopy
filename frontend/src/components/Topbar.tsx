@@ -8,8 +8,6 @@ const LABELS: Record<string, string> = {
   "/capture":    "capture",
   "/timeline":   "timeline",
   "/people":     "people",
-  "/tasks":      "tasks",
-  "/dimensions": "dimensions",
   "/search":     "search",
   "/account":    "account",
   "/settings":   "settings",

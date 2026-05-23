@@ -127,33 +127,6 @@ class RelationshipDefaults(BaseModel):
     defaults: dict[str, dict[str, str]]
 
 
-class TaskBase(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = None
-    dimensions: Dict[str, Optional[float]] = Field(default_factory=dict)
-
-
-class TaskCreate(TaskBase):
-    pass
-
-
-class TaskUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    dimensions: Optional[Dict[str, Optional[float]]] = None
-
-
-class TaskRead(BaseModel):
-    id: int
-    title: str
-    description: Optional[str]
-    dimensions: Dict[str, Optional[float]]
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
 class EncryptedExportRequest(BaseModel):
     passphrase: str = Field(min_length=8, max_length=200)
 

@@ -45,7 +45,7 @@ def _migrate_sqlite() -> None:
         if "relationship" not in cols:
             conn.exec_driver_sql("ALTER TABLE people ADD COLUMN relationship VARCHAR(40)")
 
-        for table in ("people", "interactions", "tasks"):
+        for table in ("people", "interactions"):
             if table in tables:
                 if "user_id" not in _sqlite_column_names(conn, table):
                     conn.exec_driver_sql(

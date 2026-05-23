@@ -110,8 +110,6 @@ export default function SettingsPage() {
           ["2", "Capture"],
           ["3", "Timeline"],
           ["4", "People"],
-          ["5", "Tasks"],
-          ["6", "Dimensions"],
         ].map(([key, desc]) => (
           <div
             key={key}

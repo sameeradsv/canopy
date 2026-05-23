@@ -1,7 +1,7 @@
 /**
  * Generates PWA icons from a programmatic SVG design.
- * The icon is a layered-foliage canopy mark: three upper-semicircle arcs
- * at different heights (smallest/highest → largest/lowest), with a trunk.
+ * Three overlapping filled circles form an organic tree-crown blob,
+ * sitting on a brown trunk, on a cream background.
  * Run via: npm run icons
  */
 import { mkdir, writeFile, copyFile } from "node:fs/promises";
@@ -12,53 +12,50 @@ import sharp from "sharp";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const iconsDir = path.join(root, "public", "icons");
 
-// Paper theme colours (match CSS vars --bg, --fg, --line)
-const BG   = "#f5efe2";   // oklch(0.972 0.012 78)
-const FG   = "#29261b";   // oklch(0.24 0.020 60)
-const LINE = "#d6cdbc";   // oklch(0.86 0.012 70)
+// Colours
+const BG    = "#f5efe2";  // cream background
+const CROWN = "#3d6b4f";  // muted forest green
+const TRUNK = "#7a5c3a";  // warm brown
+const LINE  = "#d6cdbc";  // border hairline
 
 /**
  * Builds an SVG string for the Canopy icon at the given pixel size.
  *
  * Design:
  *  - Cream background (rounded for standard, full-bleed for maskable)
- *  - Three upper-semicircle arcs, each with its own baseline Y so they
- *    read as stacked foliage tiers, not concentric rings
- *  - Innermost (smallest) arc sits highest; outermost (largest) sits lowest
- *  - A short trunk below the lowest arc
+ *  - Three overlapping filled circles form an organic tree-crown blob:
+ *    one centre circle (larger, higher) + two side circles (lower, smaller)
+ *  - A rounded-rectangle trunk below the crown
  *  - Thin border (standard only)
  *
  * Geometry (all values relative to `size`):
- *  - Tier baselines: 37%, 49%, 61% down
- *  - Tier radii:     10%, 18%, 26% of size
- *  - Stroke:         6.5% of size
- *  - Trunk:          7.5% wide × 16% tall
+ *  - Centre circle: cy=41%, r=22%
+ *  - Side circles:  cy=47%, r=18%, offset ±11% from centre
+ *  - Trunk:         7.5% wide × 18% tall
  */
 function buildSVG(size, { maskable = false } = {}) {
-  const cx  = size / 2;
-  const sw  = Math.max(1, size * 0.065);
-  const rr  = maskable ? 0 : Math.round(size * 0.1875);
-  const bw  = Math.max(1, Math.round(size * 0.004));
+  const cx = size / 2;
+  const rr = maskable ? 0 : Math.round(size * 0.1875);
+  const bw = Math.max(1, Math.round(size * 0.004));
 
-  // Each tier: own baseY keeps arcs from looking like WiFi concentric rings.
-  const tiers = [
-    { r: size * 0.10, baseY: size * 0.37 },
-    { r: size * 0.18, baseY: size * 0.49 },
-    { r: size * 0.26, baseY: size * 0.61 },
+  // Three overlapping circles — same fill so they merge into one organic blob
+  const circles = [
+    { x: cx,                 y: size * 0.41, r: size * 0.22 }, // centre (tallest)
+    { x: cx - size * 0.11,  y: size * 0.47, r: size * 0.18 }, // left
+    { x: cx + size * 0.11,  y: size * 0.47, r: size * 0.18 }, // right
   ];
 
-  const arcPaths = tiers.map(({ r, baseY }) => {
-    const x1 = (cx - r).toFixed(2);
-    const x2 = (cx + r).toFixed(2);
-    const y  = baseY.toFixed(2);
-    return `<path d="M ${x1},${y} A ${r.toFixed(2)},${r.toFixed(2)},0,0,1,${x2},${y}" fill="none" stroke="${FG}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round"/>`;
-  }).join("\n  ");
+  const crownShapes = circles
+    .map(({ x, y, r }) =>
+      `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r.toFixed(2)}" fill="${CROWN}"/>`)
+    .join("\n  ");
 
-  const { baseY: trunkY } = tiers[tiers.length - 1];
+  // Trunk starts at the bottom of the centre circle
+  const trunkY = circles[0].y + circles[0].r;
   const trunkW = size * 0.075;
-  const trunkH = size * 0.16;
+  const trunkH = size * 0.18;
   const trunkR = trunkW * 0.3;
-  const trunk = `<rect x="${(cx - trunkW / 2).toFixed(2)}" y="${trunkY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${FG}"/>`;
+  const trunk = `<rect x="${(cx - trunkW / 2).toFixed(2)}" y="${trunkY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${TRUNK}"/>`;
 
   const border = maskable
     ? ""
@@ -67,7 +64,7 @@ function buildSVG(size, { maskable = false } = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
   <rect width="${size}" height="${size}" rx="${rr}" fill="${BG}"/>
   ${border}
-  ${arcPaths}
+  ${crownShapes}
   ${trunk}
 </svg>`;
 }

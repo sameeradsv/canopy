@@ -192,8 +192,8 @@ export default function AccountPage() {
         {importResult && (
           <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg)", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", fontSize: 12, color: "var(--fg-mute)" }}>
             <p style={{ fontWeight: 600, color: "var(--fg)", marginBottom: 4 }}>Import complete</p>
-            <p>Created — people: {importResult.created.people ?? 0}, interactions: {importResult.created.interactions ?? 0}, tasks: {importResult.created.tasks ?? 0}</p>
-            <p>Skipped — people: {importResult.skipped.people ?? 0}, interactions: {importResult.skipped.interactions ?? 0}, tasks: {importResult.skipped.tasks ?? 0}</p>
+            <p>Created — people: {importResult.created.people ?? 0}, interactions: {importResult.created.interactions ?? 0}</p>
+            <p>Skipped — people: {importResult.skipped.people ?? 0}, interactions: {importResult.skipped.interactions ?? 0}</p>
           </div>
         )}
       </div>

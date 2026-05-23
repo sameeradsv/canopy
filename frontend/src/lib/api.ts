@@ -55,31 +55,6 @@ export interface PersonCreate {
   notes?: string | null;
 }
 
-export interface DimensionsPayload {
-  values: Record<string, number | null>;
-}
-
-export interface Task {
-  id: number;
-  title: string;
-  description: string | null;
-  dimensions: Record<string, number | null>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface TaskCreate {
-  title: string;
-  description?: string | null;
-  dimensions?: Record<string, number | null>;
-}
-
-export interface TaskUpdate {
-  title?: string;
-  description?: string | null;
-  dimensions?: Record<string, number | null>;
-}
-
 export interface AuthResponse {
   token: string;
   user: { id: number; username: string; created_at: string };
@@ -159,22 +134,10 @@ export const api = {
   tags: () => request<Tag[]>("/api/tags"),
 
   exportData: () =>
-    request<{
-      people: unknown[];
-      tags: unknown[];
-      interactions: unknown[];
-    }>("/api/export"),
+    request<{ people: unknown[]; tags: unknown[]; interactions: unknown[] }>("/api/export"),
 
   deleteAll: () =>
     request<void>("/api/data", { method: "DELETE" }),
-
-  dimensions: () => request<DimensionsPayload>("/api/settings/dimensions"),
-
-  saveDimensions: (data: DimensionsPayload) =>
-    request<DimensionsPayload>("/api/settings/dimensions", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
 
   relationshipDefaults: () =>
     request<RelationshipDefaults>("/api/relationship-defaults"),
@@ -195,20 +158,6 @@ export const api = {
     }),
 
   me: () => request<AuthResponse["user"]>("/api/auth/me"),
-
-  tasks: () => request<Task[]>("/api/tasks"),
-
-  createTask: (data: TaskCreate) =>
-    request<Task>("/api/tasks", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-
-  updateTask: (id: number, data: TaskUpdate) =>
-    request<Task>(`/api/tasks/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
 
   encryptedExport: (passphrase: string) =>
     request<Record<string, unknown>>("/api/sync/export", {

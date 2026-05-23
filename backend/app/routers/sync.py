@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,12 +10,79 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.deps.auth import optional_auth_user, require_user
-from app.dimensions_utils import parse_dimensions, serialize_dimensions
 from app.export_crypto import decrypt_export, encrypt_export
-from app.models import Interaction, Person, Tag, Task, User
+from app.models import Interaction, Person, Tag, User
 from app.services import get_or_create_tags
 
 router = APIRouter(prefix="/sync", tags=["sync"])
+
+# ── Energy sync ───────────────────────────────────────────────────────────────
+
+# Tags that add to drain vs restore energy
+_DRAIN_TAGS = {"stress", "conflict", "difficult", "disagreement", "argument", "frustrating", "hard"}
+_RESTORE_TAGS = {"celebration", "win", "support", "joy", "gratitude", "fun", "energizing"}
+
+
+def _interaction_drain(interaction: Interaction) -> float:
+    """
+    Per-interaction drain on a 0–1 scale.
+    Base cost + confidence modifier + tag modifier.
+    Range: ~0.10 (easy, supportive) to ~0.45 (hard, conflictual).
+    """
+    base = 0.15
+    confidence_cost = (1.0 - interaction.confidence) * 0.20
+    tag_names = {t.name.lower() for t in interaction.tags}
+    tag_mod = (
+        0.10 if tag_names & _DRAIN_TAGS
+        else -0.05 if tag_names & _RESTORE_TAGS
+        else 0.0
+    )
+    return max(0.05, base + confidence_cost + tag_mod)
+
+
+@router.get("/energy")
+def energy_summary(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns the user's interaction-based energy drain split at the current moment.
+    - drain_so_far: interactions already had today (occurred_at < now)
+    - drain_ahead:  interactions logged for later today (occurred_at >= now)
+    All values 0–1; 1.0 = completely drained by interactions alone.
+    """
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    today_interactions = db.scalars(
+        select(Interaction)
+        .where(
+            Interaction.user_id == user.id,
+            Interaction.occurred_at >= today_start,
+            Interaction.occurred_at < today_end,
+        )
+        .options(selectinload(Interaction.tags))
+    ).all()
+
+    past_drain = 0.0
+    future_drain = 0.0
+
+    for ix in today_interactions:
+        drain = _interaction_drain(ix)
+        if ix.occurred_at <= now:
+            past_drain += drain
+        else:
+            future_drain += drain
+
+    return {
+        "as_of": now.isoformat() + "Z",
+        "source": "canopy",
+        "drain_so_far": round(min(past_drain, 1.0), 3),
+        "drain_ahead": round(min(future_drain, 1.0), 3),
+        "interactions_so_far": sum(1 for ix in today_interactions if ix.occurred_at <= now),
+        "interactions_ahead": sum(1 for ix in today_interactions if ix.occurred_at > now),
+    }
 
 
 class EncryptedExportRequest(BaseModel):
@@ -37,7 +105,6 @@ def _collect_export_payload(db: Session, user_id: Optional[int] = None) -> dict:
             selectinload(Interaction.tags),
         )
     ).all()
-    tasks = db.scalars(select(Task).where(Task.user_id == user_id)).all()
     return {
         "people": [
             {
@@ -63,16 +130,6 @@ def _collect_export_payload(db: Session, user_id: Optional[int] = None) -> dict:
             }
             for i in interactions
         ],
-        "tasks": [
-            {
-                "id": t.id,
-                "title": t.title,
-                "description": t.description,
-                "dimensions": parse_dimensions(t.dimensions_json),
-                "created_at": t.created_at.isoformat(),
-            }
-            for t in tasks
-        ],
     }
 
 
@@ -95,8 +152,8 @@ def encrypted_import(
 ):
     """
     Decrypt an export blob and merge its contents into the authenticated user's account.
-    People are upserted by name; interactions by (occurred_at, observation prefix);
-    tasks by title. Tags are global get-or-create.
+    People are upserted by name; interactions by (occurred_at, observation prefix).
+    Tags are global get-or-create.
     """
     try:
         inner = decrypt_export(data.blob, data.passphrase)
@@ -104,8 +161,8 @@ def encrypted_import(
         raise HTTPException(400, "Could not decrypt export — check passphrase and blob") from exc
 
     uid = user.id
-    created = {"people": 0, "interactions": 0, "tasks": 0, "tags": 0}
-    skipped = {"people": 0, "interactions": 0, "tasks": 0}
+    created = {"people": 0, "interactions": 0, "tags": 0}
+    skipped = {"people": 0, "interactions": 0}
 
     # Build name→id map for people already owned by this user
     existing_people: dict[str, Person] = {
@@ -190,43 +247,6 @@ def encrypted_import(
             new_i.tags = get_or_create_tags(db, i_data["tag_names"])
         db.add(new_i)
         created["interactions"] += 1
-
-    # Tasks: upsert by (user_id, title)
-    existing_tasks: dict[str, Task] = {
-        t.title: t
-        for t in db.scalars(select(Task).where(Task.user_id == uid)).all()
-    }
-    for t_data in inner.get("tasks", []):
-        title = (t_data.get("title") or "").strip()
-        if not title:
-            continue
-        from datetime import datetime as _dt
-        try:
-            blob_updated = _dt.fromisoformat(
-                (t_data.get("updated_at") or t_data.get("created_at", "")).rstrip("Z")
-            )
-        except Exception:
-            blob_updated = None
-
-        if title in existing_tasks:
-            existing_t = existing_tasks[title]
-            # Overwrite dimensions if blob is newer
-            if blob_updated and existing_t.updated_at < blob_updated:
-                from app.dimensions_utils import serialize_dimensions
-                dims = t_data.get("dimensions") or {}
-                existing_t.dimensions_json = serialize_dimensions(dims)
-            skipped["tasks"] += 1
-        else:
-            from app.dimensions_utils import serialize_dimensions
-            dims = t_data.get("dimensions") or {}
-            new_t = Task(
-                user_id=uid,
-                title=title,
-                description=t_data.get("description"),
-                dimensions_json=serialize_dimensions(dims),
-            )
-            db.add(new_t)
-            created["tasks"] += 1
 
     db.commit()
 

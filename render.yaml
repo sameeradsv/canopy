@@ -17,5 +17,7 @@ services:
         value: "true"
       - key: CORS_ORIGINS
         value: https://sameeradsv.github.io,http://localhost:3000,http://127.0.0.1:3000
+      - key: CORTEX_AUTH_URL
+        sync: false
       - key: PYTHON_VERSION
         value: "3.12"

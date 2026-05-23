@@ -74,20 +74,6 @@ class Interaction(Base):
     )
 
 
-class Task(Base):
-    __tablename__ = "tasks"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    title: Mapped[str] = mapped_column(String(200), index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    dimensions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
-
-
 class Setting(Base):
     __tablename__ = "settings"
 
@@ -105,6 +91,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Set when this user was created via a Cortex account login
+    cortex_user_id: Mapped[Optional[int]] = mapped_column(nullable=True, unique=True, index=True)
 
 
 class AuthSession(Base):
