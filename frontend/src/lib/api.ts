@@ -50,6 +50,14 @@ export interface InteractionCreate {
   occurred_at?: string;
 }
 
+export interface InteractionUpdate {
+  observation?: string;
+  context?: string | null;
+  confidence?: number;
+  occurred_at?: string;
+  tag_names?: string[];
+}
+
 export interface PersonCreate {
   name: string;
   relationship?: string | null;
@@ -128,6 +136,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  updateInteraction: (id: number, data: InteractionUpdate) =>
+    request<Interaction>(`/api/interactions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteInteraction: (id: number) =>
+    request<void>(`/api/interactions/${id}`, { method: "DELETE" }),
 
   search: (q: string) =>
     request<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
