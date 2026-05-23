@@ -13,59 +13,39 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const iconsDir = path.join(root, "public", "icons");
 
 // Colours
-const BG    = "#f5efe2";  // cream background
-const CROWN = "#3d6b4f";  // muted forest green
-const TRUNK = "#7a5c3a";  // warm brown
+const BG    = "#f8f3e8";  // warm cream background
+const CROWN = "#2d7040";  // deep forest green
+const TRUNK = "#7a4015";  // dark bark brown
 const LINE  = "#d6cdbc";  // border hairline
 
 /**
  * Builds an SVG string for the Canopy icon at the given pixel size.
  *
- * Design:
- *  - Cream background (rounded for standard, full-bleed for maskable)
- *  - Three overlapping filled circles form an organic tree-crown blob:
- *    one centre circle (larger, higher) + two side circles (lower, smaller)
- *  - A rounded-rectangle trunk below the crown
+ * Design (100×100 internal viewBox, scaled to target size):
+ *  - Warm cream background (rounded for standard, full-bleed for maskable)
+ *  - Wide multi-lobed crown (5 foliage bumps, sides droop low)
+ *  - Trunk tapers wider toward the base
  *  - Thin border (standard only)
- *
- * Geometry (all values relative to `size`):
- *  - Centre circle: cy=41%, r=22%
- *  - Side circles:  cy=47%, r=18%, offset ±11% from centre
- *  - Trunk:         7.5% wide × 18% tall
  */
 function buildSVG(size, { maskable = false } = {}) {
-  const cx = size / 2;
   const rr = maskable ? 0 : Math.round(size * 0.1875);
   const bw = Math.max(1, Math.round(size * 0.004));
-
-  // Three overlapping circles — same fill so they merge into one organic blob
-  const circles = [
-    { x: cx,                 y: size * 0.41, r: size * 0.22 }, // centre (tallest)
-    { x: cx - size * 0.11,  y: size * 0.47, r: size * 0.18 }, // left
-    { x: cx + size * 0.11,  y: size * 0.47, r: size * 0.18 }, // right
-  ];
-
-  const crownShapes = circles
-    .map(({ x, y, r }) =>
-      `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r.toFixed(2)}" fill="${CROWN}"/>`)
-    .join("\n  ");
-
-  // Trunk starts at the bottom of the centre circle
-  const trunkY = circles[0].y + circles[0].r;
-  const trunkW = size * 0.075;
-  const trunkH = size * 0.18;
-  const trunkR = trunkW * 0.3;
-  const trunk = `<rect x="${(cx - trunkW / 2).toFixed(2)}" y="${trunkY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${TRUNK}"/>`;
 
   const border = maskable
     ? ""
     : `<rect width="${size}" height="${size}" rx="${rr}" fill="none" stroke="${LINE}" stroke-width="${bw}"/>`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
-  <rect width="${size}" height="${size}" rx="${rr}" fill="${BG}"/>
+  // All geometry defined in 0–100 space; SVG viewBox scales to `size`.
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
+  <rect width="100" height="100" rx="${maskable ? 0 : 18}" fill="${BG}"/>
   ${border}
-  ${crownShapes}
-  ${trunk}
+  <!-- trunk: tapers wider at base -->
+  <path d="M 44 56 C 42 66 38 76 34 88 L 66 88 C 62 76 58 66 56 56 Z" fill="${TRUNK}"/>
+  <!-- crown: wide multi-lobed canopy, sides hang low -->
+  <path d="M 6 36 C 6 24 12 12 22 10 C 27 6 34 10 37 18 C 39 9 43 5 50 5
+           C 57 5 61 9 63 18 C 66 10 73 6 78 10 C 88 12 94 24 94 36
+           C 94 50 82 60 68 65 C 62 68 56 65 54 60 L 50 59 L 46 60
+           C 44 65 38 68 32 65 C 18 60 6 50 6 36 Z" fill="${CROWN}"/>
 </svg>`;
 }
 
