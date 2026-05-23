@@ -160,7 +160,7 @@ export default function LoginPage() {
                       className="btn ghost"
                       style={{ justifyContent: "center", fontSize: 12 }}
                     >
-                      ← Use Cortex account instead
+                      Use Cortex account instead →
                     </button>
                   )}
                 </form>
