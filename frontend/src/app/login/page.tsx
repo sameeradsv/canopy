@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { setAuthToken } from "@/lib/auth";
+import { CortexSignIn } from "@shared/cortex";
+
+const CORTEX_URL = (process.env.NEXT_PUBLIC_CORTEX_URL ?? "").replace(/\/$/, "");
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +18,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("register");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLocal, setShowLocal] = useState(!CORTEX_URL);
 
   useEffect(() => {
     if (!loading && user) router.replace("/account");
@@ -53,8 +57,8 @@ export default function LoginPage() {
     <div className="login-wrap">
       {/* Form side */}
       <div className="login-side">
-        {/* Brand */}
         <div>
+          {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48 }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width={28} height={28} style={{ display: "block" }}>
               <rect x="47" y="55" width="6" height="32" rx="3" fill="#7a4015" />
@@ -63,8 +67,37 @@ export default function LoginPage() {
             <div className="brand-name" style={{ fontSize: 18 }}>Canop<em>y</em></div>
           </div>
 
+          {/* Cortex sign-in */}
+          {CORTEX_URL && !showLocal && (
+            <>
+              <div className="kicker" style={{ marginBottom: 10 }}>Cortex account</div>
+              <h1 style={{ fontSize: 32, marginBottom: 8 }}>
+                One account, <em>every app.</em>
+              </h1>
+              <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: "40ch" }}>
+                Your Cortex account works across Canopy, Chef, and Circuit.
+              </p>
+              <CortexSignIn
+                cortexApiBase={CORTEX_URL}
+                tokenKey="canopy_auth_token"
+                appName="Canopy"
+                onSuccess={async () => {
+                  await refetch();
+                  router.push("/account");
+                }}
+                onLocalMode={() => setShowLocal(true)}
+                classNames={{
+                  field: "field",
+                  label: "field-label",
+                  input: "input",
+                  submitBtn: "btn primary",
+                }}
+              />
+            </>
+          )}
+
           {/* Local account form */}
-          {(
+          {showLocal && (
             <>
               <div className="kicker" style={{ marginBottom: 10 }}>
                 {mode === "register" ? "Create account" : "Sign in"}
@@ -72,7 +105,7 @@ export default function LoginPage() {
               <h1 style={{ fontSize: 32, marginBottom: 8 }}>
                 {mode === "register" ? <>Welcome <em>aboard.</em></> : <>Good to <em>see you.</em></>}
               </h1>
-              <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: 40 + "ch" }}>
+              <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: "40ch" }}>
                 {mode === "register"
                   ? "Create a Canopy-only account. Your data stays in this app."
                   : "Sign in to continue to your workspace."}
@@ -120,6 +153,16 @@ export default function LoginPage() {
                   >
                     {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
                   </button>
+                  {CORTEX_URL && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLocal(false)}
+                      className="btn ghost"
+                      style={{ justifyContent: "center", fontSize: 12 }}
+                    >
+                      ← Use Cortex account instead
+                    </button>
+                  )}
                 </form>
               )}
             </>
