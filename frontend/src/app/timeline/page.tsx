@@ -118,23 +118,25 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
             {ix.tags.length > 0 && (
               <div className="tags">{ix.tags.map((t) => <span key={t.id} className="tag">{t.name}</span>)}</div>
             )}
-            <div className="tl-actions">
-              {confirmDeleteId === ix.id ? (
-                <>
-                  <span style={{ fontSize: 11, color: "var(--fg-mute)" }}>Delete?</span>
-                  <button onClick={() => onDelete(ix.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Yes</button>
-                  <button onClick={() => setConfirmDeleteId(null)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => { setEditingId(ix.id); setConfirmDeleteId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Edit</button>
-                  <button onClick={() => { setConfirmDeleteId(ix.id); setEditingId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Delete</button>
-                </>
-              )}
-            </div>
           </>
         )}
       </div>
+      {editingId !== ix.id && (
+        <div className="tl-actions">
+          {confirmDeleteId === ix.id ? (
+            <>
+              <span style={{ fontSize: 11, color: "var(--fg-mute)" }}>Sure?</span>
+              <button onClick={() => onDelete(ix.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Yes</button>
+              <button onClick={() => setConfirmDeleteId(null)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>No</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { setEditingId(ix.id); setConfirmDeleteId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Edit</button>
+              <button onClick={() => { setConfirmDeleteId(ix.id); setEditingId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Delete</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

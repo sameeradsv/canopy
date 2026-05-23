@@ -388,8 +388,9 @@ input, textarea, select { font: inherit; color: inherit; }
 /* ── Timeline ────────────────────────────────────────────────────────────── */
 .tl-feed { display: flex; flex-direction: column; }
 .tl-item {
-  display: grid; grid-template-columns: 80px 1fr; gap: 20px;
+  display: grid; grid-template-columns: 80px 1fr auto; gap: 20px;
   padding: 18px 0; border-bottom: 0.5px solid var(--line-soft);
+  align-items: start;
 }
 .tl-time { font-family: var(--font-mono); font-size: 11px; color: var(--fg-faint); letter-spacing: 0.04em; padding-top: 2px; }
 .tl-body .who { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -398,10 +399,11 @@ input, textarea, select { font: inherit; color: inherit; }
 .tl-body .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 
 .tl-actions {
-  display: flex; align-items: center; gap: 4px;
-  margin-top: 8px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   opacity: 0;
   transition: opacity 0.1s;
+  padding-top: 2px;
+  flex-shrink: 0;
 }
 .tl-item:hover .tl-actions { opacity: 1; }
 
