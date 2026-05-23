@@ -17,6 +17,10 @@ export default function SettingsPage() {
   const [fontMode, setFontMode] = useState<FontMode>("editorial");
   const [density,  setDensity]  = useState<Density>("regular");
 
+  const [classifyingAll,    setClassifyingAll]    = useState(false);
+  const [classifyAllResult, setClassifyAllResult] = useState<{ classified: number; errors: number; total: number } | null>(null);
+  const [classifyAllError,  setClassifyAllError]  = useState<string | null>(null);
+
   const [exportPass,   setExportPass]   = useState("");
   const [exporting,    setExporting]    = useState(false);
   const [exportError,  setExportError]  = useState<string | null>(null);
@@ -33,6 +37,20 @@ export default function SettingsPage() {
     setFontMode((localStorage.getItem("canopy.fontMode") ?? "editorial") as FontMode);
     setDensity((localStorage.getItem("canopy.density") ?? "regular")  as Density);
   }, []);
+
+  async function handleClassifyAll() {
+    setClassifyingAll(true);
+    setClassifyAllError(null);
+    setClassifyAllResult(null);
+    try {
+      const result = await api.classifyAll();
+      setClassifyAllResult(result);
+    } catch (err) {
+      setClassifyAllError(err instanceof Error ? err.message : "Classification failed");
+    } finally {
+      setClassifyingAll(false);
+    }
+  }
 
   function onTheme(v: Theme) { setTheme(v); apply("data-theme", v, "canopy.theme"); }
   function onFontMode(v: FontMode) { setFontMode(v); apply("data-fontmode", v, "canopy.fontMode"); }
@@ -143,6 +161,25 @@ export default function SettingsPage() {
           {density === "regular" && "Balanced spacing — default."}
           {density === "comfy"   && "More breathing room — relaxed reading."}
         </p>
+      </div>
+
+      <div className="kicker" style={{ marginBottom: 24 }}>Intelligence</div>
+
+      <div className="card" style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Classify unscored interactions</div>
+        <p className="faint small" style={{ marginBottom: 14 }}>
+          Use AI to automatically score interactions that have no energy rating yet. Requires <code>ANTHROPIC_API_KEY</code> to be set on the server.
+        </p>
+        <button onClick={handleClassifyAll} disabled={classifyingAll} className="btn primary" style={{ width: "fit-content" }}>
+          {classifyingAll ? "Classifying…" : "✦ Classify all unscored"}
+        </button>
+        {classifyAllError && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{classifyAllError}</p>}
+        {classifyAllResult && (
+          <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg)", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", fontSize: 12, color: "var(--fg-mute)" }}>
+            <p style={{ fontWeight: 600, color: "var(--fg)", marginBottom: 4 }}>Done</p>
+            <p>Classified: {classifyAllResult.classified} · Errors: {classifyAllResult.errors} · Total: {classifyAllResult.total}</p>
+          </div>
+        )}
       </div>
 
       <div className="kicker" style={{ marginBottom: 24 }}>Data</div>

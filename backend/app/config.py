@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     auth_required: bool = False
     # Optional: URL of the shared Cortex Auth Server, e.g. "http://localhost:7000"
     cortex_auth_url: str = ""
+    # Optional: Anthropic API key for AI classification
+    anthropic_api_key: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

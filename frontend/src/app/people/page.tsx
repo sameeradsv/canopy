@@ -31,7 +31,7 @@ function PersonCard({ person, editing, confirmDelete, onEdit, onCancelEdit, onSa
   onDelete: () => void;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
-  relationshipTypes: string[];
+  relationshipTypes: readonly string[];
   relationshipLabels: Record<string, string>;
 }) {
   const [name, setName] = useState(person.name);

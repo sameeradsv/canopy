@@ -46,6 +46,8 @@ export default function CapturePage() {
   const [tagsInput, setTagsInput] = useState("");
   const [occurredAt, setOccurredAt] = useState(nowDatetimeLocal);
   const [energy, setEnergy] = useState(50);
+  const [classifying, setClassifying] = useState(false);
+  const [classifyReason, setClassifyReason] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +59,25 @@ export default function CapturePage() {
     setParticipantIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  }
+
+  async function handleClassify() {
+    if (!observation.trim()) return;
+    setClassifying(true);
+    setClassifyReason(null);
+    try {
+      const result = await api.classifyInteraction({
+        observation: observation.trim(),
+        context: context.trim() || null,
+        participant_ids: participantIds,
+      });
+      setEnergy(Math.round(result.energy * 100));
+      setClassifyReason(result.reasoning);
+    } catch {
+      setClassifyReason("Classification unavailable — set manually.");
+    } finally {
+      setClassifying(false);
+    }
   }
 
   async function handleSubmit(e?: FormEvent) {
@@ -259,9 +280,22 @@ export default function CapturePage() {
                   Energy
                   <Tip text="How energising or draining was this interaction? Left = draining, right = energising. Used to track your daily battery." />
                 </span>
-                <span style={{ color: energy < 35 ? "var(--danger)" : energy > 65 ? "var(--good)" : "var(--fg-mute)", fontFamily: "var(--font-mono)", fontSize: 10 }}>
-                  {energy < 35 ? "draining" : energy > 65 ? "energising" : "neutral"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {observation.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleClassify}
+                      disabled={classifying}
+                      className="btn ghost"
+                      style={{ fontSize: 11, padding: "2px 8px", height: "auto" }}
+                    >
+                      {classifying ? "classifying…" : "✦ classify"}
+                    </button>
+                  )}
+                  <span style={{ color: energy < 35 ? "var(--danger)" : energy > 65 ? "var(--good)" : "var(--fg-mute)", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+                    {energy < 35 ? "draining" : energy > 65 ? "energising" : "neutral"}
+                  </span>
+                </div>
               </div>
               <input
                 type="range" min={0} max={100} value={energy}
@@ -272,6 +306,11 @@ export default function CapturePage() {
               <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--fg-faint)", marginTop: 2 }}>
                 <span>draining</span><span>energising</span>
               </div>
+              {classifyReason && (
+                <p style={{ fontSize: 11, color: "var(--fg-mute)", marginTop: 4, fontStyle: "italic" }}>
+                  {classifyReason}
+                </p>
+              )}
             </div>
 
             {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}

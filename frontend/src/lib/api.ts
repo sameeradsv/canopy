@@ -211,4 +211,15 @@ export const api = {
     ),
 
   logout: () => request<void>("/api/auth/logout", { method: "DELETE" }),
+
+  classifyInteraction: (data: { observation: string; context?: string | null; participant_ids?: number[] }) =>
+    request<{ energy: number; label: string; reasoning: string }>("/api/ai/classify", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  classifyAll: () =>
+    request<{ classified: number; errors: number; total: number }>("/api/ai/classify-all", {
+      method: "POST",
+    }),
 };

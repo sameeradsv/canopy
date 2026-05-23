@@ -47,6 +47,27 @@ function EditForm({ ix, onSave, onCancel }: {
   const [tagsInput, setTagsInput] = useState(ix.tags.map((t) => t.name).join(", "));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
+  const [classifyReason, setClassifyReason] = useState<string | null>(null);
+
+  async function handleClassify() {
+    if (!observation.trim()) return;
+    setClassifying(true);
+    setClassifyReason(null);
+    try {
+      const result = await api.classifyInteraction({
+        observation: observation.trim(),
+        context: context.trim() || null,
+        participant_ids: ix.participants.map((p) => p.id),
+      });
+      setEnergy(Math.round(result.energy * 100));
+      setClassifyReason(result.reasoning);
+    } catch {
+      setClassifyReason("Classification unavailable.");
+    } finally {
+      setClassifying(false);
+    }
+  }
 
   async function handleSave() {
     if (!observation.trim()) return;
@@ -93,10 +114,17 @@ function EditForm({ ix, onSave, onCancel }: {
         <div className="field">
           <div className="field-label" style={{ display: "flex", justifyContent: "space-between" }}>
             <span>Energy</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: energyColor(energy / 100) }}>{energyLabel(energy / 100)}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button type="button" onClick={handleClassify} disabled={classifying || !observation.trim()} className="btn ghost"
+                style={{ fontSize: 10, padding: "1px 6px", height: "auto" }}>
+                {classifying ? "…" : "✦"}
+              </button>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: energyColor(energy / 100) }}>{energyLabel(energy / 100)}</span>
+            </div>
           </div>
           <input type="range" min={0} max={100} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="slider"
             style={{ backgroundImage: `linear-gradient(var(--accent), var(--accent))`, backgroundSize: `${energy}% 100%`, backgroundRepeat: "no-repeat" }} />
+          {classifyReason && <p style={{ fontSize: 10, color: "var(--fg-mute)", marginTop: 2, fontStyle: "italic" }}>{classifyReason}</p>}
         </div>
       </div>
       <div className="field">
