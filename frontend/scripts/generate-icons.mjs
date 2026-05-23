@@ -39,13 +39,10 @@ function buildSVG(size, { maskable = false } = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
   <rect width="100" height="100" rx="${maskable ? 0 : 18}" fill="${BG}"/>
   ${border}
-  <!-- trunk: tapers wider at base -->
-  <path d="M 44 56 C 42 66 38 76 34 88 L 66 88 C 62 76 58 66 56 56 Z" fill="${TRUNK}"/>
-  <!-- crown: wide multi-lobed canopy, sides hang low -->
-  <path d="M 6 36 C 6 24 12 12 22 10 C 27 6 34 10 37 18 C 39 9 43 5 50 5
-           C 57 5 61 9 63 18 C 66 10 73 6 78 10 C 88 12 94 24 94 36
-           C 94 50 82 60 68 65 C 62 68 56 65 54 60 L 50 59 L 46 60
-           C 44 65 38 68 32 65 C 18 60 6 50 6 36 Z" fill="${CROWN}"/>
+  <!-- trunk: thin stick -->
+  <rect x="47" y="55" width="6" height="32" rx="3" fill="${TRUNK}"/>
+  <!-- canopy: wide flat dome with scalloped leaf edge — acacia/parasol shape -->
+  <path d="M 8 55 C 8 30 92 30 92 55 Q 83 64 74 55 Q 65 64 56 55 Q 47 64 38 55 Q 29 64 20 55 Q 14 61 8 55 Z" fill="${CROWN}"/>
 </svg>`;
 }
 
