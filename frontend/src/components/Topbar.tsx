@@ -22,7 +22,7 @@ export function Topbar() {
 
   return (
     <div className="topbar">
-      <span className="crumb">canopy · {label} · {clean}</span>
+      <span className="crumb">{label}</span>
       <div className="grow" />
       <button
         className="topbar-search"
@@ -31,7 +31,6 @@ export function Topbar() {
       >
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>⌕</span>
         <span className="faint small">search</span>
-        <span className="shot" style={{ marginLeft: 8 }}>⌘K</span>
       </button>
       <Link href="/capture" className="topbar-btn primary">
         + Capture

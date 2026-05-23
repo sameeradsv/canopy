@@ -91,7 +91,7 @@ export default function AccountPage() {
     <>
       <div className="page-header">
         <div>
-          <div className="kicker" style={{ marginBottom: 10 }}>Account · /account</div>
+          <div className="kicker" style={{ marginBottom: 10 }}>Account</div>
           <h1 className="page-title">Your <em>account.</em></h1>
         </div>
         <button onClick={logout} className="btn" style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
@@ -122,13 +122,6 @@ export default function AccountPage() {
         )}
       </div>
 
-      {/* Sync note */}
-      <div className="card" style={{ marginBottom: "var(--pad-5)", background: "var(--accent-soft)", borderColor: "color-mix(in oklch, var(--accent) 25%, var(--line))" }}>
-        <p style={{ fontSize: 13, color: "var(--fg-mute)" }}>
-          <strong style={{ color: "var(--fg)" }}>Cross-device sync</strong> — sign in with the same credentials on any device pointing to the same backend. Use the encrypted export below to migrate data or keep an offline backup.
-        </p>
-      </div>
-
       {/* Export */}
       <div className="card" style={{ marginBottom: "var(--pad-5)" }}>
         <div className="kicker" style={{ marginBottom: 12 }}>Encrypted export</div>
@@ -155,7 +148,7 @@ export default function AccountPage() {
 
       {/* Import */}
       <div className="card">
-        <div className="kicker" style={{ marginBottom: 12 }}>Import / restore</div>
+        <div className="kicker" style={{ marginBottom: 12 }}>Restore backup</div>
         <p style={{ fontSize: 13, color: "var(--fg-mute)", marginBottom: 14 }}>
           Merges an export file into this account. Duplicates are skipped automatically.
         </p>

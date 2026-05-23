@@ -102,30 +102,6 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="kicker" style={{ marginBottom: 24 }}>Keyboard shortcuts</div>
-      <div className="card">
-        {[
-          ["⌘K", "Open search"],
-          ["1", "Dashboard"],
-          ["2", "Capture"],
-          ["3", "Timeline"],
-          ["4", "People"],
-        ].map(([key, desc]) => (
-          <div
-            key={key}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "6px 0",
-              borderBottom: "0.5px solid var(--line-soft)",
-            }}
-          >
-            <span className="shot" style={{ minWidth: 36, textAlign: "center" }}>{key}</span>
-            <span className="faint small">{desc}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
