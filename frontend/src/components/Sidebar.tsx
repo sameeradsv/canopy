@@ -39,8 +39,9 @@ function TreeMark({ size = 28 }: { size?: number }) {
       height={size}
       style={{ display: "block" }}
     >
-      <rect x="47" y="55" width="6" height="32" rx="3" fill="#7a4015" />
-      <path d="M 8 55 C 8 30 92 30 92 55 Q 83 64 74 55 Q 65 64 56 55 Q 47 64 38 55 Q 29 64 20 55 Q 14 61 8 55 Z" fill="#2d7040" />
+      <rect x="44" y="64" width="12" height="22" rx="4" fill="#8a4a08" />
+      <polygon points="50,16 80,64 20,64" fill="#d4831a" />
+      <polygon points="50,28 72,64 50,64" fill="#8a4a08" opacity="0.55" />
     </svg>
   );
 }

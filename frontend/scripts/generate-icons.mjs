@@ -13,19 +13,19 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const iconsDir = path.join(root, "public", "icons");
 
 // Colours
-const BG    = "#f8f3e8";  // warm cream background
-const CROWN = "#2d7040";  // deep forest green
-const TRUNK = "#7a4015";  // dark bark brown
-const LINE  = "#d6cdbc";  // border hairline
+const BG     = "#fdf8f0";  // warm cream background
+const AMBER  = "#d4831a";  // amber crown
+const DARK   = "#8a4a08";  // dark amber trunk + shadow
+const LINE   = "#e8dfd0";  // border hairline
 
 /**
  * Builds an SVG string for the Canopy icon at the given pixel size.
  *
  * Design (100×100 internal viewBox, scaled to target size):
  *  - Warm cream background (rounded for standard, full-bleed for maskable)
- *  - Wide multi-lobed crown (5 foliage bumps, sides droop low)
- *  - Trunk tapers wider toward the base
- *  - Thin border (standard only)
+ *  - Geometric triangle crown in amber
+ *  - Shadow overlay on right half for depth
+ *  - Dark amber trunk
  */
 function buildSVG(size, { maskable = false } = {}) {
   const rr = maskable ? 0 : Math.round(size * 0.1875);
@@ -35,14 +35,12 @@ function buildSVG(size, { maskable = false } = {}) {
     ? ""
     : `<rect width="${size}" height="${size}" rx="${rr}" fill="none" stroke="${LINE}" stroke-width="${bw}"/>`;
 
-  // All geometry defined in 0–100 space; SVG viewBox scales to `size`.
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
   <rect width="100" height="100" rx="${maskable ? 0 : 18}" fill="${BG}"/>
   ${border}
-  <!-- trunk: thin stick -->
-  <rect x="47" y="55" width="6" height="32" rx="3" fill="${TRUNK}"/>
-  <!-- canopy: wide flat dome with scalloped leaf edge — acacia/parasol shape -->
-  <path d="M 8 55 C 8 30 92 30 92 55 Q 83 64 74 55 Q 65 64 56 55 Q 47 64 38 55 Q 29 64 20 55 Q 14 61 8 55 Z" fill="${CROWN}"/>
+  <rect x="44" y="64" width="12" height="22" rx="4" fill="${DARK}"/>
+  <polygon points="50,16 80,64 20,64" fill="${AMBER}"/>
+  <polygon points="50,28 72,64 50,64" fill="${DARK}" opacity="0.55"/>
 </svg>`;
 }
 
