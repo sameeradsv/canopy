@@ -53,6 +53,26 @@ def _migrate_sqlite() -> None:
                     )
 
 
+def _migrate_postgres() -> None:
+    if not settings.database_url.startswith(("postgresql", "postgres")):
+        return
+    from sqlalchemy import inspect, text
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        tables = inspector.get_table_names()
+        if "users" not in tables:
+            return
+
+        existing = {c["name"] for c in inspector.get_columns("users")}
+        if "cortex_user_id" not in existing:
+            conn.execute(text("ALTER TABLE users ADD COLUMN cortex_user_id INTEGER"))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_cortex_user_id "
+                "ON users (cortex_user_id)"
+            ))
+
+
 def init_db() -> None:
     from pathlib import Path
 
@@ -63,3 +83,4 @@ def init_db() -> None:
         db_path.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     _migrate_sqlite()
+    _migrate_postgres()
