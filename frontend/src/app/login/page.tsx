@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("register");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLocal, setShowLocal] = useState(!CORTEX_URL);
+  const [showLocal, setShowLocal] = useState(true);
 
   useEffect(() => {
     if (!loading && user) router.replace("/account");
@@ -68,15 +68,19 @@ export default function LoginPage() {
             <div className="brand-name" style={{ fontSize: 18 }}>Canop<em>y</em></div>
           </div>
 
+          {/* Shared heading — always visible */}
+          <div className="kicker" style={{ marginBottom: 10 }}>
+            {mode === "register" ? "Create account" : "Sign in"}
+          </div>
+          <h1 style={{ fontSize: 32, marginBottom: 8 }}>
+            {mode === "register" ? <>Welcome <em>aboard.</em></> : <>Good to <em>see you.</em></>}
+          </h1>
+
           {/* Cortex sign-in */}
           {CORTEX_URL && !showLocal && (
             <>
-              <div className="kicker" style={{ marginBottom: 10 }}>Cortex account</div>
-              <h1 style={{ fontSize: 32, marginBottom: 8 }}>
-                One account, <em>every app.</em>
-              </h1>
-              <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: "40ch" }}>
-                Your Cortex account works across Canopy, Chef, and Circuit.
+              <p style={{ color: "var(--fg-mute)", fontSize: 13, marginBottom: 24 }}>
+                One account across Canopy, Chef, and Circuit.
               </p>
               <CortexSignIn
                 cortexApiBase={CORTEX_URL}
@@ -101,12 +105,6 @@ export default function LoginPage() {
           {/* Local account form */}
           {showLocal && (
             <>
-              <div className="kicker" style={{ marginBottom: 10 }}>
-                {mode === "register" ? "Create account" : "Sign in"}
-              </div>
-              <h1 style={{ fontSize: 32, marginBottom: 8 }}>
-                {mode === "register" ? <>Welcome <em>aboard.</em></> : <>Good to <em>see you.</em></>}
-              </h1>
               <p style={{ color: "var(--fg-mute)", fontSize: 13.5, marginBottom: 32, maxWidth: "40ch" }}>
                 {mode === "register"
                   ? "Create a Canopy-only account. Your data stays in this app."
