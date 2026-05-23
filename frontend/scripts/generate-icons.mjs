@@ -1,7 +1,7 @@
 /**
  * Generates PWA icons from a programmatic SVG design.
- * The icon is a tree-canopy mark: three concentric upper-semicircle arcs
- * (foliage layers) above a short trunk, on a cream (paper-theme) background.
+ * The icon is a layered-foliage canopy mark: three upper-semicircle arcs
+ * at different heights (smallest/highest → largest/lowest), with a trunk.
  * Run via: npm run icons
  */
 import { mkdir, writeFile, copyFile } from "node:fs/promises";
@@ -21,52 +21,53 @@ const LINE = "#d6cdbc";   // oklch(0.86 0.012 70)
  * Builds an SVG string for the Canopy icon at the given pixel size.
  *
  * Design:
- *  - Cream background rectangle (rounded for standard, full-bleed for maskable)
- *  - Three concentric upper-semicircle arcs (canopy foliage layers)
- *  - A short rounded-rectangle trunk below the arcs
- *  - Thin border line (standard only)
+ *  - Cream background (rounded for standard, full-bleed for maskable)
+ *  - Three upper-semicircle arcs, each with its own baseline Y so they
+ *    read as stacked foliage tiers, not concentric rings
+ *  - Innermost (smallest) arc sits highest; outermost (largest) sits lowest
+ *  - A short trunk below the lowest arc
+ *  - Thin border (standard only)
  *
  * Geometry (all values relative to `size`):
- *  - Arc junction Y: 58% down (where arcs meet the trunk)
- *  - Arc radii: 13%, 24%, 35% of size (innermost → outermost)
- *  - Arc stroke: 6% of size
- *  - Trunk: 7.5% wide × 18% tall, starting at the arc junction
+ *  - Tier baselines: 37%, 49%, 61% down
+ *  - Tier radii:     10%, 18%, 26% of size
+ *  - Stroke:         6.5% of size
+ *  - Trunk:          7.5% wide × 16% tall
  */
 function buildSVG(size, { maskable = false } = {}) {
-  const cx = size / 2;
+  const cx  = size / 2;
+  const sw  = Math.max(1, size * 0.065);
+  const rr  = maskable ? 0 : Math.round(size * 0.1875);
+  const bw  = Math.max(1, Math.round(size * 0.004));
 
-  // Arcs: concentric upper-semicircles sharing this Y as their flat base
-  const arcCY  = size * 0.58;
-  const radii  = [size * 0.13, size * 0.24, size * 0.35];
-  const sw     = Math.max(1, size * 0.06);
+  // Each tier: own baseY keeps arcs from looking like WiFi concentric rings.
+  const tiers = [
+    { r: size * 0.10, baseY: size * 0.37 },
+    { r: size * 0.18, baseY: size * 0.49 },
+    { r: size * 0.26, baseY: size * 0.61 },
+  ];
 
-  // Trunk below the arcs
+  const arcPaths = tiers.map(({ r, baseY }) => {
+    const x1 = (cx - r).toFixed(2);
+    const x2 = (cx + r).toFixed(2);
+    const y  = baseY.toFixed(2);
+    return `<path d="M ${x1},${y} A ${r.toFixed(2)},${r.toFixed(2)},0,0,1,${x2},${y}" fill="none" stroke="${FG}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round"/>`;
+  }).join("\n  ");
+
+  const { baseY: trunkY } = tiers[tiers.length - 1];
   const trunkW = size * 0.075;
-  const trunkH = size * 0.18;
+  const trunkH = size * 0.16;
   const trunkR = trunkW * 0.3;
-
-  const rr = maskable ? 0 : Math.round(size * 0.1875);
-  const borderW = Math.max(1, Math.round(size * 0.004));
+  const trunk = `<rect x="${(cx - trunkW / 2).toFixed(2)}" y="${trunkY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${FG}"/>`;
 
   const border = maskable
     ? ""
-    : `<rect width="${size}" height="${size}" rx="${rr}" fill="none" stroke="${LINE}" stroke-width="${borderW}"/>`;
-
-  // Each arc: M (cx-r, arcCY) A r,r,0,0,1 (cx+r, arcCY)  → upper half-circle
-  const arcs = radii.map(r => {
-    const x1 = (cx - r).toFixed(2);
-    const x2 = (cx + r).toFixed(2);
-    const cy  = arcCY.toFixed(2);
-    return `<path d="M ${x1},${cy} A ${r.toFixed(2)},${r.toFixed(2)},0,0,1,${x2},${cy}" fill="none" stroke="${FG}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round"/>`;
-  }).join("\n  ");
-
-  const tx = (cx - trunkW / 2).toFixed(2);
-  const trunk = `<rect x="${tx}" y="${arcCY.toFixed(2)}" width="${trunkW.toFixed(2)}" height="${trunkH.toFixed(2)}" rx="${trunkR.toFixed(2)}" fill="${FG}"/>`;
+    : `<rect width="${size}" height="${size}" rx="${rr}" fill="none" stroke="${LINE}" stroke-width="${bw}"/>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
   <rect width="${size}" height="${size}" rx="${rr}" fill="${BG}"/>
   ${border}
-  ${arcs}
+  ${arcPaths}
   ${trunk}
 </svg>`;
 }
