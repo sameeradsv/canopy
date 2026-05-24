@@ -9,6 +9,12 @@ const ALL_DIMENSIONS = [
   "authenticity", "support", "connection", "tension",
 ];
 
+// Subset that make meaningful spatial axes; all dims still shown in detail panel
+const AXIS_DIMENSIONS = [
+  "energy", "reciprocity", "connection", "reliability",
+  "growth", "support", "effort", "collaboration",
+];
+
 const DIM_LABEL: Record<string, string> = {
   energy: "Energy", reciprocity: "Reciprocity", intent: "Intent",
   effort: "Effort", fairness: "Fairness", reliability: "Reliability",
@@ -79,7 +85,16 @@ export default function GraphPage() {
 
   useEffect(() => {
     Promise.all([api.people(), api.getAllScores()])
-      .then(([p, s]) => { setPeople(p); setScores(s); })
+      .then(([p, s]) => {
+        setPeople(p);
+        setScores(s);
+        // Auto-select first two axis dims that have data
+        const scored = new Set<string>();
+        Object.values(s).forEach((ps) => Object.keys(ps.scores).forEach((d) => scored.add(d)));
+        const available = AXIS_DIMENSIONS.filter((d) => scored.has(d));
+        if (available[0]) setXDim(available[0]);
+        if (available[1]) setYDim(available[1]);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -154,16 +169,20 @@ export default function GraphPage() {
               <div className="graph-axis-select">
                 <span>X</span>
                 <select value={xDim} onChange={(e) => setXDim(e.target.value)}>
-                  {ALL_DIMENSIONS.map((d) => (
-                    <option key={d} value={d}>{DIM_LABEL[d]}</option>
+                  {AXIS_DIMENSIONS.map((d) => (
+                    <option key={d} value={d} disabled={!availableDims.includes(d)}>
+                      {DIM_LABEL[d]}{!availableDims.includes(d) ? " (no data)" : ""}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="graph-axis-select">
                 <span>Y</span>
                 <select value={yDim} onChange={(e) => setYDim(e.target.value)}>
-                  {ALL_DIMENSIONS.map((d) => (
-                    <option key={d} value={d}>{DIM_LABEL[d]}</option>
+                  {AXIS_DIMENSIONS.map((d) => (
+                    <option key={d} value={d} disabled={!availableDims.includes(d)}>
+                      {DIM_LABEL[d]}{!availableDims.includes(d) ? " (no data)" : ""}
+                    </option>
                   ))}
                 </select>
               </div>
