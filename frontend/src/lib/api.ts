@@ -21,10 +21,20 @@ export interface Interaction {
   outcome: string | null;
   confidence: number;
   energy: number | null;
+  reflection: Record<string, string> | null;
   created_at: string;
   updated_at: string;
   participants: Person[];
   tags: Tag[];
+}
+
+export interface PersonScore {
+  person_id: number;
+  scores: Record<string, number>;
+  confidence: number;
+  summary: string | null;
+  interaction_count: number;
+  scored_at: string;
 }
 
 export interface Summary {
@@ -47,6 +57,7 @@ export interface InteractionCreate {
   outcome?: string | null;
   confidence?: number;
   energy?: number | null;
+  reflection?: Record<string, string> | null;
   participant_ids?: number[];
   tag_names?: string[];
   occurred_at?: string;
@@ -57,6 +68,7 @@ export interface InteractionUpdate {
   context?: string | null;
   confidence?: number;
   energy?: number | null;
+  reflection?: Record<string, string> | null;
   occurred_at?: string;
   tag_names?: string[];
 }
@@ -220,6 +232,20 @@ export const api = {
 
   classifyAll: () =>
     request<{ classified: number; errors: number; total: number }>("/api/ai/classify-all", {
+      method: "POST",
+    }),
+
+  getPersonScore: (personId: number) =>
+    request<PersonScore | null>(`/api/people/${personId}/score`),
+
+  scorePersonById: (personId: number) =>
+    request<PersonScore>(`/api/people/${personId}/score`, { method: "POST" }),
+
+  getAllScores: () =>
+    request<Record<number, PersonScore>>("/api/people/scores/all"),
+
+  scoreAll: () =>
+    request<{ scored: number; errors: number; total: number }>("/api/people/score-all", {
       method: "POST",
     }),
 };

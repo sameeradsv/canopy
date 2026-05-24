@@ -53,8 +53,11 @@ def _migrate_sqlite() -> None:
                     )
 
         if "interactions" in tables:
-            if "energy" not in _sqlite_column_names(conn, "interactions"):
+            ix_cols = _sqlite_column_names(conn, "interactions")
+            if "energy" not in ix_cols:
                 conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN energy REAL")
+            if "reflection_json" not in ix_cols:
+                conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN reflection_json TEXT")
 
 
 def _migrate_postgres() -> None:
@@ -80,6 +83,8 @@ def _migrate_postgres() -> None:
             existing_ix = {c["name"] for c in inspector.get_columns("interactions")}
             if "energy" not in existing_ix:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN energy FLOAT"))
+            if "reflection_json" not in existing_ix:
+                conn.execute(text("ALTER TABLE interactions ADD COLUMN reflection_json TEXT"))
 
 
 def init_db() -> None:

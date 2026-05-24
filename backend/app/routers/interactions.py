@@ -21,6 +21,7 @@ router = APIRouter(prefix="/interactions", tags=["interactions"])
 
 
 def _to_read(interaction: Interaction) -> InteractionRead:
+    import json as _json
     return InteractionRead(
         id=interaction.id,
         occurred_at=interaction.occurred_at,
@@ -29,6 +30,7 @@ def _to_read(interaction: Interaction) -> InteractionRead:
         outcome=interaction.outcome,
         confidence=interaction.confidence,
         energy=interaction.energy,
+        reflection=_json.loads(interaction.reflection_json) if interaction.reflection_json else None,
         created_at=interaction.created_at,
         updated_at=interaction.updated_at,
         participants=[PersonRead(**person_to_read(p)) for p in interaction.participants],

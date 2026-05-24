@@ -10,7 +10,7 @@ from app.database import init_db
 from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
 from app.deps.auth import optional_auth_user
 from app.models import User
-from app.routers import ai, auth, interactions, people, search, sync
+from app.routers import ai, auth, interactions, people, scores, search, sync
 from app.routers import settings as settings_router
 from app.schemas import RelationshipDefaults
 
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(ai.router, prefix="/api")
+app.include_router(scores.router, prefix="/api")
 app.include_router(people.router, prefix="/api")
 app.include_router(interactions.router, prefix="/api")
 app.include_router(search.router, prefix="/api")

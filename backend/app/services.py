@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -131,6 +132,7 @@ def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[i
         observation=data.observation.strip(),
         outcome=data.outcome,
         confidence=data.confidence,
+        reflection_json=json.dumps(data.reflection) if data.reflection else None,
     )
     if data.participant_ids:
         people = db.scalars(select(Person).where(Person.id.in_(data.participant_ids))).all()
@@ -154,6 +156,8 @@ def update_interaction(db: Session, interaction: Interaction, data: InteractionU
         interaction.outcome = data.outcome
     if data.confidence is not None:
         interaction.confidence = data.confidence
+    if data.reflection is not None:
+        interaction.reflection_json = json.dumps(data.reflection)
     if data.participant_ids is not None:
         people = db.scalars(select(Person).where(Person.id.in_(data.participant_ids))).all()
         interaction.participants = list(people)

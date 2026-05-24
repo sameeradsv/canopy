@@ -45,6 +45,7 @@ class InteractionBase(BaseModel):
     outcome: Optional[str] = None
     confidence: float = Field(default=0.7, ge=0.0, le=1.0)
     energy: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    reflection: Optional[Dict] = None
     participant_ids: list[int] = Field(default_factory=list)
     tag_names: list[str] = Field(default_factory=list)
 
@@ -60,6 +61,7 @@ class InteractionUpdate(BaseModel):
     outcome: Optional[str] = None
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
     energy: Optional[float] = Field(None, ge=0.0, le=1.0)
+    reflection: Optional[Dict] = None
     participant_ids: Optional[list[int]] = None
     tag_names: Optional[list[str]] = None
 
@@ -72,12 +74,22 @@ class InteractionRead(BaseModel):
     outcome: Optional[str]
     confidence: float
     energy: Optional[float] = None
+    reflection: Optional[Dict] = None
     created_at: datetime
     updated_at: datetime
     participants: list[PersonRead] = []
     tags: list[TagRead] = []
 
     model_config = {"from_attributes": True}
+
+
+class PersonScoreRead(BaseModel):
+    person_id: int
+    scores: Dict
+    confidence: float
+    summary: Optional[str] = None
+    interaction_count: int
+    scored_at: datetime
 
 
 class SearchResult(BaseModel):

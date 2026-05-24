@@ -5,6 +5,57 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
 
+type ReflectionQuestion = {
+  key: string;
+  label: string;
+  options: string[];
+};
+
+const REFLECTION_QUESTIONS: Record<string, ReflectionQuestion[]> = {
+  colleague: [
+    { key: "initiated_by",    label: "Who initiated this interaction?",           options: ["Me", "Them", "Mutual"] },
+    { key: "credit_shared",   label: "Was credit or blame shared fairly?",         options: ["Yes", "No", "N/A"] },
+    { key: "followed_through",label: "Did they follow through on past commitments?",options: ["Yes", "No", "N/A"] },
+  ],
+  coworker: [
+    { key: "initiated_by",    label: "Who initiated this interaction?",           options: ["Me", "Them", "Mutual"] },
+    { key: "credit_shared",   label: "Was credit or blame shared fairly?",         options: ["Yes", "No", "N/A"] },
+    { key: "followed_through",label: "Did they follow through on past commitments?",options: ["Yes", "No", "N/A"] },
+  ],
+  manager: [
+    { key: "initiated_by",    label: "Who initiated this?",                        options: ["Me", "Them", "Mutual"] },
+    { key: "felt_supported",  label: "Did you feel supported in this interaction?", options: ["Yes", "Somewhat", "No"] },
+    { key: "followed_through",label: "Did they follow through on commitments?",     options: ["Yes", "No", "N/A"] },
+  ],
+  friend: [
+    { key: "initiated_by",    label: "Who reached out first?",                     options: ["Me", "Them", "Mutual"] },
+    { key: "felt_heard",      label: "Did you feel heard and understood?",          options: ["Yes", "Somewhat", "No"] },
+    { key: "showed_up",       label: "Did they show up when it counted?",           options: ["Yes", "No", "N/A"] },
+  ],
+  family: [
+    { key: "felt_choice",        label: "Did this feel like a choice or an obligation?", options: ["Choice", "Obligation", "Mixed"] },
+    { key: "boundaries_respected",label: "Were your boundaries respected?",              options: ["Yes", "Mostly", "No"] },
+    { key: "tension",            label: "Was there underlying tension?",                 options: ["No", "A little", "Yes"] },
+  ],
+  partner: [
+    { key: "felt_heard",         label: "Did you feel heard?",                          options: ["Yes", "Somewhat", "No"] },
+    { key: "boundaries_respected",label: "Were your boundaries respected?",              options: ["Yes", "Mostly", "No"] },
+    { key: "initiated_by",       label: "Who initiated this interaction?",               options: ["Me", "Them", "Mutual"] },
+  ],
+};
+const DEFAULT_QUESTIONS: ReflectionQuestion[] = [
+  { key: "initiated_by", label: "Who initiated this interaction?",  options: ["Me", "Them", "Mutual"] },
+  { key: "felt_good",    label: "How did you feel after?",           options: ["Energised", "Neutral", "Drained"] },
+];
+
+function getQuestionsForPeople(people: Person[]): ReflectionQuestion[] {
+  for (const p of people) {
+    const rel = (p.relationship || "").toLowerCase();
+    if (REFLECTION_QUESTIONS[rel]) return REFLECTION_QUESTIONS[rel];
+  }
+  return DEFAULT_QUESTIONS;
+}
+
 const KINDS = [
   { id: "meeting",    label: "Meeting",  icon: "◧" },
   { id: "call",       label: "Call",     icon: "◌" },
@@ -50,6 +101,8 @@ export default function CapturePage() {
   const [classifyReason, setClassifyReason] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [reflectionAnswers, setReflectionAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.people().then(setPeople).catch(() => setPeople([]));
@@ -91,7 +144,7 @@ export default function CapturePage() {
         selectedKind,
         ...tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
       ];
-      await api.createInteraction({
+      const created = await api.createInteraction({
         observation: observation.trim(),
         context: context.trim() || undefined,
         confidence,
@@ -100,7 +153,13 @@ export default function CapturePage() {
         tag_names,
         occurred_at: new Date(occurredAt).toISOString(),
       });
-      router.push("/timeline");
+      // Show reflection questions if there are participants
+      if (participantIds.length > 0) {
+        setSavedId(created.id);
+        setSubmitting(false);
+      } else {
+        router.push("/timeline");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
       setSubmitting(false);
@@ -114,7 +173,61 @@ export default function CapturePage() {
     }
   }
 
+  async function submitReflection(skip = false) {
+    if (savedId && !skip && Object.keys(reflectionAnswers).length > 0) {
+      await api.updateInteraction(savedId, { reflection: reflectionAnswers }).catch(() => {});
+    }
+    router.push("/timeline");
+  }
+
   const confidencePct = Math.round(confidence * 100);
+
+  if (savedId !== null) {
+    const selectedPeople = people.filter((p) => participantIds.includes(p.id));
+    const questions = getQuestionsForPeople(selectedPeople);
+    return (
+      <>
+        <div className="page-header">
+          <div>
+            <div className="kicker" style={{ marginBottom: 10 }}>Reflection</div>
+            <h1 className="page-title">A few <em>quick</em> questions.</h1>
+            <p className="page-sub">Optional — helps build a more accurate picture over time.</p>
+          </div>
+          <button onClick={() => submitReflection(true)} className="btn ghost">skip →</button>
+        </div>
+        <div className="reflection-panel">
+          {questions.map((q) => (
+            <div key={q.key} className="reflection-q">
+              <div className="reflection-q-label">{q.label}</div>
+              <div className="reflection-choices">
+                {q.options.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`reflection-choice ${reflectionAnswers[q.key] === opt ? "on" : ""}`}
+                    onClick={() =>
+                      setReflectionAnswers((prev) =>
+                        prev[q.key] === opt ? { ...prev, [q.key]: "" } : { ...prev, [q.key]: opt }
+                      )
+                    }
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => submitReflection(false)}
+            className="btn primary"
+            style={{ marginTop: 4 }}
+          >
+            save & continue →
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

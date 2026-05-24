@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship as orm_relationship
 
 from app.database import Base
@@ -37,6 +37,9 @@ class Person(Base):
     interactions: Mapped[list["Interaction"]] = orm_relationship(
         secondary=interaction_participants, back_populates="participants"
     )
+    score: Mapped[Optional["PersonScore"]] = orm_relationship(
+        "PersonScore", back_populates="person", uselist=False
+    )
 
 
 class Tag(Base):
@@ -62,6 +65,7 @@ class Interaction(Base):
     outcome: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.7)
     energy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reflection_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -103,3 +107,22 @@ class AuthSession(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PersonScore(Base):
+    __tablename__ = "person_scores"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    person_id: Mapped[int] = mapped_column(
+        ForeignKey("people.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    scores_json: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    interaction_count: Mapped[int] = mapped_column(Integer, default=0)
+    scored_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    person: Mapped["Person"] = orm_relationship("Person", back_populates="score")
