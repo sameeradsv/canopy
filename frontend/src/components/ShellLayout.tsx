@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, BottomNav } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function ShellLayout({ children }: { children: React.ReactNode }) {
@@ -59,6 +59,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
         <Topbar />
         <div className="page">{children}</div>
       </div>
+      <BottomNav />
     </div>
   );
 }

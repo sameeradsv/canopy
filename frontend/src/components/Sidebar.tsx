@@ -13,6 +13,23 @@ const NAV = [
   { href: "/settings", label: "Settings",  section: "meta"  },
 ];
 
+export function BottomNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="bottom-nav">
+      {NAV.map((n) => (
+        <Link
+          key={n.href}
+          href={n.href}
+          className={`bottom-nav-item ${pathname === n.href ? "active" : ""}`}
+        >
+          {n.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 const SECTIONS = [
   { id: "today", label: "Today" },
   { id: "log",   label: "Log" },

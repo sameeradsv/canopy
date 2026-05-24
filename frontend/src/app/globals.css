@@ -517,23 +517,15 @@ input, textarea, select { font: inherit; color: inherit; }
   .people-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── Bottom nav (mobile only) ────────────────────────────────────────────── */
+.bottom-nav { display: none; }
+
 @media (max-width: 820px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .sidebar {
-    flex-direction: row; flex-wrap: wrap; align-items: center;
-    padding: 10px 14px; gap: 4px;
-    border-right: none; border-bottom: 0.5px solid var(--line);
-    overflow-x: auto; overflow-y: hidden;
-  }
-  .brand { padding: 0 14px 0 0; flex-shrink: 0; }
-  .nav-section { display: none; }
-  .nav-item { padding: 6px 10px; flex-shrink: 0; }
-  .nav-item .kbd { display: none; }
-  .nav-item .dot { display: none; }
-  .sidebar-foot { display: none; }
+  .app { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .sidebar { display: none; }
   .topbar { padding: 10px 16px; min-height: 44px; }
   .crumb { display: none; }
-  .page { padding: 20px 18px; }
+  .page { padding: 20px 18px 80px; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
   h1, .page-title { font-size: 26px; line-height: 1.1; }
   h2 { font-size: 19px; }
@@ -542,14 +534,38 @@ input, textarea, select { font: inherit; color: inherit; }
   .tl-item { grid-template-columns: 1fr; gap: 6px; }
   .tl-time { font-size: 10px; }
   .people-grid { grid-template-columns: 1fr 1fr; }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 58px;
+    background: var(--bg-alt);
+    border-top: 0.5px solid var(--line);
+    z-index: 200;
+    align-items: stretch;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+    color: var(--fg-faint);
+    padding: 8px 2px;
+    transition: color 0.1s, background 0.1s;
+    border-radius: var(--r-2);
+  }
+  .bottom-nav-item:active { background: var(--panel-2); }
+  .bottom-nav-item.active { color: var(--accent); }
 }
 
 @media (max-width: 520px) {
-  .page { padding: 16px 14px; }
-  .sidebar { padding: 8px; }
-  .brand-name { font-size: 14px; }
-  .brand { padding-right: 8px; }
-  .nav-item { font-size: 12px; padding: 5px 8px; }
+  .page { padding: 16px 14px 80px; }
   .kind-grid { grid-template-columns: repeat(2, 1fr); }
   .person-pick { gap: 4px; }
   .chip { font-size: 11px; padding: 3px 8px; }
