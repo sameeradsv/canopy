@@ -10,4 +10,4 @@ pytest==8.3.4
 pytest-asyncio==0.25.0
 psycopg2-binary==2.9.10
 pycryptodome>=3.20.0
-anthropic>=0.40.0
+groq>=0.9.0

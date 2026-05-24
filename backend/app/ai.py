@@ -27,10 +27,10 @@ def classify_energy(
     """
     from app.config import settings
 
-    if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not configured")
+    if not settings.groq_api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured")
 
-    import anthropic
+    from groq import Groq
 
     parts = [f"Interaction note: {observation}"]
     if context:
@@ -44,15 +44,17 @@ def classify_energy(
                 lines.append(f"  - {name}: (no notes)")
         parts.append("\n".join(lines))
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+    client = Groq(api_key=settings.groq_api_key)
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
         max_tokens=256,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": "\n".join(parts)}],
+        messages=[
+            {"role": "system", "content": _SYSTEM},
+            {"role": "user", "content": "\n".join(parts)},
+        ],
     )
 
-    raw = message.content[0].text.strip()
+    raw = response.choices[0].message.content.strip()
     # Strip accidental markdown fences
     if raw.startswith("```"):
         raw = raw.split("```")[1]

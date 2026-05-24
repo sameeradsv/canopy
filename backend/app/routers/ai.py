@@ -34,8 +34,8 @@ def classify(
     from app.ai import classify_energy
     from app.config import settings
 
-    if not settings.anthropic_api_key:
-        raise HTTPException(503, "AI classification is not configured (ANTHROPIC_API_KEY missing)")
+    if not settings.groq_api_key:
+        raise HTTPException(503, "AI classification is not configured (GROQ_API_KEY missing)")
 
     person_notes: list[tuple[str, str]] = []
     for pid in data.participant_ids:
@@ -60,8 +60,8 @@ def classify_all(
     from app.ai import classify_energy
     from app.config import settings
 
-    if not settings.anthropic_api_key:
-        raise HTTPException(503, "AI classification is not configured (ANTHROPIC_API_KEY missing)")
+    if not settings.groq_api_key:
+        raise HTTPException(503, "AI classification is not configured (GROQ_API_KEY missing)")
 
     uid = user.id if user else None
     interactions = db.query(Interaction).filter(
