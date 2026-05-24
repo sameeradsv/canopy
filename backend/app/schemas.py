@@ -71,7 +71,7 @@ class InteractionRead(BaseModel):
     observation: str
     outcome: Optional[str]
     confidence: float
-    energy: Optional[float]
+    energy: Optional[float] = None
     created_at: datetime
     updated_at: datetime
     participants: list[PersonRead] = []
