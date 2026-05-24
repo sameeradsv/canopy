@@ -18,7 +18,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("register");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLocal, setShowLocal] = useState(true);
+  // Show Cortex first when configured; fall back to local-only if not
+  const [showLocal, setShowLocal] = useState(!CORTEX_URL);
 
   useEffect(() => {
     if (!loading && user) router.replace("/account");
@@ -160,7 +161,7 @@ export default function LoginPage() {
                       className="btn ghost"
                       style={{ justifyContent: "center", fontSize: 12 }}
                     >
-                      Use Cortex account instead →
+                      ← Back to Cortex sign-in
                     </button>
                   )}
                 </form>
