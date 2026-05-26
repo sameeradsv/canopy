@@ -3,8 +3,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
-type Theme    = "paper" | "slate" | "ink";
-type FontMode = "editorial" | "grotesk" | "typewriter";
+type Theme    = "paper" | "ink";
+type FontMode = "editorial" | "typewriter";
 type Density  = "compact" | "regular" | "comfy";
 
 function apply(attr: string, value: string, key: string) {
@@ -118,7 +118,7 @@ export default function SettingsPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ marginBottom: 12, fontWeight: 500, fontSize: 13 }}>Theme</div>
         <div style={{ display: "flex", gap: 8 }}>
-          {(["paper", "slate", "ink"] as Theme[]).map((t) => (
+          {(["paper", "ink"] as Theme[]).map((t) => (
             <button key={t} onClick={() => onTheme(t)} className={`btn ${theme === t ? "primary" : "ghost"}`} style={{ textTransform: "capitalize" }}>
               {t}
             </button>
@@ -126,7 +126,6 @@ export default function SettingsPage() {
         </div>
         <p className="faint small" style={{ marginTop: 8, marginBottom: 0 }}>
           {theme === "paper" && "Warm cream — easy on the eyes in daylight."}
-          {theme === "slate" && "Cool neutral — balanced for mixed lighting."}
           {theme === "ink"   && "Dark background — comfortable at night."}
         </p>
       </div>
@@ -134,7 +133,7 @@ export default function SettingsPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ marginBottom: 12, fontWeight: 500, fontSize: 13 }}>Font style</div>
         <div style={{ display: "flex", gap: 8 }}>
-          {(["editorial", "grotesk", "typewriter"] as FontMode[]).map((f) => (
+          {(["editorial", "typewriter"] as FontMode[]).map((f) => (
             <button key={f} onClick={() => onFontMode(f)} className={`btn ${fontMode === f ? "primary" : "ghost"}`} style={{ textTransform: "capitalize" }}>
               {f}
             </button>
@@ -142,7 +141,6 @@ export default function SettingsPage() {
         </div>
         <p className="faint small" style={{ marginTop: 8, marginBottom: 0 }}>
           {fontMode === "editorial"   && "Spectral serif — readable and considered."}
-          {fontMode === "grotesk"     && "Manrope sans — clean and modern."}
           {fontMode === "typewriter"  && "JetBrains Mono — structured and technical."}
         </p>
       </div>

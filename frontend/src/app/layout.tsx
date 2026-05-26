@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Spectral, Manrope, JetBrains_Mono } from "next/font/google";
+import { Spectral, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ShellLayout } from "@/components/ShellLayout";
 import { ThemeInit } from "@/components/ThemeInit";
@@ -13,12 +13,6 @@ const spectral = Spectral({
   display: "swap",
 });
 
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-manrope",
-  display: "swap",
-});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -69,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       data-theme="paper"
       data-fontmode="editorial"
       data-density="regular"
-      className={`${spectral.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
+      className={`${spectral.variable} ${jetbrainsMono.variable}`}
     >
       <body>
         <ThemeInit />

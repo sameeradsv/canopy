@@ -39,23 +39,6 @@
   --selection:   oklch(0.88 0.060 38);
 }
 
-[data-theme="slate"] {
-  --bg:          oklch(0.975 0.004 240);
-  --bg-alt:      oklch(0.955 0.005 240);
-  --panel:       oklch(0.995 0.002 240);
-  --panel-2:     oklch(0.970 0.004 240);
-  --line:        oklch(0.86 0.008 240);
-  --line-soft:   oklch(0.92 0.006 240);
-  --fg:          oklch(0.22 0.020 250);
-  --fg-mute:     oklch(0.48 0.020 250);
-  --fg-faint:    oklch(0.62 0.015 250);
-  --accent:      oklch(0.52 0.140 245);
-  --accent-soft: oklch(0.92 0.050 245);
-  --good:        oklch(0.58 0.090 150);
-  --warn:        oklch(0.66 0.130 70);
-  --danger:      oklch(0.55 0.150 25);
-  --selection:   oklch(0.88 0.060 245);
-}
 
 [data-theme="ink"] {
   --bg:          oklch(0.18 0.014 250);
@@ -92,11 +75,6 @@
   --font-sans:  var(--font-spectral, 'Spectral', Georgia, serif);
   --font-mono:  var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
 }
-[data-fontmode="grotesk"] {
-  --font-serif: var(--font-manrope, 'Manrope', system-ui, sans-serif);
-  --font-sans:  var(--font-manrope, 'Manrope', system-ui, sans-serif);
-  --font-mono:  var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
-}
 [data-fontmode="typewriter"] {
   --font-serif: var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
   --font-sans:  var(--font-jetbrains-mono, 'JetBrains Mono', ui-monospace, monospace);
@@ -108,9 +86,6 @@
 [data-fontmode="editorial"] .page-title em,
 [data-fontmode="editorial"] h1 em,
 [data-fontmode="editorial"] .brand-name em { font-style: normal; }
-[data-fontmode="grotesk"] h1,
-[data-fontmode="grotesk"] h2 { letter-spacing: -0.03em; font-weight: 600; }
-[data-fontmode="grotesk"] .page-title em { font-style: normal; font-weight: 700; }
 [data-fontmode="typewriter"] h1 { font-size: 30px; letter-spacing: -0.02em; }
 [data-fontmode="typewriter"] h2 { font-size: 20px; }
 [data-fontmode="typewriter"] .kicker,
