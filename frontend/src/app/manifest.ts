@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "A quiet planner for people & intent",
     start_url: base + "/",
     display: "standalone",
-    background_color: "#f5efe2",
-    theme_color: "#f5efe2",
+    background_color: "#000000",
+    theme_color: "#000000",
     orientation: "portrait-primary",
     icons: [
       {
