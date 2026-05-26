@@ -71,6 +71,7 @@ export interface InteractionUpdate {
   reflection?: Record<string, string> | null;
   occurred_at?: string;
   tag_names?: string[];
+  participant_ids?: number[];
 }
 
 export interface PersonUpdate {

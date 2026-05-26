@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class TagRead(BaseModel):
@@ -79,6 +79,11 @@ class InteractionRead(BaseModel):
     updated_at: datetime
     participants: list[PersonRead] = []
     tags: list[TagRead] = []
+
+    @field_serializer("occurred_at", "created_at", "updated_at")
+    def serialize_dt(self, v: datetime) -> str:
+        # Always emit UTC with Z so browsers parse correctly as UTC, not local time
+        return v.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
     model_config = {"from_attributes": True}
 

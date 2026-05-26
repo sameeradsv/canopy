@@ -445,6 +445,7 @@ input, textarea, select { font: inherit; color: inherit; }
   flex-shrink: 0;
 }
 .tl-item:hover .tl-actions { opacity: 1; }
+.person-card .tl-actions { opacity: 1; }
 
 /* ── People ──────────────────────────────────────────────────────────────── */
 .people-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-3); }

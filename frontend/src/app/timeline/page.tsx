@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type Interaction, type InteractionUpdate } from "@/lib/api";
+import { api, type Interaction, type InteractionUpdate, type Person } from "@/lib/api";
+
+function initials(name: string) {
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -34,10 +38,11 @@ function dayBg(avg: number | null): string {
 
 // ── Edit form ──────────────────────────────────────────────────────────────
 
-function EditForm({ ix, onSave, onCancel }: {
+function EditForm({ ix, onSave, onCancel, people }: {
   ix: Interaction;
   onSave: (data: InteractionUpdate) => Promise<void>;
   onCancel: () => void;
+  people: Person[];
 }) {
   const [observation, setObservation] = useState(ix.observation);
   const [context, setContext] = useState(ix.context ?? "");
@@ -45,6 +50,7 @@ function EditForm({ ix, onSave, onCancel }: {
   const [energy, setEnergy] = useState(ix.energy !== null && ix.energy !== undefined ? Math.round(ix.energy * 100) : 50);
   const [occurredAt, setOccurredAt] = useState(toDatetimeLocal(ix.occurred_at));
   const [tagsInput, setTagsInput] = useState(ix.tags.map((t) => t.name).join(", "));
+  const [participantIds, setParticipantIds] = useState<number[]>(ix.participants.map((p) => p.id));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classifying, setClassifying] = useState(false);
@@ -81,6 +87,7 @@ function EditForm({ ix, onSave, onCancel }: {
         energy: energy / 100,
         occurred_at: new Date(occurredAt).toISOString(),
         tag_names: tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
+        participant_ids: participantIds,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -91,6 +98,32 @@ function EditForm({ ix, onSave, onCancel }: {
   const cpct = Math.round(confidence * 100);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+      {people.length > 0 && (
+        <div className="field">
+          <div className="field-label">With whom</div>
+          <div className="person-pick" style={{ gap: 4 }}>
+            {people.map((p) => {
+              const on = participantIds.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setParticipantIds((prev) => on ? prev.filter((x) => x !== p.id) : [...prev, p.id])}
+                  className={`chip ${on ? "on" : ""}`}
+                  style={{ fontSize: 12, padding: "3px 8px" }}
+                >
+                  {!on && (
+                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: 8, fontWeight: 600, flexShrink: 0 }}>
+                      {initials(p.name)}
+                    </span>
+                  )}
+                  {p.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <textarea value={observation} onChange={(e) => setObservation(e.target.value)} className="textarea" style={{ minHeight: 80 }} autoFocus />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div className="field">
@@ -142,7 +175,7 @@ function EditForm({ ix, onSave, onCancel }: {
 
 // ── Interaction row ────────────────────────────────────────────────────────
 
-function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, showDate = false }: {
+function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, showDate = false, people }: {
   ix: Interaction;
   editingId: number | null;
   confirmDeleteId: number | null;
@@ -151,6 +184,7 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
   onSave: (id: number, data: InteractionUpdate) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   showDate?: boolean;
+  people: Person[];
 }) {
   const time = new Date(ix.occurred_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   const date = new Date(ix.occurred_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -168,7 +202,7 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
       </div>
       <div className="tl-body">
         {editingId === ix.id ? (
-          <EditForm ix={ix} onSave={(data) => onSave(ix.id, data)} onCancel={() => setEditingId(null)} />
+          <EditForm ix={ix} onSave={(data) => onSave(ix.id, data)} onCancel={() => setEditingId(null)} people={people} />
         ) : (
           <>
             {ix.participants.length > 0 && (
@@ -209,7 +243,7 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete }: {
+function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, people }: {
   interactions: Interaction[];
   editingId: number | null;
   confirmDeleteId: number | null;
@@ -217,6 +251,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
   setConfirmDeleteId: (id: number | null) => void;
   onSave: (id: number, data: InteractionUpdate) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  people: Person[];
 }) {
   const todayKey = dateKey(new Date().toISOString());
   const [viewMonth, setViewMonth] = useState(() => new Date());
@@ -358,7 +393,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
             {selectedInteractions.map((ix) => (
               <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
                 setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-                onSave={onSave} onDelete={onDelete} showDate={false} />
+                onSave={onSave} onDelete={onDelete} showDate={false} people={people} />
             ))}
           </div>
         )}
@@ -373,6 +408,7 @@ type View = "list" | "calendar";
 
 export default function TimelinePage() {
   const [interactions, setInteractions] = useState<Interaction[] | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
   const [unreachable, setUnreachable] = useState(false);
   const [view, setView] = useState<View>("list");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -380,6 +416,7 @@ export default function TimelinePage() {
 
   useEffect(() => {
     api.interactions({ limit: 500 }).then(setInteractions).catch(() => setUnreachable(true));
+    api.people().then(setPeople).catch(() => {});
   }, []);
 
   async function handleSave(id: number, data: InteractionUpdate) {
@@ -437,13 +474,13 @@ export default function TimelinePage() {
           {sorted.map((ix) => (
             <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
               setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-              onSave={handleSave} onDelete={handleDelete} showDate />
+              onSave={handleSave} onDelete={handleDelete} showDate people={people} />
           ))}
         </div>
       ) : (
         <CalendarView interactions={interactions} editingId={editingId} confirmDeleteId={confirmDeleteId}
           setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-          onSave={handleSave} onDelete={handleDelete} />
+          onSave={handleSave} onDelete={handleDelete} people={people} />
       )}
     </>
   );
