@@ -1,7 +1,7 @@
 /**
  * Generates PWA icons from a programmatic SVG design.
  * Three overlapping filled circles form an organic tree-crown blob,
- * sitting on a brown trunk, on a cream background.
+ * sitting on a brown trunk, on a black background.
  * Run via: npm run icons
  */
 import { mkdir, writeFile, copyFile } from "node:fs/promises";
@@ -13,10 +13,10 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const iconsDir = path.join(root, "public", "icons");
 
 // Colours
-const BG     = "#fdf8f0";  // warm cream background
+const BG     = "#000000";  // black background
 const AMBER  = "#d4831a";  // amber crown
 const DARK   = "#8a4a08";  // dark amber trunk + shadow
-const LINE   = "#e8dfd0";  // border hairline
+const LINE   = "#222222";  // border hairline
 
 /**
  * Builds an SVG string for the Canopy icon at the given pixel size.
