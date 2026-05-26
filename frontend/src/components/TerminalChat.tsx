@@ -2,9 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const CONDUIT = (process.env.NEXT_PUBLIC_CONDUIT_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
-const SCOPE = "canopy";
 const TOKEN_KEY = "canopy_auth_token";
+
+function resolveUrl(path: string): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (configured) return `${configured}${path}`;
+  if (typeof window !== "undefined") return path;
+  return `http://127.0.0.1:8000${path}`;
+}
 
 type Role = "user" | "assistant" | "system";
 interface Msg { id: string; role: Role; content: string; streaming?: boolean; }
@@ -18,15 +23,15 @@ async function* agentStream(
   signal: AbortSignal,
   onTool: (name: string) => void,
 ): AsyncGenerator<string> {
-  const res = await fetch(`${CONDUIT}/api/agent/chat`, {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(resolveUrl("/api/agent/chat"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       messages: history,
       model: "llama-3.3-70b-versatile",
       sibling_token: token,
-      scope: SCOPE,
-      diary: false,
     }),
     signal,
   });
