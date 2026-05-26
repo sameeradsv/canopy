@@ -96,6 +96,15 @@ canopy/
 └── docker-compose.yml
 ```
 
+## Conduit integration
+
+Canopy's backend is consumed by **conduit** — the hub app that provides cross-app AI chat and diary routing.
+
+- **Agent reads:** `GET /api/people`, `GET /api/interactions` — conduit answers "When did I last talk to Alice?" and "Who should I follow up with?"
+- **Diary writes:** `POST /api/interactions` (with participant name resolution) — conduit's diary mode logs interactions from freeform entries
+
+Canopy also has an embedded terminal chat at `/chat` (in the sidebar, or press `5`), powered by conduit's backend with the `scope=canopy` tool set. Set `NEXT_PUBLIC_CONDUIT_API_URL` in `frontend/.env.local` to point to the conduit backend (default: `http://localhost:8000`).
+
 ## Philosophy
 
 Canopy is not a CRM, therapy app, or gamified productivity tool. It focuses on cognitive offloading and contextual continuity — remembering nuance and uncertainty so you spend less mental energy recomputing the same interpretations.
