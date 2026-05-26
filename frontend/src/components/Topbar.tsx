@@ -13,7 +13,7 @@ const LABELS: Record<string, string> = {
   "/settings":   "settings",
 };
 
-export function Topbar() {
+export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   // Strip trailing slash (Next.js trailingSlash:true adds it on GitHub Pages)
@@ -22,6 +22,13 @@ export function Topbar() {
 
   return (
     <div className="topbar">
+      <button className="menu-btn" onClick={onMenuToggle} aria-label="Open menu">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect y="2.5" width="16" height="1.5" rx="0.75" fill="currentColor"/>
+          <rect y="7.25" width="16" height="1.5" rx="0.75" fill="currentColor"/>
+          <rect y="12" width="16" height="1.5" rx="0.75" fill="currentColor"/>
+        </svg>
+      </button>
       <span className="crumb">{label}</span>
       <div className="grow" />
       <button

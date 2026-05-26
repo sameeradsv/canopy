@@ -1,15 +1,19 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { Sidebar, BottomNav } from "./Sidebar";
+import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on navigation
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   // Normalize trailing slash (GitHub Pages trailingSlash:true adds it)
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
@@ -34,7 +38,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
       }
       const map: Record<string, string> = {
         "1": "/", "2": "/capture", "3": "/timeline",
-        "4": "/people",
+        "4": "/people", "5": "/chat",
         ",": "/settings",
       };
       if (map[e.key]) router.push(map[e.key]);
@@ -54,12 +58,11 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app">
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="main">
-        <Topbar />
+        <Topbar onMenuToggle={() => setSidebarOpen((o) => !o)} />
         <div className="page">{children}</div>
       </div>
-      <BottomNav />
     </div>
   );
 }
