@@ -140,12 +140,10 @@ export default function CapturePage() {
     setSubmitting(true);
     setError(null);
     try {
-      const tag_names = [
-        selectedKind,
-        ...tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
-      ];
+      const tag_names = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
       const created = await api.createInteraction({
         observation: observation.trim(),
+        kind: selectedKind,
         context: context.trim() || undefined,
         confidence,
         energy: energy / 100,

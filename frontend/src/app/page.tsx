@@ -85,6 +85,76 @@ export default function HomePage() {
         <StatCard label="Recent (7d)" value={summary.recent_interactions.length} />
       </div>
 
+      {/* Today queue — people to reach out + recent capture */}
+      <div className="grid-2" style={{ marginBottom: "var(--pad-6)", gap: "var(--pad-6)" }}>
+        {/* People to reach out to */}
+        {summary.people_to_reach_out.length > 0 && (
+          <div>
+            <div className="kicker" style={{ marginBottom: 14 }}>Reach out</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {summary.people_to_reach_out.map((p) => {
+                const lastStr = p.last_interaction_at
+                  ? (() => {
+                      const days = Math.floor((Date.now() - new Date(p.last_interaction_at).getTime()) / (1000 * 60 * 60 * 24));
+                      if (days === 0) return "today";
+                      if (days === 1) return "yesterday";
+                      if (days < 7) return `${days}d ago`;
+                      if (days < 30) return `${Math.floor(days / 7)}w ago`;
+                      return `${Math.floor(days / 30)}mo ago`;
+                    })()
+                  : "never";
+                return (
+                  <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+                    <div className="avatar big">{p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                      <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--fg-faint)", marginTop: 2 }}>
+                        {p.relationship ?? "—"} · last {lastStr}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent capture */}
+        {summary.recent_interactions.length > 0 && (
+          <div>
+            <div className="kicker" style={{ marginBottom: 14 }}>Recent capture</div>
+            <div className="tl-feed">
+              {summary.recent_interactions.slice(0, 3).map((ix) => {
+                const d = new Date(ix.occurred_at);
+                const timeStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                return (
+                  <div key={ix.id} className="tl-item">
+                    <div className="tl-time">{timeStr}</div>
+                    <div className="tl-body">
+                      {ix.participants.length > 0 && (
+                        <div className="who">
+                          {ix.participants.map((p) => (
+                            <b key={p.id}>{p.name}</b>
+                          ))}
+                        </div>
+                      )}
+                      <div className="note">{ix.observation}</div>
+                      {ix.tags.length > 0 && (
+                        <div className="tags">
+                          {ix.tags.map((t) => (
+                            <span key={t.id} className="tag">{t.name}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Top tags */}
       {summary.top_tags.length > 0 && (
         <div style={{ marginBottom: "var(--pad-6)" }}>
@@ -93,41 +163,6 @@ export default function HomePage() {
             {summary.top_tags.map((tag) => (
               <span key={tag.id} className="tag">{tag.name}</span>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent interactions */}
-      {summary.recent_interactions.length > 0 && (
-        <div>
-          <div className="kicker" style={{ marginBottom: 14 }}>Recent capture</div>
-          <div className="tl-feed">
-            {summary.recent_interactions.slice(0, 5).map((ix) => {
-              const d = new Date(ix.occurred_at);
-              const timeStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-              return (
-                <div key={ix.id} className="tl-item">
-                  <div className="tl-time">{timeStr}</div>
-                  <div className="tl-body">
-                    {ix.participants.length > 0 && (
-                      <div className="who">
-                        {ix.participants.map((p) => (
-                          <b key={p.id}>{p.name}</b>
-                        ))}
-                      </div>
-                    )}
-                    <div className="note">{ix.observation}</div>
-                    {ix.tags.length > 0 && (
-                      <div className="tags">
-                        {ix.tags.map((t) => (
-                          <span key={t.id} className="tag">{t.name}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       )}

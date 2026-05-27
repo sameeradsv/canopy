@@ -25,6 +25,7 @@ def _to_read(interaction: Interaction) -> InteractionRead:
     return InteractionRead(
         id=interaction.id,
         occurred_at=interaction.occurred_at,
+        kind=interaction.kind,
         context=interaction.context,
         observation=interaction.observation,
         outcome=interaction.outcome,
@@ -42,13 +43,14 @@ def _to_read(interaction: Interaction) -> InteractionRead:
 def get_interactions(
     person_id: Optional[int] = None,
     tag: Optional[str] = None,
+    kind: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(optional_auth_user),
 ):
     uid = user.id if user else None
-    items = list_interactions(db, person_id=person_id, tag=tag, limit=limit, offset=offset, user_id=uid)
+    items = list_interactions(db, person_id=person_id, tag=tag, kind=kind, limit=limit, offset=offset, user_id=uid)
     return [_to_read(i) for i in items]
 
 

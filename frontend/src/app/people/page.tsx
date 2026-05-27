@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { api, type PersonUpdate, type RelationshipDefaults } from "@/lib/api";
+import { api, type Person, type PersonUpdate, type RelationshipDefaults } from "@/lib/api";
 import {
   FALLBACK_DEFAULTS,
   RELATIONSHIP_LABELS,
@@ -15,11 +15,25 @@ interface PersonRow {
   relationship: string | null;
   notes: string | null;
   interaction_count: number;
+  last_interaction_at: string | null;
 }
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "never";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
+// ── Cards view ─────────────────────────────────────────────────────────────
 
 function PersonCard({ person, editing, confirmDelete, onEdit, onCancelEdit, onSave, onDelete, onConfirmDelete, onCancelDelete, relationshipTypes, relationshipLabels }: {
   person: PersonRow;
@@ -86,7 +100,10 @@ function PersonCard({ person, editing, confirmDelete, onEdit, onCancelEdit, onSa
         </div>
       )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-        <div className="p-count">{person.interaction_count} interaction{person.interaction_count === 1 ? "" : "s"}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="p-count">{person.interaction_count} interaction{person.interaction_count === 1 ? "" : "s"}</div>
+          <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--fg-faint)" }}>last {relativeTime(person.last_interaction_at)}</div>
+        </div>
         <div className="tl-actions" style={{ flexDirection: "row", marginTop: 0 }}>
           {confirmDelete ? (
             <>
@@ -106,6 +123,144 @@ function PersonCard({ person, editing, confirmDelete, onEdit, onCancelEdit, onSa
   );
 }
 
+// ── Table view ─────────────────────────────────────────────────────────────
+
+function TableView({ people, onEdit, onDelete }: {
+  people: PersonRow[];
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+}) {
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: "0.5px solid var(--line)" }}>
+            {["Name", "Relationship", "Last contact", "Interactions", "Notes"].map((h) => (
+              <th key={h} style={{ textAlign: "left", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fg-faint)", fontWeight: 500, padding: "8px 12px 8px 0" }}>{h}</th>
+            ))}
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((p) => (
+            <tr key={p.id} style={{ borderBottom: "0.5px solid var(--line-soft)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-alt)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <td style={{ padding: "10px 12px 10px 0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="avatar" style={{ width: 26, height: 26, fontSize: 9 }}>{initials(p.name)}</div>
+                  <span style={{ fontWeight: 500 }}>{p.name}</span>
+                </div>
+              </td>
+              <td style={{ padding: "10px 12px 10px 0", color: "var(--fg-mute)" }}>{p.relationship ?? "—"}</td>
+              <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)" }}>{relativeTime(p.last_interaction_at)}</td>
+              <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-mute)" }}>{p.interaction_count}</td>
+              <td style={{ padding: "10px 12px 10px 0", color: "var(--fg-mute)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.notes ?? "—"}</td>
+              <td style={{ padding: "10px 0", textAlign: "right", whiteSpace: "nowrap" }}>
+                {confirmId === p.id ? (
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--fg-mute)" }}>Sure?</span>
+                    <button onClick={() => { onDelete(p.id); setConfirmId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Yes</button>
+                    <button onClick={() => setConfirmId(null)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>No</button>
+                  </span>
+                ) : (
+                  <span style={{ display: "inline-flex", gap: 4 }}>
+                    <button onClick={() => onEdit(p.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Edit</button>
+                    <button onClick={() => setConfirmId(p.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Delete</button>
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Constellation view ─────────────────────────────────────────────────────
+
+function ConstellationView({ people }: { people: PersonRow[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const W = 560, H = 520, cx = W / 2, cy = H / 2;
+  const now = Date.now();
+
+  function daysSince(iso: string | null): number {
+    if (!iso) return 999;
+    return Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function ringIndex(days: number): 0 | 1 | 2 | 3 {
+    if (days < 7) return 0;
+    if (days < 30) return 1;
+    if (days < 90) return 2;
+    return 3;
+  }
+
+  const RADII = [80, 150, 210, 255];
+  const RING_LABELS = ["< 1 week", "< 1 month", "< 3 months", "3+ months"];
+
+  const byRing: PersonRow[][] = [[], [], [], []];
+  for (const p of people) {
+    byRing[ringIndex(daysSince(p.last_interaction_at))].push(p);
+  }
+
+  const nodes = byRing.flatMap((ring, ri) =>
+    ring.map((person, i) => {
+      const total = ring.length || 1;
+      const angle = (2 * Math.PI * i) / total - Math.PI / 2;
+      const r = RADII[ri];
+      return { person, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), ri };
+    })
+  );
+
+  return (
+    <div style={{ overflowX: "auto", display: "flex", justifyContent: "center" }}>
+      <svg width={W} height={H} style={{ maxWidth: "100%" }}>
+        {RADII.map((r, i) => (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke="var(--line-soft)" strokeWidth={0.5} />
+        ))}
+        {RING_LABELS.map((label, i) => (
+          <text key={i} x={cx + 4} y={cy - RADII[i] + 11} fill="var(--fg-faint)" fontSize={8} fontFamily="var(--font-mono)">{label}</text>
+        ))}
+        <circle cx={cx} cy={cy} r={14} fill="var(--accent)" />
+        <text x={cx} y={cy + 4} textAnchor="middle" fill="var(--bg)" fontSize={8} fontFamily="var(--font-mono)" fontWeight={600}>you</text>
+        {nodes.map(({ person, x, y }) => {
+          const isHovered = hovered === person.id;
+          return (
+            <g key={person.id}
+              onMouseEnter={() => setHovered(person.id)}
+              onMouseLeave={() => setHovered(null)}
+              style={{ cursor: "default" }}
+            >
+              <circle cx={x} cy={y} r={18} fill={isHovered ? "var(--accent-soft)" : "var(--panel)"} stroke={isHovered ? "var(--accent)" : "var(--line)"} strokeWidth={isHovered ? 1.5 : 0.5} />
+              <text x={x} y={y + 4} textAnchor="middle" fill="var(--accent)" fontSize={8} fontFamily="var(--font-mono)" fontWeight={600}>{initials(person.name)}</text>
+              {isHovered && (
+                <g>
+                  <rect x={x - 40} y={y + 22} width={80} height={28} rx={3} fill="var(--panel)" stroke="var(--line)" strokeWidth={0.5} />
+                  <text x={x} y={y + 33} textAnchor="middle" fill="var(--fg)" fontSize={10} fontFamily="var(--font-sans)" fontWeight={500}>{person.name}</text>
+                  <text x={x} y={y + 44} textAnchor="middle" fill="var(--fg-faint)" fontSize={8} fontFamily="var(--font-mono)">{relativeTime(person.last_interaction_at)}</text>
+                </g>
+              )}
+              {!isHovered && (
+                <text x={x} y={y + 30} textAnchor="middle" fill="var(--fg-mute)" fontSize={9} fontFamily="var(--font-sans)">{person.name.split(" ")[0]}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────
+
+type PeopleView = "cards" | "table" | "constellation";
+const PEOPLE_VIEWS: PeopleView[] = ["cards", "table", "constellation"];
+
 export default function PeoplePage() {
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [defaults, setDefaults] = useState<RelationshipDefaults | null>(null);
@@ -119,6 +274,7 @@ export default function PeoplePage() {
   const [error, setError] = useState<string | null>(null);
   const [editingPersonId, setEditingPersonId] = useState<number | null>(null);
   const [confirmDeletePersonId, setConfirmDeletePersonId] = useState<number | null>(null);
+  const [view, setView] = useState<PeopleView>("cards");
 
   function applyRelationshipDefault(rel: RelationshipType, source: RelationshipDefaults | null) {
     const fromApi = source?.defaults[rel]?.notes;
@@ -133,7 +289,7 @@ export default function PeoplePage() {
         api.people(),
         api.relationshipDefaults().catch(() => null),
       ]);
-      setPeople(peopleData);
+      setPeople(peopleData as PersonRow[]);
       setDefaults(defaultsData);
       if (!notesTouched) applyRelationshipDefault(relationship, defaultsData);
     } catch {
@@ -193,35 +349,33 @@ export default function PeoplePage() {
           <h1 className="page-title">The <em>people.</em></h1>
           <p className="page-sub">Everyone you interact with — with context and history.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn primary">
-          {showForm ? "cancel" : "+ Add person"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
+            {PEOPLE_VIEWS.map((v) => (
+              <button key={v} onClick={() => setView(v)}
+                className={view === v ? "btn primary" : "btn ghost"}
+                style={{ height: 32, padding: "0 12px", fontSize: 12, borderRadius: 0, border: "none", textTransform: "capitalize" }}>
+                {v}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowForm(!showForm)} className="btn primary">
+            {showForm ? "cancel" : "+ Add person"}
+          </button>
+        </div>
       </div>
 
-      {/* Add person form */}
       {showForm && (
         <div className="card" style={{ marginBottom: "var(--pad-6)", maxWidth: 500 }}>
           <div className="kicker" style={{ marginBottom: 14 }}>New person</div>
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div className="field">
               <div className="field-label">Name</div>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Full name"
-                required
-                autoFocus
-                className="input"
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required autoFocus className="input" />
             </div>
             <div className="field">
               <div className="field-label">Relationship</div>
-              <select
-                value={relationship}
-                onChange={(e) => onRelationshipChange(e.target.value as RelationshipType)}
-                className="select"
-              >
+              <select value={relationship} onChange={(e) => onRelationshipChange(e.target.value as RelationshipType)} className="select">
                 {RELATIONSHIP_TYPES.map((rel) => (
                   <option key={rel} value={rel}>{RELATIONSHIP_LABELS[rel]}</option>
                 ))}
@@ -229,21 +383,10 @@ export default function PeoplePage() {
             </div>
             <div className="field">
               <div className="field-label">Notes</div>
-              <textarea
-                value={notes}
-                onChange={(e) => { setNotes(e.target.value); setNotesTouched(true); }}
-                placeholder="Context about this person"
-                rows={2}
-                className="textarea"
-                style={{ minHeight: 60 }}
-              />
+              <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setNotesTouched(true); }} placeholder="Context about this person" rows={2} className="textarea" style={{ minHeight: 60 }} />
             </div>
             {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
-            <button
-              type="submit"
-              disabled={submitting || !name.trim()}
-              className="btn primary"
-            >
+            <button type="submit" disabled={submitting || !name.trim()} className="btn primary">
               {submitting ? "Adding…" : "Add person"}
             </button>
           </form>
@@ -257,7 +400,7 @@ export default function PeoplePage() {
           <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>No people yet.</p>
           <button onClick={() => setShowForm(true)} className="btn primary">Add your first person</button>
         </div>
-      ) : (
+      ) : view === "cards" ? (
         <div className="people-grid">
           {people.map((person) => (
             <PersonCard
@@ -276,6 +419,14 @@ export default function PeoplePage() {
             />
           ))}
         </div>
+      ) : view === "table" ? (
+        <TableView
+          people={people}
+          onEdit={(id) => { setEditingPersonId(id); setView("cards"); }}
+          onDelete={handleDeletePerson}
+        />
+      ) : (
+        <ConstellationView people={people} />
       )}
     </>
   );

@@ -58,6 +58,8 @@ def _migrate_sqlite() -> None:
                 conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN energy REAL")
             if "reflection_json" not in ix_cols:
                 conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN reflection_json TEXT")
+            if "kind" not in ix_cols:
+                conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN kind VARCHAR(20)")
 
 
 def _migrate_postgres() -> None:
@@ -85,6 +87,8 @@ def _migrate_postgres() -> None:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN energy FLOAT"))
             if "reflection_json" not in existing_ix:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN reflection_json TEXT"))
+            if "kind" not in existing_ix:
+                conn.execute(text("ALTER TABLE interactions ADD COLUMN kind VARCHAR(20)"))
 
 
 def init_db() -> None:

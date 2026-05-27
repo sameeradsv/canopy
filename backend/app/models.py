@@ -60,6 +60,7 @@ class Interaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
+    kind: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     observation: Mapped[str] = mapped_column(Text)
     outcome: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

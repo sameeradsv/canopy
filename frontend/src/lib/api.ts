@@ -11,11 +11,13 @@ export interface Person {
   created_at: string;
   updated_at: string;
   interaction_count: number;
+  last_interaction_at: string | null;
 }
 
 export interface Interaction {
   id: number;
   occurred_at: string;
+  kind: string | null;
   context: string | null;
   observation: string;
   outcome: string | null;
@@ -43,6 +45,7 @@ export interface Summary {
   total_tags: number;
   recent_interactions: Interaction[];
   top_tags: Tag[];
+  people_to_reach_out: Person[];
 }
 
 export interface SearchResult {
@@ -53,6 +56,7 @@ export interface SearchResult {
 
 export interface InteractionCreate {
   observation: string;
+  kind?: string | null;
   context?: string | null;
   outcome?: string | null;
   confidence?: number;
@@ -65,6 +69,7 @@ export interface InteractionCreate {
 
 export interface InteractionUpdate {
   observation?: string;
+  kind?: string | null;
   context?: string | null;
   confidence?: number;
   energy?: number | null;
@@ -94,6 +99,14 @@ export interface AuthResponse {
 export interface RelationshipDefaults {
   types: string[];
   defaults: Record<string, { notes: string }>;
+}
+
+export interface Preset {
+  id: string;
+  name: string;
+  dims: Record<string, number | null>;
+  note: string;
+  use: number;
 }
 
 import { getAuthToken } from "@/lib/auth";
@@ -144,10 +157,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  interactions: (params?: { person_id?: number; tag?: string; limit?: number }) => {
+  interactions: (params?: { person_id?: number; tag?: string; kind?: string; limit?: number }) => {
     const search = new URLSearchParams();
     if (params?.person_id != null) search.set("person_id", String(params.person_id));
     if (params?.tag) search.set("tag", params.tag);
+    if (params?.kind) search.set("kind", params.kind);
     if (params?.limit != null) search.set("limit", String(params.limit));
     const qs = search.toString();
     return request<Interaction[]>(`/api/interactions${qs ? `?${qs}` : ""}`);
@@ -248,5 +262,23 @@ export const api = {
   scoreAll: () =>
     request<{ scored: number; errors: number; total: number }>("/api/people/score-all", {
       method: "POST",
+    }),
+
+  getPresets: () =>
+    request<{ presets: Preset[] }>("/api/settings/presets"),
+
+  setPresets: (presets: Preset[]) =>
+    request<{ presets: Preset[] }>("/api/settings/presets", {
+      method: "PUT",
+      body: JSON.stringify({ presets }),
+    }),
+
+  getDimensions: () =>
+    request<{ values: Record<string, number | null> }>("/api/settings/dimensions"),
+
+  setDimensions: (values: Record<string, number | null>) =>
+    request<{ values: Record<string, number | null> }>("/api/settings/dimensions", {
+      method: "PUT",
+      body: JSON.stringify({ values }),
     }),
 };

@@ -34,12 +34,17 @@ class PersonRead(PersonBase):
     created_at: datetime
     updated_at: datetime
     interaction_count: int = 0
+    last_interaction_at: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
 
+INTERACTION_KINDS = {"meeting", "call", "message", "meal", "walk", "one-on-one"}
+
+
 class InteractionBase(BaseModel):
     occurred_at: Optional[datetime] = None
+    kind: Optional[str] = None
     context: Optional[str] = None
     observation: str = Field(min_length=1)
     outcome: Optional[str] = None
@@ -56,6 +61,7 @@ class InteractionCreate(InteractionBase):
 
 class InteractionUpdate(BaseModel):
     occurred_at: Optional[datetime] = None
+    kind: Optional[str] = None
     context: Optional[str] = None
     observation: Optional[str] = None
     outcome: Optional[str] = None
@@ -69,6 +75,7 @@ class InteractionUpdate(BaseModel):
 class InteractionRead(BaseModel):
     id: int
     occurred_at: datetime
+    kind: Optional[str] = None
     context: Optional[str]
     observation: str
     outcome: Optional[str]
@@ -109,6 +116,7 @@ class Summary(BaseModel):
     total_tags: int
     recent_interactions: list[InteractionRead]
     top_tags: list[TagRead]
+    people_to_reach_out: list[PersonRead] = []
 
 
 class DimensionsRead(BaseModel):

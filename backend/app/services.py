@@ -44,6 +44,10 @@ def get_or_create_tags(db: Session, names: list[str]) -> list[Tag]:
 
 
 def person_to_read(person: Person) -> dict:
+    last_at = None
+    if person.interactions:
+        last_dt = max(ix.occurred_at for ix in person.interactions)
+        last_at = last_dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
     return {
         "id": person.id,
         "name": person.name,
@@ -52,6 +56,7 @@ def person_to_read(person: Person) -> dict:
         "created_at": person.created_at,
         "updated_at": person.updated_at,
         "interaction_count": len(person.interactions),
+        "last_interaction_at": last_at,
     }
 
 
@@ -106,6 +111,7 @@ def list_interactions(
     *,
     person_id: Optional[int] = None,
     tag: Optional[str] = None,
+    kind: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
     user_id: Optional[int] = None,
@@ -121,6 +127,8 @@ def list_interactions(
         stmt = stmt.join(Interaction.participants).where(Person.id == person_id)
     if tag:
         stmt = stmt.join(Interaction.tags).where(Tag.name == _normalize_tag(tag))
+    if kind:
+        stmt = stmt.where(Interaction.kind == kind)
     return list(db.scalars(stmt).unique().all())
 
 
@@ -128,6 +136,7 @@ def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[i
     interaction = Interaction(
         user_id=user_id,
         occurred_at=data.occurred_at or datetime.utcnow(),
+        kind=data.kind,
         context=data.context,
         observation=data.observation.strip(),
         outcome=data.outcome,
@@ -148,6 +157,8 @@ def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[i
 def update_interaction(db: Session, interaction: Interaction, data: InteractionUpdate) -> Interaction:
     if data.occurred_at is not None:
         interaction.occurred_at = data.occurred_at
+    if data.kind is not None:
+        interaction.kind = data.kind
     if data.context is not None:
         interaction.context = data.context
     if data.observation is not None:
@@ -234,12 +245,24 @@ def get_summary(db: Session, user_id: Optional[int] = None) -> dict:
             .limit(5)
         ).all()
     )
+    # People to reach out to: those with ≥1 interaction, sorted by oldest last contact
+    all_people = list(
+        db.scalars(
+            select(Person)
+            .options(selectinload(Person.interactions))
+            .where(Person.user_id == user_id)
+        ).all()
+    )
+    with_interactions = [p for p in all_people if p.interactions]
+    with_interactions.sort(key=lambda p: max(ix.occurred_at for ix in p.interactions))
+    people_to_reach_out = with_interactions[:3]
     return {
         "total_interactions": total_interactions,
         "total_people": total_people,
         "total_tags": total_tags,
         "recent_interactions": recent,
         "top_tags": top_tags,
+        "people_to_reach_out": people_to_reach_out,
     }
 
 

@@ -4,6 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Interaction, type InteractionUpdate, type Person } from "@/lib/api";
 
+const KIND_GLYPH: Record<string, string> = {
+  meeting: "◧",
+  call: "◌",
+  message: "✉",
+  meal: "◇",
+  walk: "⌒",
+  "one-on-one": "◉",
+};
+
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
@@ -28,7 +37,6 @@ function energyColor(e: number | null): string {
   if (e > 0.65) return "var(--good)";
   return "var(--fg-mute)";
 }
-// Background tint for a day cell based on average energy
 function dayBg(avg: number | null): string {
   if (avg === null) return "transparent";
   if (avg < 0.35) return "color-mix(in oklch, var(--danger) 10%, transparent)";
@@ -173,7 +181,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
   );
 }
 
-// ── Interaction row ────────────────────────────────────────────────────────
+// ── Interaction row (feed view) ────────────────────────────────────────────
 
 function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, showDate = false, people }: {
   ix: Interaction;
@@ -194,6 +202,11 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
       <div className="tl-time">
         {showDate && <div>{date}</div>}
         <div style={{ marginTop: showDate ? 2 : 0, opacity: showDate ? 0.7 : 1 }}>{time}</div>
+        {ix.kind && (
+          <div style={{ fontSize: 13, marginTop: 4, color: "var(--accent)", opacity: 0.8 }} title={ix.kind}>
+            {KIND_GLYPH[ix.kind] ?? ix.kind}
+          </div>
+        )}
         {ix.energy !== null && ix.energy !== undefined && (
           <div style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: energyColor(ix.energy), marginTop: 3, letterSpacing: "0.03em" }}>
             {energyLabel(ix.energy)}
@@ -239,6 +252,127 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
   );
 }
 
+// ── Diary view ─────────────────────────────────────────────────────────────
+
+function DiaryView({ interactions, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, people }: {
+  interactions: Interaction[];
+  editingId: number | null;
+  confirmDeleteId: number | null;
+  setEditingId: (id: number | null) => void;
+  setConfirmDeleteId: (id: number | null) => void;
+  onSave: (id: number, data: InteractionUpdate) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  people: Person[];
+}) {
+  // Group by local date key, descending
+  const grouped: { key: string; date: Date; items: Interaction[] }[] = [];
+  const seen = new Map<string, Interaction[]>();
+  for (const ix of interactions) {
+    const k = dateKey(ix.occurred_at);
+    if (!seen.has(k)) {
+      seen.set(k, []);
+      grouped.push({ key: k, date: new Date(ix.occurred_at), items: seen.get(k)! });
+    }
+    seen.get(k)!.push(ix);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+      {grouped.map(({ key, date, items }) => {
+        const day = date.getDate();
+        const dow = date.toLocaleDateString(undefined, { weekday: "long" });
+        const monthYear = date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        return (
+          <div key={key}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 16, borderBottom: "0.5px solid var(--line-soft)", paddingBottom: 12 }}>
+              <span style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 56,
+                fontWeight: 500,
+                lineHeight: 1,
+                color: "var(--accent)",
+                fontStyle: "italic",
+                minWidth: 56,
+              }}>{day}</span>
+              <div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fg-faint)" }}>{dow}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)" }}>{monthYear}</div>
+              </div>
+              <div style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--fg-faint)" }}>
+                {items.length} interaction{items.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+            <div className="tl-feed">
+              {items.map((ix) => (
+                <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
+                  setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
+                  onSave={onSave} onDelete={onDelete} showDate={false} people={people} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Terminal view ──────────────────────────────────────────────────────────
+
+function TerminalView({ interactions, onDelete }: {
+  interactions: Interaction[];
+  onDelete: (id: number) => Promise<void>;
+}) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Group by day for dashed day separators
+  let lastDay = "";
+
+  return (
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6 }}>
+      {interactions.map((ix) => {
+        const d = new Date(ix.occurred_at);
+        const dayStr = d.toLocaleDateString("en-CA");
+        const isNewDay = dayStr !== lastDay;
+        lastDay = dayStr;
+        const dateStr = d.toISOString().slice(0, 10);
+        const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+        const kindStr = ix.kind ? ix.kind.padEnd(10) : "—".padEnd(10);
+        const names = ix.participants.map((p) => p.name.split(" ")[0]).join(", ") || "—";
+        const note = ix.observation.slice(0, 60) + (ix.observation.length > 60 ? "…" : "");
+
+        return (
+          <div key={ix.id}>
+            {isNewDay && (
+              <div style={{ color: "var(--fg-faint)", borderTop: "0.5px dashed var(--line)", marginTop: 8, paddingTop: 8, paddingBottom: 2, letterSpacing: "0.08em", fontSize: 10 }}>
+                {dateStr}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 0, padding: "1px 0" }}>
+              <span style={{ color: "var(--fg-faint)", minWidth: 44 }}>{timeStr}</span>
+              <span style={{ color: "var(--accent)", minWidth: 88 }}>{kindStr}</span>
+              <span style={{ color: "var(--fg-mute)", minWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{names.padEnd(12).slice(0, 12)}</span>
+              <span style={{ color: "var(--fg)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{note}</span>
+              <div style={{ marginLeft: 12, display: "flex", gap: 4, flexShrink: 0 }}>
+                {confirmDeleteId === ix.id ? (
+                  <>
+                    <button onClick={() => onDelete(ix.id)} style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "none", border: "none", color: "var(--danger)", cursor: "default", padding: "0 4px" }}>del</button>
+                    <button onClick={() => setConfirmDeleteId(null)} style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "none", border: "none", color: "var(--fg-faint)", cursor: "default", padding: "0 4px" }}>no</button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmDeleteId(ix.id)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "none", border: "none", color: "var(--fg-faint)", cursor: "default", padding: "0 4px", opacity: 0 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                  >×</button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Calendar view ──────────────────────────────────────────────────────────
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -257,7 +391,6 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
   const [viewMonth, setViewMonth] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState<string>(todayKey);
 
-  // Group interactions by date
   const byDate: Record<string, Interaction[]> = {};
   for (const ix of interactions) {
     const k = dateKey(ix.occurred_at);
@@ -265,7 +398,6 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
     byDate[k].push(ix);
   }
 
-  // Average energy per day (null if no interactions or none have energy set)
   function dayAvgEnergy(k: string): number | null {
     const items = byDate[k] ?? [];
     const withEnergy = items.filter((ix) => ix.energy !== null && ix.energy !== undefined);
@@ -288,7 +420,6 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
 
   return (
     <div>
-      {/* Month nav */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
         <button onClick={() => setViewMonth(new Date(year, month - 1, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
         <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, minWidth: 160, textAlign: "center" }}>
@@ -298,14 +429,12 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
         <button onClick={() => { setViewMonth(new Date()); setSelectedKey(todayKey); }} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>Today</button>
       </div>
 
-      {/* Day-of-week headers */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
         {DOW.map((d) => (
           <div key={d} style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", letterSpacing: "0.06em", padding: "4px 0" }}>{d}</div>
         ))}
       </div>
 
-      {/* Day cells — show events as stacked chips */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {cells.map((day, i) => {
           if (day === null) return <div key={`b${i}`} />;
@@ -336,25 +465,17 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
               </span>
               {items.slice(0, 3).map((ix) => (
                 <div key={ix.id} style={{
-                  fontSize: 9,
-                  lineHeight: 1.3,
-                  padding: "2px 4px",
-                  borderRadius: 3,
+                  fontSize: 9, lineHeight: 1.3, padding: "2px 4px", borderRadius: 3,
                   background: ix.energy !== null && ix.energy !== undefined
                     ? ix.energy < 0.35 ? "color-mix(in oklch, var(--danger) 18%, var(--panel))"
                     : ix.energy > 0.65 ? "color-mix(in oklch, var(--good) 18%, var(--panel))"
-                    : "var(--panel)"
-                    : "var(--panel)",
+                    : "var(--panel)" : "var(--panel)",
                   color: ix.energy !== null && ix.energy !== undefined
-                    ? ix.energy < 0.35 ? "var(--danger)"
-                    : ix.energy > 0.65 ? "var(--good)"
-                    : "var(--fg-mute)"
+                    ? ix.energy < 0.35 ? "var(--danger)" : ix.energy > 0.65 ? "var(--good)" : "var(--fg-mute)"
                     : "var(--fg-mute)",
-                  overflow: "hidden",
-                  whiteSpace: "nowrap",
-                  textOverflow: "ellipsis",
+                  overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
                 }}>
-                  {ix.observation.slice(0, 22)}
+                  {ix.kind && KIND_GLYPH[ix.kind] ? KIND_GLYPH[ix.kind] + " " : ""}{ix.observation.slice(0, 20)}
                 </div>
               ))}
               {items.length > 3 && (
@@ -367,7 +488,6 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
         })}
       </div>
 
-      {/* Selected day detail */}
       <div style={{ marginTop: 28, borderTop: "0.5px solid var(--line-soft)", paddingTop: 20 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -404,13 +524,14 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-type View = "list" | "calendar";
+type View = "feed" | "diary" | "terminal" | "calendar";
+const VIEWS: View[] = ["feed", "diary", "terminal", "calendar"];
 
 export default function TimelinePage() {
   const [interactions, setInteractions] = useState<Interaction[] | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [unreachable, setUnreachable] = useState(false);
-  const [view, setView] = useState<View>("list");
+  const [view, setView] = useState<View>("feed");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
@@ -452,10 +573,10 @@ export default function TimelinePage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
-            {(["list", "calendar"] as View[]).map((v) => (
+            {VIEWS.map((v) => (
               <button key={v} onClick={() => setView(v)}
                 className={view === v ? "btn primary" : "btn ghost"}
-                style={{ height: 32, padding: "0 14px", fontSize: 12, borderRadius: 0, border: "none", textTransform: "capitalize" }}>
+                style={{ height: 32, padding: "0 12px", fontSize: 12, borderRadius: 0, border: "none", textTransform: "capitalize" }}>
                 {v}
               </button>
             ))}
@@ -469,7 +590,7 @@ export default function TimelinePage() {
           <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>Nothing captured yet.</p>
           <Link href="/capture" className="btn primary">Log your first interaction</Link>
         </div>
-      ) : view === "list" ? (
+      ) : view === "feed" ? (
         <div className="tl-feed">
           {sorted.map((ix) => (
             <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
@@ -477,6 +598,12 @@ export default function TimelinePage() {
               onSave={handleSave} onDelete={handleDelete} showDate people={people} />
           ))}
         </div>
+      ) : view === "diary" ? (
+        <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
+          setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
+          onSave={handleSave} onDelete={handleDelete} people={people} />
+      ) : view === "terminal" ? (
+        <TerminalView interactions={sorted} onDelete={handleDelete} />
       ) : (
         <CalendarView interactions={interactions} editingId={editingId} confirmDeleteId={confirmDeleteId}
           setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}

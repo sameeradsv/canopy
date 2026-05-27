@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 
 const NAV = [
-  { href: "/",             label: "Dashboard", section: "today" },
-  { href: "/capture",      label: "Capture",   section: "today" },
-  { href: "/timeline",     label: "Timeline",  section: "log"   },
-  { href: "/people",       label: "People",    section: "log"   },
-  { href: "/people/graph", label: "Graph",     section: "log"   },
-  { href: "/search",       label: "Search",    section: "meta"  },
-  { href: "/chat",         label: "Chat",      section: "meta"  },
+  { href: "/",             label: "Dashboard",  section: "today" },
+  { href: "/capture",      label: "Capture",    section: "today" },
+  { href: "/timeline",     label: "Timeline",   section: "log"   },
+  { href: "/people",       label: "People",     section: "log"   },
+  { href: "/people/graph", label: "Graph",      section: "log"   },
+  { href: "/dimensions",   label: "Dimensions", section: "log"   },
+  { href: "/search",       label: "Search",     section: "meta"  },
+  { href: "/chat",         label: "Chat",       section: "meta"  },
 ];
 
 const SECTIONS = [
