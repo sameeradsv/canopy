@@ -90,6 +90,27 @@ def _migrate_postgres() -> None:
             if "kind" not in existing_ix:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN kind VARCHAR(20)"))
 
+        # WebAuthn
+        if "webauthn_credentials" not in tables:
+            conn.execute(text(
+                "CREATE TABLE webauthn_credentials ("
+                "credential_id TEXT PRIMARY KEY, "
+                "public_key TEXT NOT NULL, "
+                "sign_count INTEGER DEFAULT 0, "
+                "user_id TEXT NOT NULL, "
+                "created_at TIMESTAMP DEFAULT NOW())"
+            ))
+            conn.execute(text("CREATE INDEX ix_webauthn_cred_user ON webauthn_credentials (user_id)"))
+        if "webauthn_challenges" not in tables:
+            conn.execute(text(
+                "CREATE TABLE webauthn_challenges ("
+                "id VARCHAR(64) PRIMARY KEY, "
+                "challenge VARCHAR(128) NOT NULL, "
+                "user_id TEXT, "
+                "expires_at TIMESTAMP NOT NULL, "
+                "created_at TIMESTAMP DEFAULT NOW())"
+            ))
+
 
 def init_db() -> None:
     from pathlib import Path

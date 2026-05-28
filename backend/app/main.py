@@ -12,6 +12,7 @@ from app.deps.auth import optional_auth_user
 from app.models import User
 from app.routers import ai, auth, interactions, people, scores, search, sync
 from app.routers import settings as settings_router
+from app.routers import webauthn as webauthn_router
 from app.schemas import RelationshipDefaults
 
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(search.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
+app.include_router(webauthn_router.router, prefix="/api")
 
 
 @app.get("/api/relationship-defaults", response_model=RelationshipDefaults)

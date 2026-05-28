@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { setAuthToken } from "@/lib/auth";
+import { usePasskey } from "@/lib/usePasskey";
 import { CortexSignIn } from "@shared/cortex";
 
 const CORTEX_URL = (process.env.NEXT_PUBLIC_CORTEX_URL ?? "").replace(/\/$/, "");
@@ -12,11 +13,13 @@ const CORTEX_URL = (process.env.NEXT_PUBLIC_CORTEX_URL ?? "").replace(/\/$/, "")
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, refetch } = useAuth();
+  const { supported, loginWithPasskey } = usePasskey();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [mode, setMode] = useState<"login" | "register">("register");
   const [submitting, setSubmitting] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Show Cortex first when configured; fall back to local-only if not
   const [showLocal, setShowLocal] = useState(!CORTEX_URL);
@@ -33,6 +36,21 @@ export default function LoginPage() {
       })
       .catch(() => setHasUsers(false));
   }, []);
+
+  async function handlePasskeyLogin() {
+    setPasskeyBusy(true);
+    setError(null);
+    try {
+      const result = await loginWithPasskey();
+      setAuthToken(result.token);
+      await refetch();
+      router.push("/account");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Biometric login failed");
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
 
   async function handleLocalSubmit(e: FormEvent) {
     e.preventDefault();
@@ -100,6 +118,17 @@ export default function LoginPage() {
                   submitBtn: "btn primary",
                 }}
               />
+              {supported && (
+                <button
+                  type="button"
+                  onClick={handlePasskeyLogin}
+                  disabled={passkeyBusy || submitting}
+                  className="btn ghost"
+                  style={{ justifyContent: "center", marginTop: 4 }}
+                >
+                  {passkeyBusy ? "Please wait…" : "Sign in with biometrics"}
+                </button>
+              )}
             </>
           )}
 
@@ -146,6 +175,17 @@ export default function LoginPage() {
                   <button type="submit" disabled={submitting} className="btn primary" style={{ marginTop: 8 }}>
                     {submitting ? "Please wait…" : mode === "register" ? "Create account →" : "Sign in →"}
                   </button>
+                  {supported && (
+                    <button
+                      type="button"
+                      onClick={handlePasskeyLogin}
+                      disabled={passkeyBusy || submitting}
+                      className="btn ghost"
+                      style={{ justifyContent: "center", marginTop: 4 }}
+                    >
+                      {passkeyBusy ? "Please wait…" : "Sign in with biometrics"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setMode(mode === "login" ? "register" : "login")}

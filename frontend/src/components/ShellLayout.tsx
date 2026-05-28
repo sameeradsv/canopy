@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { PasskeyBanner } from "./PasskeyBanner";
 
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -61,6 +62,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="main">
         <Topbar onMenuToggle={() => setSidebarOpen((o) => !o)} />
+        {user && <PasskeyBanner />}
         <div className="page">{children}</div>
       </div>
     </div>
