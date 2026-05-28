@@ -14,7 +14,7 @@ Tracked ideas and future work. Not a commitment order.
 - [x] **Account + sync UI** — `/account` page: identity, encrypted export (AES-GCM), encrypted import with merge counts, data summary.
 - [x] **AES-GCM export crypto** — upgraded from XOR-stream+HMAC (v1) to AES-GCM-256 via pycryptodome (v2); v1 blobs still readable for backward compat.
 - [ ] **Encrypted cross-device sync** — automatic merge; conflict resolution for interactions and tasks (manual export/import works now).
-- [ ] **Passkey support** — WebAuthn alongside password/passcode.
+- [x] **Passkey support** — WebAuthn passkey / biometric sign-in. Backend: `POST /api/auth/webauthn/register/begin|complete` and `/login/begin|complete`. Frontend: `usePasskey` hook + `PasskeyBanner` post-login prompt.
 - [ ] **Enable `AUTH_REQUIRED` in production** — optional gate on destructive/sync routes (implemented; off by default for local dev).
 
 ## Intelligence (local-first)

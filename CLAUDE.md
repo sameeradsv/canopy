@@ -82,6 +82,7 @@ Pages are all client components that call `api.*` in `useEffect`. No global stat
 - `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production (already set in `fly.toml`).
 - Token stored in `localStorage` as `canopy_auth_token` and sent as `Authorization: Bearer <token>`.
 - `optional_auth_user` dependency enforces auth only when `AUTH_REQUIRED=true`; most write endpoints use this.
+- **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials in `webauthn_credentials`; challenges in `webauthn_challenges` (2-min TTL). Frontend: `src/lib/usePasskey.ts` hook + `PasskeyBanner`.
 
 ### Frontend build modes
 - `npm run dev` — local with API proxy (`next.config.ts` rewrites `/api/*` → `localhost:8000`)

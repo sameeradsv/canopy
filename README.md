@@ -13,6 +13,8 @@ Local-first contextual memory — preserve what you notice, who you interact wit
 
 Data stays on your machine (SQLite by default). Export and delete-all endpoints are available on the API for backup and reset.
 
+Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Register a passkey after first login via the `PasskeyBanner` prompt.
+
 ## Run locally
 
 ### Backend

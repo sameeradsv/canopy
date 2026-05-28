@@ -1,6 +1,6 @@
 # Roadmap
 
-# v0.1 — Core Memory System
+# v0.1 — Core Memory System (shipped)
 
 Features:
 - quick capture
@@ -9,6 +9,10 @@ Features:
 - tagging
 - search
 - local database
+- bearer token auth + optional auth gate
+- WebAuthn passkey / biometric sign-in
+- encrypted export/import (AES-GCM)
+- conduit integration (agent reads + diary writes)
 
 Goal:
 Create a usable low-friction memory layer.
