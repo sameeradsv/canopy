@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { usePasskey } from "@/lib/usePasskey";
 
 type Theme    = "paper" | "ink";
 type FontMode = "editorial" | "typewriter";
@@ -31,6 +32,22 @@ export default function SettingsPage() {
   const [importResult, setImportResult] = useState<{ created: Record<string, number>; skipped: Record<string, number> } | null>(null);
   const [importError,  setImportError]  = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { supported: passkeySupported, registered: passkeyRegistered, registerPasskey } = usePasskey();
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyErr, setPasskeyErr] = useState<string | null>(null);
+
+  async function handleEnablePasskey() {
+    setPasskeyBusy(true);
+    setPasskeyErr(null);
+    try {
+      await registerPasskey();
+    } catch (e) {
+      setPasskeyErr(e instanceof Error ? e.message : "Registration failed");
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
 
   useEffect(() => {
     setTheme((localStorage.getItem("canopy.theme")    ?? "paper")     as Theme);
@@ -248,6 +265,34 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {passkeySupported && (
+        <>
+          <div className="kicker" style={{ marginBottom: 24, marginTop: 32 }}>Security</div>
+          <div className="card">
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500, fontSize: 13, marginBottom: 4 }}>Biometric sign-in</div>
+                <p className="faint small" style={{ marginBottom: 0 }}>
+                  {passkeyRegistered
+                    ? "Passkey registered — sign in with Face ID or fingerprint."
+                    : "Sign in with Face ID or fingerprint instead of your passcode."}
+                </p>
+                {passkeyErr && <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{passkeyErr}</p>}
+              </div>
+              {passkeyRegistered ? (
+                <span style={{ fontSize: 11, color: "var(--accent)", border: "1px solid currentColor", borderRadius: 4, padding: "2px 8px", whiteSpace: "nowrap", opacity: 0.7, flexShrink: 0 }}>
+                  Enabled
+                </span>
+              ) : (
+                <button onClick={handleEnablePasskey} disabled={passkeyBusy} className="btn primary" style={{ whiteSpace: "nowrap", padding: "3px 14px", fontSize: 12, flexShrink: 0 }}>
+                  {passkeyBusy ? "Setting up…" : "Enable"}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
