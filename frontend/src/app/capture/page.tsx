@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
+import { useVoiceInput } from "@/lib/use-voice-input";
 
 type ReflectionQuestion = {
   key: string;
@@ -97,6 +98,7 @@ export default function CapturePage() {
   const [tagsInput, setTagsInput] = useState("");
   const [occurredAt, setOccurredAt] = useState(nowDatetimeLocal);
   const [energy, setEnergy] = useState(50);
+  const voice = useVoiceInput();
   const [classifying, setClassifying] = useState(false);
   const [classifyReason, setClassifyReason] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -306,19 +308,35 @@ export default function CapturePage() {
             </div>
 
             <div className="field">
-              <div className="field-label">
-                Note
-                <Tip text="What happened? What did you observe or feel? This is the core of the entry." />
+              <div className="field-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>
+                  Note
+                  <Tip text="What happened? What did you observe or feel? This is the core of the entry." />
+                </span>
+                {voice.supported && (
+                  <button
+                    type="button"
+                    onClick={() => voice.listening ? voice.stop() : voice.start((t) => setObservation((prev) => prev ? prev + " " + t : t))}
+                    title={voice.listening ? "Stop listening" : "Voice input"}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", color: voice.listening ? "var(--danger)" : "var(--fg-mute)", display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontFamily: "var(--font-mono)" }}
+                  >
+                    {voice.listening
+                      ? <><svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg> stop</>
+                      : <><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg> voice</>
+                    }
+                  </button>
+                )}
               </div>
               <textarea
                 value={observation}
                 onChange={(e) => setObservation(e.target.value)}
                 required
                 autoFocus
-                placeholder="What happened? What did you notice?"
+                placeholder={voice.listening ? "Listening…" : "What happened? What did you notice?"}
                 className="textarea"
-                style={{ minHeight: 120 }}
+                style={{ minHeight: 120, borderColor: voice.listening ? "var(--accent)" : undefined }}
               />
+              {voice.error && <p style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>{voice.error}</p>}
             </div>
 
             <div className="field">
