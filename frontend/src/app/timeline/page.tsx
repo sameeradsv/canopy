@@ -524,8 +524,8 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-type View = "feed" | "diary" | "terminal" | "calendar";
-const VIEWS: View[] = ["feed", "diary", "terminal", "calendar"];
+type View = "feed" | "diary" | "calendar";
+const VIEWS: View[] = ["feed", "diary", "calendar"];
 
 export default function TimelinePage() {
   const [interactions, setInteractions] = useState<Interaction[] | null>(null);
@@ -602,8 +602,6 @@ export default function TimelinePage() {
         <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
           setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
           onSave={handleSave} onDelete={handleDelete} people={people} />
-      ) : view === "terminal" ? (
-        <TerminalView interactions={sorted} onDelete={handleDelete} />
       ) : (
         <CalendarView interactions={interactions} editingId={editingId} confirmDeleteId={confirmDeleteId}
           setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}

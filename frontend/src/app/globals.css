@@ -121,7 +121,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .app {
   display: grid;
   grid-template-columns: 224px 1fr;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -237,7 +237,7 @@ input, textarea, select { font: inherit; color: inherit; }
 /* ── Main + Topbar ───────────────────────────────────────────────────────── */
 .main {
   display: flex; flex-direction: column;
-  height: 100vh; overflow: hidden;
+  height: 100dvh; overflow: hidden;
 }
 .topbar {
   display: flex; align-items: center; gap: var(--gap-3);
@@ -487,7 +487,7 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 
 /* ── Login ───────────────────────────────────────────────────────────────── */
-.login-wrap { display: grid; grid-template-columns: 1.1fr 1fr; height: 100vh; }
+.login-wrap { display: grid; grid-template-columns: 1.1fr 1fr; height: 100dvh; }
 .login-side { padding: 56px 64px; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg); }
 .login-art { background: var(--bg-alt); position: relative; overflow: hidden; border-left: 0.5px solid var(--line); }
 .login-art::before {

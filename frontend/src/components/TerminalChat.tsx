@@ -25,7 +25,7 @@ async function* agentStream(
 ): AsyncGenerator<string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(resolveUrl("/api/agent/chat"), {
+  const res = await fetch(resolveUrl("/api/ai/agent/chat"), {
     method: "POST",
     headers,
     body: JSON.stringify({
