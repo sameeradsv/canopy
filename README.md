@@ -2,9 +2,10 @@
 
 Local-first contextual memory — preserve what you notice, who you interact with, and patterns over time without sending data to the cloud.
 
-## v0.1 features
+## Features
 
 - **Quick capture** — log an observation in under 30 seconds (context, outcome, confidence, participants, tags)
+- **Voice input** — tap the microphone on the capture Note field to dictate (Web Speech API)
 - **Timeline** — chronological view of all interactions
 - **People** — entity list linked to captures
 - **Tagging** — comma-separated tags on each interaction
@@ -13,7 +14,7 @@ Local-first contextual memory — preserve what you notice, who you interact wit
 
 Data stays on your machine (SQLite by default). Export and delete-all endpoints are available on the API for backup and reset.
 
-Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Register a passkey after first login via the `PasskeyBanner` prompt.
+Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Enable or check status in **Settings → Security** after first login.
 
 ## Run locally
 
