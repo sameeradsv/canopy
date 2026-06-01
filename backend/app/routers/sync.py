@@ -18,7 +18,9 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 
 # ── Energy sync ───────────────────────────────────────────────────────────────
 
-# Tags that add to drain vs restore energy
+_IST = timedelta(hours=5, minutes=30)
+
+# Tags that add to drain vs restore energy (fallback heuristic)
 _DRAIN_TAGS = {"stress", "conflict", "difficult", "disagreement", "argument", "frustrating", "hard"}
 _RESTORE_TAGS = {"celebration", "win", "support", "joy", "gratitude", "fun", "energizing"}
 
@@ -26,9 +28,11 @@ _RESTORE_TAGS = {"celebration", "win", "support", "joy", "gratitude", "fun", "en
 def _interaction_drain(interaction: Interaction) -> float:
     """
     Per-interaction drain on a 0–1 scale.
-    Base cost + confidence modifier + tag modifier.
-    Range: ~0.10 (easy, supportive) to ~0.45 (hard, conflictual).
+    Uses AI energy score when available (1.0=energising → 0 drain, 0.0=draining → 0.4 drain).
+    Falls back to base cost + confidence modifier + tag modifier.
     """
+    if interaction.energy is not None:
+        return (1.0 - interaction.energy) * 0.4
     base = 0.15
     confidence_cost = (1.0 - interaction.confidence) * 0.20
     tag_names = {t.name.lower() for t in interaction.tags}
@@ -46,21 +50,23 @@ def energy_summary(
     db: Session = Depends(get_db),
 ):
     """
-    Returns the user's interaction-based energy drain split at the current moment.
-    - drain_so_far: interactions already had today (occurred_at < now)
-    - drain_ahead:  interactions logged for later today (occurred_at >= now)
-    All values 0–1; 1.0 = completely drained by interactions alone.
+    Returns the user's interaction-based energy drain split at the current IST moment.
+    - drain_so_far / energy_so_far: interactions already had today (occurred_at < now)
+    - drain_ahead / energy_ahead:   interactions logged for later today (occurred_at >= now)
+    All values 0–1; drain 1.0 = completely drained, energy 1.0 = fully energised.
+    Day boundaries are computed in IST (UTC+05:30).
     """
-    now = datetime.utcnow()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    now_utc = datetime.utcnow()
+    now_ist = now_utc + _IST
+    today_start_utc = now_ist.replace(hour=0, minute=0, second=0, microsecond=0) - _IST
+    today_end_utc = today_start_utc + timedelta(days=1)
 
     today_interactions = db.scalars(
         select(Interaction)
         .where(
             Interaction.user_id == user.id,
-            Interaction.occurred_at >= today_start,
-            Interaction.occurred_at < today_end,
+            Interaction.occurred_at >= today_start_utc,
+            Interaction.occurred_at < today_end_utc,
         )
         .options(selectinload(Interaction.tags))
     ).all()
@@ -70,18 +76,23 @@ def energy_summary(
 
     for ix in today_interactions:
         drain = _interaction_drain(ix)
-        if ix.occurred_at <= now:
+        if ix.occurred_at <= now_utc:
             past_drain += drain
         else:
             future_drain += drain
 
+    drain_so_far = round(min(past_drain, 1.0), 3)
+    drain_ahead = round(min(future_drain, 1.0), 3)
+
     return {
-        "as_of": now.isoformat() + "Z",
+        "as_of": (now_ist).strftime("%Y-%m-%dT%H:%M:%S+05:30"),
         "source": "canopy",
-        "drain_so_far": round(min(past_drain, 1.0), 3),
-        "drain_ahead": round(min(future_drain, 1.0), 3),
-        "interactions_so_far": sum(1 for ix in today_interactions if ix.occurred_at <= now),
-        "interactions_ahead": sum(1 for ix in today_interactions if ix.occurred_at > now),
+        "drain_so_far": drain_so_far,
+        "energy_so_far": round(1.0 - drain_so_far, 3),
+        "drain_ahead": drain_ahead,
+        "energy_ahead": round(1.0 - drain_ahead, 3),
+        "interactions_so_far": sum(1 for ix in today_interactions if ix.occurred_at <= now_utc),
+        "interactions_ahead": sum(1 for ix in today_interactions if ix.occurred_at > now_utc),
     }
 
 
