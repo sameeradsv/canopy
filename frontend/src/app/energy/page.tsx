@@ -200,11 +200,18 @@ function SourcePill({
 }: {
   source: Source;
   timeline: EnergyTimeline | null;
-  unavailable?: boolean;
+  unavailable?: UnavailableReason;
 }) {
   const color = SRC_COLOR[source];
   const avg = timeline?.avg_energy;
   const count = timeline?.events.length ?? 0;
+
+  const statusText =
+    unavailable === "no_url"   ? "not configured" :
+    unavailable === "no_token" ? "not signed in" :
+    avg !== null && avg !== undefined
+      ? `${Math.round(avg * 100)}% avg · ${count} event${count !== 1 ? "s" : ""}`
+      : `${count} event${count !== 1 ? "s" : ""}`;
 
   return (
     <div style={{
@@ -220,11 +227,7 @@ function SourcePill({
           {source} · {SRC_FULL_LABEL[source]}
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: unavailable ? "var(--fg-faint)" : "var(--fg)", marginTop: 1 }}>
-          {unavailable
-            ? "not configured"
-            : avg !== null && avg !== undefined
-              ? `${Math.round(avg * 100)}% avg · ${count} event${count !== 1 ? "s" : ""}`
-              : `${count} event${count !== 1 ? "s" : ""}`}
+          {statusText}
         </div>
       </div>
     </div>
@@ -254,10 +257,12 @@ function formatDateDisplay(iso: string): string {
 
 type LoadState = "loading" | "done" | "error";
 
+type UnavailableReason = "no_url" | "no_token";
+
 interface SourceState {
   timeline: EnergyTimeline | null;
   state: LoadState;
-  unavailable?: boolean;
+  unavailable?: UnavailableReason;
 }
 
 export default function EnergyPage() {
@@ -279,20 +284,24 @@ export default function EnergyPage() {
     // Circuit — direct cross-app call using circuit_auth_token
     const circuitUrl = process.env.NEXT_PUBLIC_CIRCUIT_API_URL;
     if (!circuitUrl) {
-      setCircuit({ timeline: null, state: "done", unavailable: true });
+      setCircuit({ timeline: null, state: "done", unavailable: "no_url" });
+    } else if (!localStorage.getItem("circuit_auth_token")) {
+      setCircuit({ timeline: null, state: "done", unavailable: "no_token" });
     } else {
       fetchExternal(circuitUrl, `/api/energy/timeline?date=${date}`, "circuit_auth_token")
-        .then((t) => setCircuit({ timeline: t, state: "done", unavailable: !t && !localStorage.getItem("circuit_auth_token") }))
+        .then((t) => setCircuit({ timeline: t, state: "done" }))
         .catch(() => setCircuit({ timeline: null, state: "done" }));
     }
 
     // Chef — direct cross-app call using chef_auth_token
     const chefUrl = process.env.NEXT_PUBLIC_CHEF_API_URL;
     if (!chefUrl) {
-      setChef({ timeline: null, state: "done", unavailable: true });
+      setChef({ timeline: null, state: "done", unavailable: "no_url" });
+    } else if (!localStorage.getItem("chef_auth_token")) {
+      setChef({ timeline: null, state: "done", unavailable: "no_token" });
     } else {
       fetchExternal(chefUrl, `/energy/timeline?date=${date}`, "chef_auth_token")
-        .then((t) => setChef({ timeline: t, state: "done", unavailable: !t && !localStorage.getItem("chef_auth_token") }))
+        .then((t) => setChef({ timeline: t, state: "done" }))
         .catch(() => setChef({ timeline: null, state: "done" }));
     }
   }, [date]);
