@@ -57,6 +57,8 @@ jobs:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_API_URL: ${{ vars.CANOPY_API_URL || 'https://canopy-api.onrender.com' }}
           NEXT_PUBLIC_CORTEX_URL: ${{ vars.NEXT_PUBLIC_CORTEX_URL }}
+          NEXT_PUBLIC_CIRCUIT_API_URL: ${{ vars.NEXT_PUBLIC_CIRCUIT_API_URL }}
+          NEXT_PUBLIC_CHEF_API_URL: ${{ vars.NEXT_PUBLIC_CHEF_API_URL }}
         run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
