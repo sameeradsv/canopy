@@ -54,6 +54,22 @@ export interface SearchResult {
   query: string;
 }
 
+export interface EnergyEvent {
+  occurred_at: string;
+  time: string;
+  energy: number;
+  label: "draining" | "neutral" | "energising";
+  note: string;
+  source: "canopy" | "circuit" | "chef";
+}
+
+export interface EnergyTimeline {
+  date: string;
+  source: string;
+  events: EnergyEvent[];
+  avg_energy: number | null;
+}
+
 export interface InteractionCreate {
   observation: string;
   kind?: string | null;
@@ -238,6 +254,9 @@ export const api = {
     ),
 
   logout: () => request<void>("/api/auth/logout", { method: "DELETE" }),
+
+  energyTimeline: (date?: string) =>
+    request<EnergyTimeline>(`/api/sync/energy/timeline${date ? `?date=${date}` : ""}`),
 
   classifyInteraction: (data: { observation: string; context?: string | null; participant_ids?: number[] }) =>
     request<{ energy: number; label: string; reasoning: string }>("/api/ai/classify", {

@@ -44,6 +44,66 @@ def _interaction_drain(interaction: Interaction) -> float:
     return max(0.05, base + confidence_cost + tag_mod)
 
 
+@router.get("/energy/timeline")
+def energy_timeline(
+    date: Optional[str] = None,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Per-interaction energy for a given calendar day (default: today in IST).
+    Returns a common shape shared by all personal apps:
+      { date, source, events: [{occurred_at, time, energy, label, note, source}], avg_energy }
+    """
+    if date:
+        try:
+            from datetime import date as _date
+            target = _date.fromisoformat(date)
+        except ValueError:
+            raise HTTPException(400, "date must be YYYY-MM-DD")
+    else:
+        target = (datetime.utcnow() + _IST).date()
+
+    day_start_utc = datetime(target.year, target.month, target.day) - _IST
+    day_end_utc = day_start_utc + timedelta(days=1)
+
+    interactions = db.scalars(
+        select(Interaction)
+        .where(
+            Interaction.user_id == user.id,
+            Interaction.occurred_at >= day_start_utc,
+            Interaction.occurred_at < day_end_utc,
+        )
+        .options(selectinload(Interaction.tags))
+        .order_by(Interaction.occurred_at)
+    ).all()
+
+    events = []
+    for ix in interactions:
+        if ix.energy is not None:
+            energy = ix.energy
+        else:
+            energy = round(1.0 - _interaction_drain(ix), 3)
+        label = "draining" if energy < 0.35 else "energising" if energy > 0.65 else "neutral"
+        local_time = ix.occurred_at + _IST
+        events.append({
+            "occurred_at": ix.occurred_at.isoformat() + "Z",
+            "time": local_time.strftime("%H:%M"),
+            "energy": round(energy, 3),
+            "label": label,
+            "note": ix.observation[:80],
+            "source": "canopy",
+        })
+
+    avg = round(sum(e["energy"] for e in events) / len(events), 3) if events else None
+    return {
+        "date": target.isoformat(),
+        "source": "canopy",
+        "events": events,
+        "avg_energy": avg,
+    }
+
+
 @router.get("/energy")
 def energy_summary(
     user: User = Depends(require_user),
