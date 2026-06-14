@@ -32,8 +32,8 @@ export function usePasskey() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!beginRes.ok) {
-      const e = await beginRes.json().catch(() => ({}));
-      throw new Error((e as any).detail ?? "Failed to begin passkey registration");
+      const e: { detail?: string } = await beginRes.json().catch(() => ({}));
+      throw new Error(e.detail ?? "Failed to begin passkey registration");
     }
     const { challenge_id, options } = await beginRes.json();
     const credential = await startRegistration(options);
@@ -47,8 +47,8 @@ export function usePasskey() {
       body: JSON.stringify({ challenge_id, credential }),
     });
     if (!completeRes.ok) {
-      const e = await completeRes.json().catch(() => ({}));
-      throw new Error((e as any).detail ?? "Failed to complete passkey registration");
+      const e: { detail?: string } = await completeRes.json().catch(() => ({}));
+      throw new Error(e.detail ?? "Failed to complete passkey registration");
     }
     localStorage.setItem(PASSKEY_KEY, "1");
     setRegistered(true);
@@ -61,8 +61,8 @@ export function usePasskey() {
       method: "POST",
     });
     if (!beginRes.ok) {
-      const e = await beginRes.json().catch(() => ({}));
-      throw new Error((e as any).detail ?? "Failed to begin biometric login");
+      const e: { detail?: string } = await beginRes.json().catch(() => ({}));
+      throw new Error(e.detail ?? "Failed to begin biometric login");
     }
     const { challenge_id, options } = await beginRes.json();
     const credential = await startAuthentication(options);
@@ -73,8 +73,8 @@ export function usePasskey() {
       body: JSON.stringify({ challenge_id, credential }),
     });
     if (!completeRes.ok) {
-      const e = await completeRes.json().catch(() => ({}));
-      throw new Error((e as any).detail ?? "Biometric login failed");
+      const e: { detail?: string } = await completeRes.json().catch(() => ({}));
+      throw new Error(e.detail ?? "Biometric login failed");
     }
     return completeRes.json();
   }

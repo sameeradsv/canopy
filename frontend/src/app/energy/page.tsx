@@ -209,6 +209,7 @@ function SourcePill({
   const statusText =
     unavailable === "no_url"   ? "not configured" :
     unavailable === "no_token" ? "not signed in" :
+    unavailable === "error"    ? "unavailable" :
     avg !== null && avg !== undefined
       ? `${Math.round(avg * 100)}% avg · ${count} event${count !== 1 ? "s" : ""}`
       : `${count} event${count !== 1 ? "s" : ""}`;
@@ -257,7 +258,7 @@ function formatDateDisplay(iso: string): string {
 
 type LoadState = "loading" | "done" | "error";
 
-type UnavailableReason = "no_url" | "no_token";
+type UnavailableReason = "no_url" | "no_token" | "error";
 
 interface SourceState {
   timeline: EnergyTimeline | null;
@@ -350,7 +351,7 @@ export default function EnergyPage() {
 
       {/* Source status pills */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
-        <SourcePill source="canopy"  timeline={canopy.timeline}  unavailable={canopy.state === "error"} />
+        <SourcePill source="canopy"  timeline={canopy.timeline}  unavailable={canopy.state === "error" ? "error" : undefined} />
         <SourcePill source="circuit" timeline={circuit.timeline} unavailable={circuit.unavailable} />
         <SourcePill source="chef"    timeline={chef.timeline}    unavailable={chef.unavailable} />
       </div>
