@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 
 # ── Energy sync ───────────────────────────────────────────────────────────────
 
-_IST = timedelta(hours=5, minutes=30)
+_IST = ZoneInfo("Asia/Kolkata")
 
 # Tags that add to drain vs restore energy (fallback heuristic)
 _DRAIN_TAGS = {"stress", "conflict", "difficult", "disagreement", "argument", "frustrating", "hard"}
@@ -62,9 +63,9 @@ def energy_timeline(
         except ValueError:
             raise HTTPException(400, "date must be YYYY-MM-DD")
     else:
-        target = (datetime.utcnow() + _IST).date()
+        target = datetime.now(_IST).date()
 
-    day_start_utc = datetime(target.year, target.month, target.day) - _IST
+    day_start_utc = datetime(target.year, target.month, target.day, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
     day_end_utc = day_start_utc + timedelta(days=1)
 
     interactions = db.scalars(
@@ -85,7 +86,7 @@ def energy_timeline(
         else:
             energy = round(1.0 - _interaction_drain(ix), 3)
         label = "draining" if energy < 0.35 else "energising" if energy > 0.65 else "neutral"
-        local_time = ix.occurred_at + _IST
+        local_time = ix.occurred_at.replace(tzinfo=timezone.utc).astimezone(_IST)
         events.append({
             "occurred_at": ix.occurred_at.isoformat() + "Z",
             "time": local_time.strftime("%H:%M"),
@@ -116,9 +117,9 @@ def energy_summary(
     All values 0–1; drain 1.0 = completely drained, energy 1.0 = fully energised.
     Day boundaries are computed in IST (UTC+05:30).
     """
-    now_utc = datetime.utcnow()
-    now_ist = now_utc + _IST
-    today_start_utc = now_ist.replace(hour=0, minute=0, second=0, microsecond=0) - _IST
+    now_ist = datetime.now(_IST)
+    now_utc = now_ist.astimezone(timezone.utc).replace(tzinfo=None)
+    today_start_utc = now_ist.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
     today_end_utc = today_start_utc + timedelta(days=1)
 
     today_interactions = db.scalars(
