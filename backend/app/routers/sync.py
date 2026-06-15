@@ -81,10 +81,7 @@ def energy_timeline(
 
     events = []
     for ix in interactions:
-        if ix.energy is not None:
-            energy = ix.energy
-        else:
-            energy = round(1.0 - _interaction_drain(ix), 3)
+        energy = round(ix.energy, 3) if ix.energy is not None else 0.5
         label = "draining" if energy < 0.35 else "energising" if energy > 0.65 else "neutral"
         local_time = ix.occurred_at.replace(tzinfo=timezone.utc).astimezone(_IST)
         events.append({

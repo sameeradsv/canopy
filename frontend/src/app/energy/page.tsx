@@ -67,6 +67,15 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
     {} as Record<Source, EnergyEvent[]>,
   );
 
+  // Running average across all sources, sorted by time
+  let cumSum = 0;
+  const combinedLine = [...events]
+    .sort((a, b) => tm(a.time) - tm(b.time))
+    .map((e, i) => {
+      cumSum += e.energy;
+      return { x: mx(tm(e.time)), y: ey(cumSum / (i + 1)) };
+    });
+
   return (
     <div style={{ position: "relative" }}>
       <svg
@@ -139,6 +148,17 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
             </g>
           );
         })}
+
+        {/* Combined running average */}
+        {combinedLine.length >= 2 && (
+          <path
+            d={combinedLine.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
+            fill="none" stroke="var(--fg)" strokeWidth={1.5} strokeLinejoin="round" opacity={0.4} strokeDasharray="5 3"
+          />
+        )}
+        {combinedLine.length === 1 && (
+          <circle cx={combinedLine[0].x} cy={combinedLine[0].y} r={3} fill="var(--fg)" opacity={0.4} />
+        )}
 
         {/* Axis borders */}
         <line x1={PL} y1={PT} x2={PL} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
@@ -313,6 +333,10 @@ export default function EnergyPage() {
     ...(chef.timeline?.events ?? []),
   ].sort((a, b) => tm(a.time) - tm(b.time));
 
+  const combinedAvg = allEvents.length > 0
+    ? allEvents.reduce((s, e) => s + e.energy, 0) / allEvents.length
+    : null;
+
   const isToday = date === todayISO();
   const loading = canopy.state === "loading";
 
@@ -356,6 +380,31 @@ export default function EnergyPage() {
         <SourcePill source="chef"    timeline={chef.timeline}    unavailable={chef.unavailable} />
       </div>
 
+      {/* Combined total energy summary */}
+      {combinedAvg !== null && (
+        <div style={{
+          display: "flex", alignItems: "baseline", gap: 14,
+          padding: "10px 16px",
+          borderRadius: "var(--r-4)",
+          background: "var(--panel)",
+          border: "0.5px solid var(--line)",
+          marginBottom: 24,
+        }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", textTransform: "uppercase", letterSpacing: "0.06em", minWidth: 70 }}>
+            combined
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 700, lineHeight: 1,
+            color: combinedAvg < 0.35 ? "var(--danger)" : combinedAvg > 0.65 ? "var(--good)" : "var(--fg-mute)",
+          }}>
+            {Math.round(combinedAvg * 100)}%
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--fg-faint)" }}>
+            {combinedAvg < 0.35 ? "draining" : combinedAvg > 0.65 ? "energising" : "neutral"} · {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+
       {/* Chart card */}
       <div className="card" style={{ padding: "20px 16px 12px", marginBottom: 24 }}>
         {loading ? (
@@ -380,6 +429,12 @@ export default function EnergyPage() {
               </span>
             </div>
           ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <svg width={14} height={4} style={{ display: "block" }}>
+              <line x1={0} y1={2} x2={14} y2={2} stroke="var(--fg)" strokeWidth={1.5} strokeDasharray="4 2" opacity={0.4} />
+            </svg>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)" }}>combined</span>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <svg width={20} height={4} style={{ display: "block" }}>
