@@ -29,7 +29,7 @@ async function fetchExternal(
 
 // ── Chart ─────────────────────────────────────────────────────────────────
 
-const CW = 720, CH = 160, PL = 44, PR = 16, PT = 16, PB = 32;
+const CW = 720, CH = 160, PL = 32, PR = 16, PT = 16, PB = 32;
 const VW = PL + CW + PR, VH = PT + CH + PB;
 // Scale factor: SVG renders at 1.5× its viewBox width so 7am–11pm fills a typical screen
 const SCROLL_SCALE = 1.5;
@@ -134,7 +134,8 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
               <g key={h}>
                 <line x1={x} y1={PT} x2={x} y2={PT + CH}
                   stroke="var(--line-soft)" strokeWidth={0.5} />
-                <text x={x} y={PT + CH + 11} textAnchor="middle"
+                <text x={x} y={PT + CH + 11}
+                  textAnchor={h === 0 ? "start" : h === 24 ? "end" : "middle"}
                   fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
                   {hourLabel(h)}
                 </text>
@@ -449,7 +450,7 @@ export default function EnergyPage() {
         )}
 
         {/* Legend */}
-        <div style={{ display: "flex", gap: 16, marginTop: 10, paddingLeft: 44, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16, marginTop: 10, paddingLeft: 32, flexWrap: "wrap" }}>
           {(["canopy", "circuit", "chef"] as Source[]).map((src) => (
             <div key={src} style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: SRC_COLOR[src], display: "inline-block" }} />
