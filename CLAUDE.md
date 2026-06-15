@@ -40,7 +40,7 @@ docker compose up --build
 - **Backend**: FastAPI + SQLAlchemy 2.0 (async-compatible sync sessions) + Pydantic v2
 - **Frontend**: Next.js 15 (App Router) + Tailwind CSS (dark theme with `canopy-*` colors) + TypeScript
 - **Database**: SQLite by default (`data/canopy.db`); PostgreSQL (pgvector) when using Docker Compose
-- **Deployment**: Backend → Fly.io; Frontend → GitHub Pages (static export)
+- **Deployment**: Backend → Render; Frontend → GitHub Pages (static export); Database → Neon (PostgreSQL)
 
 ### Backend layout (`backend/app/`)
 | File | Role |
@@ -52,7 +52,7 @@ docker compose up --build
 | `database.py` | Engine setup, `get_db` dependency, `init_db` (create_all + manual migration) |
 | `config.py` | `pydantic-settings` config — reads `DATABASE_URL`, `CORS_ORIGINS`, `AUTH_REQUIRED` from env |
 | `constants.py` | `RELATIONSHIP_TYPES`, `DIMENSION_KEYS` (`urgency`, `reversibility`, `visibility`, `effort`, `growth_value`, `operational_cost`) |
-| `auth_utils.py` | Password hashing (PBKDF2-SHA256, 260k iterations), session token creation/validation, 30-day expiry |
+| `auth_utils.py` | Password hashing (PBKDF2-SHA256, 100k iterations), session token creation/validation, 30-day expiry |
 | `deps/auth.py` | Auth FastAPI dependencies: `optional_user`, `require_user`, `optional_auth_user` |
 | `export_crypto.py` | Passphrase-based XOR+PBKDF2-SHA256+HMAC encryption for data export blobs |
 | `dimensions_utils.py` | Parse/serialize `Task.dimensions_json` (a JSON string storing 0–1 floats per dimension) |
@@ -79,7 +79,7 @@ docker compose up --build
 Pages are all client components that call `api.*` in `useEffect`. No global state library.
 
 ### Auth
-- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production (already set in `fly.toml`).
+- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production (already set in `render.yaml`).
 - Token stored in `localStorage` as `canopy_auth_token` and sent as `Authorization: Bearer <token>`.
 - `optional_auth_user` dependency enforces auth only when `AUTH_REQUIRED=true`; most write endpoints use this.
 - **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials in `webauthn_credentials`; challenges in `webauthn_challenges` (2-min TTL). Frontend: `src/lib/usePasskey.ts` hook + `PasskeyBanner`.

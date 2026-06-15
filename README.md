@@ -65,20 +65,6 @@ On first visit from the hosted UI, open **Account** and register — production 
 
 Without `RENDER_DEPLOY_HOOK`, only the UI is deployed on push; trigger Render deploys manually or from the dashboard.
 
-#### Fly.io (alternative)
-
-If you prefer SQLite on a persistent volume and no external Postgres:
-
-```bash
-# Install: https://fly.io/docs/hands-on/install-flyctl/
-fly auth login
-fly apps create canopy-api
-fly volumes create canopy_data --region iad --size 1 -a canopy-api
-fly deploy --config backend/fly.toml backend
-```
-
-Set repo variable **`CANOPY_API_URL`** to `https://canopy-api.fly.dev` and deploy the API via Fly (not the Render workflow). See [`backend/fly.toml`](backend/fly.toml).
-
 ### Docker Compose (optional)
 
 From the repo root:

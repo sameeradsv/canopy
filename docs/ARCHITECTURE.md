@@ -114,7 +114,7 @@ Required:
 - Register/login issues a 30-day bearer token stored client-side in `localStorage`.
 - **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials stored in `webauthn_credentials` table (public key + sign_count); challenges in `webauthn_challenges` (2-min TTL, single-use). `PasskeyBanner` post-login prompt; `usePasskey` hook in frontend.
 - `optional_auth_user` dependency validates `Authorization: Bearer …` when present; most write endpoints use this.
-- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production — already set in `render.yaml` / `fly.toml`.
+- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production — already set in `render.yaml`.
 - Cross-device sync works by logging in with the same credentials on any device pointing at the same backend.
 
 ## Encrypted export format
