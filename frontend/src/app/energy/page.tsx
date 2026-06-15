@@ -286,44 +286,68 @@ interface SourceState {
   unavailable?: UnavailableReason;
 }
 
+interface DateCache { canopy: SourceState; circuit: SourceState; chef: SourceState; }
+
 export default function EnergyPage() {
   const [date, setDate] = useState(todayISO);
   const [canopy,  setCanopy]  = useState<SourceState>({ timeline: null, state: "loading" });
   const [circuit, setCircuit] = useState<SourceState>({ timeline: null, state: "loading" });
   const [chef,    setChef]    = useState<SourceState>({ timeline: null, state: "loading" });
+  const cache = useRef<Record<string, DateCache>>({});
 
   useEffect(() => {
-    setCanopy({ timeline: null, state: "loading" });
-    setCircuit({ timeline: null, state: "loading" });
-    setChef({ timeline: null, state: "loading" });
+    // Show cached data immediately to avoid loading flicker (stale-while-revalidate).
+    // Fetches always run in the background and overwrite both state and cache on arrival.
+    const cached = cache.current[date];
+    if (cached) {
+      setCanopy(cached.canopy);
+      setCircuit(cached.circuit);
+      setChef(cached.chef);
+    } else {
+      setCanopy({ timeline: null, state: "loading" });
+      setCircuit({ timeline: null, state: "loading" });
+      setChef({ timeline: null, state: "loading" });
+    }
+
+    const pending = { canopy: null as SourceState | null, circuit: null as SourceState | null, chef: null as SourceState | null };
+    const maybeCache = (key: keyof typeof pending, val: SourceState) => {
+      pending[key] = val;
+      if (pending.canopy && pending.circuit && pending.chef) {
+        cache.current[date] = pending as DateCache;
+      }
+    };
 
     // Canopy — uses the shared api client (handles canopy auth token)
     api.energyTimeline(date)
-      .then((t) => setCanopy({ timeline: t, state: "done" }))
-      .catch(() => setCanopy({ timeline: null, state: "error" }));
+      .then((t) => { const s = { timeline: t, state: "done" as const }; setCanopy(s); maybeCache("canopy", s); })
+      .catch(() => { const s = { timeline: null, state: "error" as const }; setCanopy(s); maybeCache("canopy", s); });
 
     // Circuit — direct cross-app call using circuit_auth_token
     const circuitUrl = process.env.NEXT_PUBLIC_CIRCUIT_API_URL;
     if (!circuitUrl) {
-      setCircuit({ timeline: null, state: "done", unavailable: "no_url" });
+      const s = { timeline: null, state: "done" as const, unavailable: "no_url" as const };
+      setCircuit(s); maybeCache("circuit", s);
     } else if (!localStorage.getItem("circuit_auth_token")) {
-      setCircuit({ timeline: null, state: "done", unavailable: "no_token" });
+      const s = { timeline: null, state: "done" as const, unavailable: "no_token" as const };
+      setCircuit(s); maybeCache("circuit", s);
     } else {
       fetchExternal(circuitUrl, `/api/energy/timeline?date=${date}`, "circuit_auth_token")
-        .then((t) => setCircuit({ timeline: t, state: "done" }))
-        .catch(() => setCircuit({ timeline: null, state: "done" }));
+        .then((t) => { const s = { timeline: t, state: "done" as const }; setCircuit(s); maybeCache("circuit", s); })
+        .catch(() => { const s = { timeline: null, state: "done" as const }; setCircuit(s); maybeCache("circuit", s); });
     }
 
     // Chef — direct cross-app call using chef_auth_token
     const chefUrl = process.env.NEXT_PUBLIC_CHEF_API_URL;
     if (!chefUrl) {
-      setChef({ timeline: null, state: "done", unavailable: "no_url" });
+      const s = { timeline: null, state: "done" as const, unavailable: "no_url" as const };
+      setChef(s); maybeCache("chef", s);
     } else if (!localStorage.getItem("chef_auth_token")) {
-      setChef({ timeline: null, state: "done", unavailable: "no_token" });
+      const s = { timeline: null, state: "done" as const, unavailable: "no_token" as const };
+      setChef(s); maybeCache("chef", s);
     } else {
       fetchExternal(chefUrl, `/energy/timeline?date=${date}`, "chef_auth_token")
-        .then((t) => setChef({ timeline: t, state: "done" }))
-        .catch(() => setChef({ timeline: null, state: "done" }));
+        .then((t) => { const s = { timeline: t, state: "done" as const }; setChef(s); maybeCache("chef", s); })
+        .catch(() => { const s = { timeline: null, state: "done" as const }; setChef(s); maybeCache("chef", s); });
     }
   }, [date]);
 
