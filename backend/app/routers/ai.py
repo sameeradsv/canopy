@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -101,7 +101,6 @@ def agent_chat(
     db: Session = Depends(get_db),
     header_user: Optional[User] = Depends(optional_user),
 ):
-    from app.ai import classify_energy  # noqa: F401 — ensure module loads
     from app.auth_utils import get_user_for_token
     from app.config import settings
 
@@ -129,7 +128,7 @@ def agent_chat(
     )
 
     # Build system prompt with user's data as context
-    today = datetime.utcnow().strftime("%B %d, %Y")
+    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%B %d, %Y")
     lines = [
         f"You are a personal relationship assistant for Canopy. Today is {today}.",
         "Answer questions about the user's interactions and people concisely and helpfully.",

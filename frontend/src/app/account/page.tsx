@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Summary } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { fmtDateIST } from "@/lib/tz";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function AccountPage() {
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>{user.username}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)", marginTop: 2 }}>
-              {new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+              {fmtDateIST(user.created_at, { year: "numeric", month: "long", day: "numeric" })}
             </div>
           </div>
         </div>

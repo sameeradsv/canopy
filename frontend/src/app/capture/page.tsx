@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
+import { toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 import { useVoiceInput } from "@/lib/use-voice-input";
 
 type ReflectionQuestion = {
@@ -71,9 +72,7 @@ function initials(name: string) {
 }
 
 function nowDatetimeLocal(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toISTDatetimeLocal(new Date().toISOString());
 }
 
 function Tip({ text }: { text: string }) {
@@ -151,7 +150,7 @@ export default function CapturePage() {
         energy: energy / 100,
         participant_ids: participantIds,
         tag_names,
-        occurred_at: new Date(occurredAt).toISOString(),
+        occurred_at: fromISTDatetimeLocal(occurredAt),
       });
       // Show reflection questions if there are participants
       if (participantIds.length > 0) {

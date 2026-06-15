@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, or_, select
@@ -135,7 +135,7 @@ def list_interactions(
 def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[int] = None) -> Interaction:
     interaction = Interaction(
         user_id=user_id,
-        occurred_at=data.occurred_at or datetime.utcnow(),
+        occurred_at=data.occurred_at or datetime.now(timezone.utc).replace(tzinfo=None),
         kind=data.kind,
         context=data.context,
         observation=data.observation.strip(),

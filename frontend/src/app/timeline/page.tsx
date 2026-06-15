@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Interaction, type InteractionUpdate, type Person } from "@/lib/api";
+import { TZ, fmtDateIST, fmtTimeIST, toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 
 const KIND_GLYPH: Record<string, string> = {
   meeting: "◧",
@@ -18,12 +19,10 @@ function initials(name: string) {
 }
 
 function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toISTDatetimeLocal(iso);
 }
 function dateKey(iso: string) {
-  return new Date(iso).toLocaleDateString("en-CA");
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
 }
 function energyLabel(e: number | null) {
   if (e === null) return "";
@@ -93,7 +92,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
         context: context.trim() || null,
         confidence,
         energy: energy / 100,
-        occurred_at: new Date(occurredAt).toISOString(),
+        occurred_at: fromISTDatetimeLocal(occurredAt),
         tag_names: tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
         participant_ids: participantIds,
       });
@@ -194,8 +193,8 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
   showDate?: boolean;
   people: Person[];
 }) {
-  const time = new Date(ix.occurred_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const date = new Date(ix.occurred_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const time = fmtTimeIST(ix.occurred_at);
+  const date = fmtDateIST(ix.occurred_at, { month: "short", day: "numeric" });
 
   return (
     <div className="tl-item">
@@ -280,8 +279,8 @@ function DiaryView({ interactions, editingId, confirmDeleteId, setEditingId, set
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       {grouped.map(({ key, date, items }) => {
         const day = date.getDate();
-        const dow = date.toLocaleDateString(undefined, { weekday: "long" });
-        const monthYear = date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        const dow = fmtDateIST(date, { weekday: "long" });
+        const monthYear = fmtDateIST(date, { month: "long", year: "numeric" });
         return (
           <div key={key}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 16, borderBottom: "0.5px solid var(--line-soft)", paddingBottom: 12 }}>
@@ -331,11 +330,11 @@ function TerminalView({ interactions, onDelete }: {
     <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6 }}>
       {interactions.map((ix) => {
         const d = new Date(ix.occurred_at);
-        const dayStr = d.toLocaleDateString("en-CA");
+        const dayStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
         const isNewDay = dayStr !== lastDay;
         lastDay = dayStr;
-        const dateStr = d.toISOString().slice(0, 10);
-        const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+        const dateStr = dayStr;
+        const timeStr = new Intl.DateTimeFormat("en-IN", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
         const kindStr = ix.kind ? ix.kind.padEnd(10) : "—".padEnd(10);
         const names = ix.participants.map((p) => p.name.split(" ")[0]).join(", ") || "—";
         const note = ix.observation.slice(0, 60) + (ix.observation.length > 60 ? "…" : "");
@@ -423,7 +422,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
         <button onClick={() => setViewMonth(new Date(year, month - 1, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
         <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, minWidth: 160, textAlign: "center" }}>
-          {viewMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+          {fmtDateIST(viewMonth, { month: "long", year: "numeric" })}
         </span>
         <button onClick={() => setViewMonth(new Date(year, month + 1, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>›</button>
         <button onClick={() => { setViewMonth(new Date()); setSelectedKey(todayKey); }} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>Today</button>
@@ -491,7 +490,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
       <div style={{ marginTop: 28, borderTop: "0.5px solid var(--line-soft)", paddingTop: 20 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            {new Date(selectedKey + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            {fmtDateIST(new Date(selectedKey + "T12:00:00Z"), { weekday: "long", month: "long", day: "numeric" })}
             {" · "}{selectedInteractions.length} interaction{selectedInteractions.length !== 1 ? "s" : ""}
           </div>
           {selectedInteractions.length > 0 && (() => {

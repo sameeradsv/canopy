@@ -97,8 +97,8 @@ def score_person_endpoint(
         ps.confidence = result["confidence"]
         ps.summary = result["summary"]
         ps.interaction_count = len(ix_list)
-        from datetime import datetime
-        ps.scored_at = datetime.utcnow()
+        from datetime import datetime, timezone
+        ps.scored_at = datetime.now(timezone.utc).replace(tzinfo=None)
     else:
         ps = PersonScore(
             person_id=person_id,
@@ -175,8 +175,8 @@ def score_all_people(
                 ps.confidence = result["confidence"]
                 ps.summary = result["summary"]
                 ps.interaction_count = len(ix_list)
-                from datetime import datetime
-                ps.scored_at = datetime.utcnow()
+                from datetime import datetime, timezone
+                ps.scored_at = datetime.now(timezone.utc).replace(tzinfo=None)
             else:
                 ps = PersonScore(
                     person_id=person.id,

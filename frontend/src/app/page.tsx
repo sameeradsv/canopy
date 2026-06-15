@@ -3,19 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Summary } from "@/lib/api";
+import { istHour, fmtDateIST, TZ } from "@/lib/tz";
 import { useAuth } from "@/lib/AuthContext";
 
 function greeting() {
-  const h = new Date().getHours();
+  const h = istHour();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
 }
 
 function dayLabel() {
-  return new Date().toLocaleDateString(undefined, {
-    weekday: "long", month: "long", day: "numeric",
-  }).toUpperCase();
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: TZ, weekday: "long", month: "long", day: "numeric",
+  }).format(new Date()).toUpperCase();
 }
 
 export default function HomePage() {
@@ -126,7 +127,7 @@ export default function HomePage() {
             <div className="tl-feed">
               {summary.recent_interactions.slice(0, 3).map((ix) => {
                 const d = new Date(ix.occurred_at);
-                const timeStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                const timeStr = fmtDateIST(d, { month: "short", day: "numeric" });
                 return (
                   <div key={ix.id} className="tl-item">
                     <div className="tl-time">{timeStr}</div>

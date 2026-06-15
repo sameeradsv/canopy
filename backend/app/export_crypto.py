@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 EXPORT_FORMAT = "canopy-encrypted-export"
 EXPORT_VERSION = 2  # v1 = XOR-stream+HMAC (legacy), v2 = AES-GCM-256
@@ -84,7 +84,7 @@ def encrypt_export(payload: dict, passphrase: str) -> dict:
     salt = secrets.token_bytes(16)
     key = _derive_key(passphrase, salt)
     inner = {
-        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "exported_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "format": EXPORT_FORMAT,
         "version": EXPORT_VERSION,
         **payload,

@@ -1,12 +1,11 @@
 import type { Interaction } from "@/lib/api";
+import { fmtDateIST, fmtTimeIST } from "@/lib/tz";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short", day: "numeric", year: "numeric",
-  });
+  return fmtDateIST(iso, { month: "short", day: "numeric", year: "numeric" });
 }
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return fmtTimeIST(iso);
 }
 
 export function InteractionCard({ interaction }: { interaction: Interaction }) {

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, Text
@@ -29,9 +29,9 @@ class Person(Base):
     name: Mapped[str] = mapped_column(String(200), index=True)
     relationship: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
     interactions: Mapped[list["Interaction"]] = orm_relationship(
@@ -47,7 +47,7 @@ class Tag(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     interactions: Mapped[list["Interaction"]] = orm_relationship(
         secondary=interaction_tags, back_populates="tags"
@@ -59,7 +59,7 @@ class Interaction(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     kind: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     observation: Mapped[str] = mapped_column(Text)
@@ -67,9 +67,9 @@ class Interaction(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.7)
     energy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     reflection_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
     participants: Mapped[list[Person]] = orm_relationship(
@@ -86,7 +86,7 @@ class Setting(Base):
     key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
 
@@ -96,7 +96,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     # Set when this user was created via a Cortex account login
     cortex_user_id: Mapped[Optional[int]] = mapped_column(nullable=True, unique=True, index=True)
 
@@ -107,7 +107,7 @@ class AuthSession(Base):
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class PersonScore(Base):
@@ -124,7 +124,7 @@ class PersonScore(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     interaction_count: Mapped[int] = mapped_column(Integer, default=0)
-    scored_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    scored_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     person: Mapped["Person"] = orm_relationship("Person", back_populates="score")
 
@@ -136,7 +136,7 @@ class WebAuthnCredential(Base):
     public_key: Mapped[str] = mapped_column(Text, nullable=False)
     sign_count: Mapped[int] = mapped_column(Integer, default=0)
     user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class WebAuthnChallenge(Base):
@@ -146,4 +146,4 @@ class WebAuthnChallenge(Base):
     challenge: Mapped[str] = mapped_column(String(128), nullable=False)
     user_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

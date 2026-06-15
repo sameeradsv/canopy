@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type EnergyEvent, type EnergyTimeline } from "@/lib/api";
+import { todayIST, TZ } from "@/lib/tz";
 
 // ── Cross-app fetch ────────────────────────────────────────────────────────
 
@@ -30,6 +31,11 @@ async function fetchExternal(
 
 const CW = 720, CH = 160, PL = 44, PR = 16, PT = 16, PB = 32;
 const VW = PL + CW + PR, VH = PT + CH + PB;
+// Scale factor: SVG renders at 1.5× its viewBox width so 7am–11pm fills a typical screen
+const SCROLL_SCALE = 1.5;
+const SVG_RENDER_W = Math.round(VW * SCROLL_SCALE); // ~1170px
+// Scroll position that places 7am at the left edge of the chart area
+const DEFAULT_SCROLL_LEFT = Math.round((7 / 24) * CW * SCROLL_SCALE); // ~315px
 
 function mx(min: number) { return PL + (min / 1440) * CW; }
 function ey(e: number)   { return PT + (1 - e) * CH; }
@@ -56,6 +62,26 @@ interface Tip { event: EnergyEvent; svgX: number; svgY: number; }
 function EnergyChart({ events }: { events: EnergyEvent[] }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const yAxisRef = useRef<SVGGElement>(null);
+
+  // Scroll to 7am on mount and on each date change (new events array)
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollLeft = DEFAULT_SCROLL_LEFT;
+    if (yAxisRef.current) {
+      yAxisRef.current.setAttribute("transform", `translate(${DEFAULT_SCROLL_LEFT / SCROLL_SCALE}, 0)`);
+    }
+  }, [events]);
+
+  // Keep Y-axis labels pinned to left edge while chart scrolls
+  const handleScroll = () => {
+    if (!scrollRef.current || !yAxisRef.current) return;
+    yAxisRef.current.setAttribute(
+      "transform",
+      `translate(${scrollRef.current.scrollLeft / SCROLL_SCALE}, 0)`,
+    );
+  };
 
   const bySource = (["canopy", "circuit", "chef"] as Source[]).reduce(
     (acc, src) => ({
@@ -67,7 +93,6 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
     {} as Record<Source, EnergyEvent[]>,
   );
 
-  // Running average across all sources, sorted by time
   let cumSum = 0;
   const combinedLine = [...events]
     .sort((a, b) => tm(a.time) - tm(b.time))
@@ -78,105 +103,114 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
 
   return (
     <div style={{ position: "relative" }}>
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${VW} ${VH}`}
-        style={{ width: "100%", height: "auto", display: "block" }}
-        onMouseLeave={() => setTip(null)}
-      >
-        {/* Threshold bands */}
-        <rect x={PL} y={ey(1)}    width={CW} height={ey(0.65) - ey(1)}    fill="var(--good)"   opacity={0.05} />
-        <rect x={PL} y={ey(0.35)} width={CW} height={ey(0)    - ey(0.35)} fill="var(--danger)" opacity={0.05} />
+      <div ref={scrollRef} onScroll={handleScroll} style={{ overflowX: "auto" }}>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${VW} ${VH}`}
+          width={SVG_RENDER_W}
+          style={{ display: "block" }}
+          onMouseLeave={() => setTip(null)}
+        >
+          {/* Threshold bands */}
+          <rect x={PL} y={ey(1)}    width={CW} height={ey(0.65) - ey(1)}    fill="var(--good)"   opacity={0.05} />
+          <rect x={PL} y={ey(0.35)} width={CW} height={ey(0)    - ey(0.35)} fill="var(--danger)" opacity={0.05} />
 
-        {/* Y grid + labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map((v) => (
-          <g key={v}>
-            <line x1={PL} y1={ey(v)} x2={PL + CW} y2={ey(v)}
+          {/* Y grid lines (span full chart width, stay with content) */}
+          {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+            <line key={v} x1={PL} y1={ey(v)} x2={PL + CW} y2={ey(v)}
               stroke="var(--line-soft)" strokeWidth={0.5} />
-            <text x={PL - 5} y={ey(v)} textAnchor="end" dominantBaseline="middle"
-              fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
-              {Math.round(v * 100)}
-            </text>
-          </g>
-        ))}
+          ))}
 
-        {/* Threshold dashes */}
-        <line x1={PL} y1={ey(0.35)} x2={PL + CW} y2={ey(0.35)}
-          stroke="var(--danger)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
-        <line x1={PL} y1={ey(0.65)} x2={PL + CW} y2={ey(0.65)}
-          stroke="var(--good)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
+          {/* Threshold dashes */}
+          <line x1={PL} y1={ey(0.35)} x2={PL + CW} y2={ey(0.35)}
+            stroke="var(--danger)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
+          <line x1={PL} y1={ey(0.65)} x2={PL + CW} y2={ey(0.65)}
+            stroke="var(--good)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
 
-        {/* X grid + labels */}
-        {HOURS.map((h) => {
-          const x = mx(h * 60);
-          return (
-            <g key={h}>
-              <line x1={x} y1={PT} x2={x} y2={PT + CH}
-                stroke="var(--line-soft)" strokeWidth={0.5} />
-              <text x={x} y={PT + CH + 11} textAnchor="middle"
+          {/* X grid + labels */}
+          {HOURS.map((h) => {
+            const x = mx(h * 60);
+            return (
+              <g key={h}>
+                <line x1={x} y1={PT} x2={x} y2={PT + CH}
+                  stroke="var(--line-soft)" strokeWidth={0.5} />
+                <text x={x} y={PT + CH + 11} textAnchor="middle"
+                  fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
+                  {hourLabel(h)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Lines + dots per source */}
+          {(["canopy", "circuit", "chef"] as Source[]).map((src) => {
+            const pts = bySource[src].map((e) => ({
+              x: mx(tm(e.time)),
+              y: ey(e.energy),
+              e,
+            }));
+            if (pts.length === 0) return null;
+            const color = SRC_COLOR[src];
+            return (
+              <g key={src}>
+                {pts.length > 1 && (
+                  <path
+                    d={pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
+                    fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" opacity={0.85}
+                  />
+                )}
+                {pts.map((p, i) => (
+                  <circle key={i} cx={p.x} cy={p.y} r={4}
+                    fill={color} stroke="var(--panel)" strokeWidth={1.5}
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: p.y })}
+                  />
+                ))}
+              </g>
+            );
+          })}
+
+          {/* Combined running average */}
+          {combinedLine.length >= 2 && (
+            <path
+              d={combinedLine.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
+              fill="none" stroke="var(--fg)" strokeWidth={1.5} strokeLinejoin="round" opacity={0.4} strokeDasharray="5 3"
+            />
+          )}
+          {combinedLine.length === 1 && (
+            <circle cx={combinedLine[0].x} cy={combinedLine[0].y} r={3} fill="var(--fg)" opacity={0.4} />
+          )}
+
+          {/* Bottom axis border */}
+          <line x1={PL} y1={PT + CH} x2={PL + CW} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
+
+          {/* Sticky Y-axis — rendered last so it paints above scrolled chart content */}
+          <g ref={yAxisRef}>
+            <rect x={0} y={0} width={PL - 1} height={VH} fill="var(--panel)" />
+            {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+              <text key={v} x={PL - 5} y={ey(v)} textAnchor="end" dominantBaseline="middle"
                 fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
-                {hourLabel(h)}
+                {Math.round(v * 100)}
               </text>
-            </g>
-          );
-        })}
+            ))}
+            <line x1={PL} y1={PT} x2={PL} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
+          </g>
+        </svg>
+      </div>
 
-        {/* Lines + dots per source */}
-        {(["canopy", "circuit", "chef"] as Source[]).map((src) => {
-          const pts = bySource[src].map((e) => ({
-            x: mx(tm(e.time)),
-            y: ey(e.energy),
-            e,
-          }));
-          if (pts.length === 0) return null;
-          const color = SRC_COLOR[src];
-          return (
-            <g key={src}>
-              {pts.length > 1 && (
-                <path
-                  d={pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
-                  fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" opacity={0.85}
-                />
-              )}
-              {pts.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={4}
-                  fill={color} stroke="var(--panel)" strokeWidth={1.5}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: p.y })}
-                />
-              ))}
-            </g>
-          );
-        })}
-
-        {/* Combined running average */}
-        {combinedLine.length >= 2 && (
-          <path
-            d={combinedLine.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
-            fill="none" stroke="var(--fg)" strokeWidth={1.5} strokeLinejoin="round" opacity={0.4} strokeDasharray="5 3"
-          />
-        )}
-        {combinedLine.length === 1 && (
-          <circle cx={combinedLine[0].x} cy={combinedLine[0].y} r={3} fill="var(--fg)" opacity={0.4} />
-        )}
-
-        {/* Axis borders */}
-        <line x1={PL} y1={PT} x2={PL} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
-        <line x1={PL} y1={PT + CH} x2={PL + CW} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
-      </svg>
-
-      {/* Tooltip */}
+      {/* Tooltip — position accounts for horizontal scroll offset */}
       {tip && (() => {
-        const svgW = svgRef.current?.clientWidth ?? VW;
-        const svgH = svgRef.current?.clientHeight ?? VH;
-        const px = (tip.svgX / VW) * svgW;
+        const svgH = Math.round(VH * SCROLL_SCALE);
+        const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
+        const visibleW = scrollRef.current?.clientWidth ?? SVG_RENDER_W;
+        const px = (tip.svgX / VW) * SVG_RENDER_W - scrollLeft;
         const py = (tip.svgY / VH) * svgH;
-        const flipX = px > svgW * 0.65;
+        const flipX = px > visibleW * 0.65;
         return (
           <div style={{
             position: "absolute",
             left:  flipX ? undefined : px + 10,
-            right: flipX ? (svgW - px) + 10 : undefined,
+            right: flipX ? (visibleW - px) + 10 : undefined,
             top: Math.max(0, py - 20),
             background: "var(--panel)",
             border: "0.5px solid var(--line)",
@@ -257,21 +291,16 @@ function SourcePill({
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 
-function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function offsetDate(iso: string, days: number): string {
-  const d = new Date(iso + "T12:00:00");
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 }
 
 function formatDateDisplay(iso: string): string {
-  return new Date(iso + "T12:00:00").toLocaleDateString(undefined, {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
-  });
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: TZ, weekday: "long", month: "long", day: "numeric", year: "numeric",
+  }).format(new Date(iso + "T12:00:00Z"));
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
@@ -289,7 +318,7 @@ interface SourceState {
 interface DateCache { canopy: SourceState; circuit: SourceState; chef: SourceState; }
 
 export default function EnergyPage() {
-  const [date, setDate] = useState(todayISO);
+  const [date, setDate] = useState(todayIST);
   const [canopy,  setCanopy]  = useState<SourceState>({ timeline: null, state: "loading" });
   const [circuit, setCircuit] = useState<SourceState>({ timeline: null, state: "loading" });
   const [chef,    setChef]    = useState<SourceState>({ timeline: null, state: "loading" });
@@ -361,7 +390,7 @@ export default function EnergyPage() {
     ? allEvents.reduce((s, e) => s + e.energy, 0) / allEvents.length
     : null;
 
-  const isToday = date === todayISO();
+  const isToday = date === todayIST();
   const loading = canopy.state === "loading";
 
   return (
@@ -383,14 +412,14 @@ export default function EnergyPage() {
         <button onClick={() => setDate((d) => offsetDate(d, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}
           disabled={isToday}>›</button>
         {!isToday && (
-          <button onClick={() => setDate(todayISO())} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>
+          <button onClick={() => setDate(todayIST())} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>
             Today
           </button>
         )}
         <input
           type="date"
           value={date}
-          max={todayISO()}
+          max={todayIST()}
           onChange={(e) => e.target.value && setDate(e.target.value)}
           className="input"
           style={{ fontFamily: "var(--font-mono)", fontSize: 12, height: 30, width: 140 }}
