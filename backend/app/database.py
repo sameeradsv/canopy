@@ -10,12 +10,44 @@ connect_args = {"check_same_thread": False} if settings.database_url.startswith(
 _engine_kwargs: dict = {"connect_args": connect_args}
 if settings.database_url.endswith(":memory:") or settings.database_url == "sqlite://":
     _engine_kwargs["poolclass"] = StaticPool
+elif not settings.database_url.startswith("sqlite"):
+    _engine_kwargs["pool_pre_ping"] = True
+    _engine_kwargs["pool_recycle"] = 280
 engine = create_engine(settings.database_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def _ensure_migrations_table() -> None:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS schema_migrations "
+            "(name VARCHAR(100) PRIMARY KEY, "
+            "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+        ))
+        conn.commit()
+
+
+def _migration_done(name: str) -> bool:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        return conn.execute(
+            text("SELECT 1 FROM schema_migrations WHERE name = :n"), {"n": name}
+        ).fetchone() is not None
+
+
+def _mark_done(name: str) -> None:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        if settings.database_url.startswith("sqlite"):
+            conn.execute(text("INSERT OR IGNORE INTO schema_migrations (name) VALUES (:n)"), {"n": name})
+        else:
+            conn.execute(text("INSERT INTO schema_migrations (name) VALUES (:n) ON CONFLICT DO NOTHING"), {"n": name})
+        conn.commit()
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -121,5 +153,11 @@ def init_db() -> None:
         db_path = Path(settings.database_url.replace("sqlite:///", ""))
         db_path.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
-    _migrate_sqlite()
-    _migrate_postgres()
+    _ensure_migrations_table()
+    for name, fn in [
+        ("sqlite_schema", _migrate_sqlite),
+        ("postgres_schema", _migrate_postgres),
+    ]:
+        if not _migration_done(name):
+            fn()
+            _mark_done(name)

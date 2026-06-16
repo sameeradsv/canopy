@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-jetbrains-mono",
-  display: "swap",
+  display: "optional",
 });
 
 const APP_NAME = "Canopy";
