@@ -72,7 +72,13 @@ def interaction_query(db: Session):
     )
 
 
-def list_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None):
+def list_people(
+    db: Session,
+    q: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+):
     # Single query with LEFT JOIN subquery for count + last-date instead of
     # loading all Interaction objects via selectinload.
     agg = (
@@ -95,7 +101,17 @@ def list_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = N
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
+    if limit is not None:
+        stmt = stmt.limit(limit).offset(offset)
     return db.execute(stmt).all()  # rows of (Person, int|None, datetime|None)
+
+
+def count_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None) -> int:
+    stmt = select(func.count(Person.id)).where(Person.user_id == user_id)
+    if q:
+        pattern = f"%{q}%"
+        stmt = stmt.where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
+    return int(db.scalar(stmt) or 0)
 
 
 def create_person(db: Session, data: PersonCreate, user_id: Optional[int] = None) -> Person:

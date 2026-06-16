@@ -123,6 +123,14 @@ export interface InteractionPage {
   pages: number;
 }
 
+export interface PersonPage {
+  items: Person[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 export type InteractionListParams = {
   person_id?: number;
   tag?: string;
@@ -198,6 +206,14 @@ export const api = {
 
   people: (q?: string) =>
     request<Person[]>(q ? `/api/people?q=${encodeURIComponent(q)}` : "/api/people"),
+
+  peoplePage: (opts?: { q?: string; page?: number; limit?: number }) => {
+    const search = new URLSearchParams();
+    if (opts?.q) search.set("q", opts.q);
+    search.set("page", String(opts?.page ?? 1));
+    search.set("limit", String(opts?.limit ?? 24));
+    return request<PersonPage>(`/api/people?${search.toString()}`);
+  },
 
   createPerson: (data: PersonCreate) =>
     request<Person>("/api/people", {

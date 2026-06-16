@@ -247,3 +247,20 @@ def test_interactions_pagination(client):
 
     page3 = client.get("/api/interactions", params={"page": 3, "limit": 2}).json()
     assert len(page3["items"]) == 1
+
+
+def test_people_pagination(client):
+    for i in range(5):
+        client.post("/api/people", json={"name": f"Person {i}"})
+
+    plain = client.get("/api/people").json()
+    assert isinstance(plain, list)
+    assert len(plain) == 5
+
+    page1 = client.get("/api/people", params={"page": 1, "limit": 2}).json()
+    assert page1["total"] == 5
+    assert page1["page"] == 1
+    assert len(page1["items"]) == 2
+
+    page3 = client.get("/api/people", params={"page": 3, "limit": 2}).json()
+    assert len(page3["items"]) == 1

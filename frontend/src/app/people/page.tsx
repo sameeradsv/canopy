@@ -260,15 +260,54 @@ function ConstellationView({ people }: { people: PersonRow[] }) {
 
 type PeopleView = "cards" | "table" | "constellation";
 const PEOPLE_VIEWS: PeopleView[] = ["cards", "table", "constellation"];
+const PAGE_SIZE = 24;
+
+function PeoplePagination({
+  page,
+  total,
+  loading,
+  onPageChange,
+}: {
+  page: number;
+  total: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(total, (page + 1) * PAGE_SIZE);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 24, fontSize: 13 }}>
+      <span style={{ fontFamily: "var(--font-serif)", color: "var(--fg-mute)" }}>
+        {rangeStart}–{rangeEnd} of {total}
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button className="btn ghost" style={{ height: 30, fontSize: 12 }} disabled={page === 0 || loading} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </button>
+        <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-faint)", fontSize: 12 }}>
+          {page + 1} / {pageCount}
+        </span>
+        <button className="btn ghost" style={{ height: 30, fontSize: 12 }} disabled={page >= pageCount - 1 || loading} onClick={() => onPageChange(page + 1)}>
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<PersonRow[]>([]);
+  const [constellationPeople, setConstellationPeople] = useState<PersonRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
   const [defaults, setDefaults] = useState<RelationshipDefaults | null>(null);
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState<RelationshipType>("colleague");
   const [notes, setNotes] = useState("");
   const [notesTouched, setNotesTouched] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,26 +322,48 @@ export default function PeoplePage() {
     setNotesTouched(false);
   }
 
-  async function load() {
+  async function loadPage(nextPage = page) {
+    setListLoading(true);
     try {
-      const [peopleData, defaultsData] = await Promise.all([
-        api.people(),
-        api.relationshipDefaults().catch(() => null),
-      ]);
-      setPeople(peopleData as PersonRow[]);
+      const data = await api.peoplePage({ page: nextPage + 1, limit: PAGE_SIZE });
+      setPeople(data.items as PersonRow[]);
+      setTotal(data.total);
+      setPage(nextPage);
+    } catch {
+      setPeople([]);
+      setTotal(0);
+    } finally {
+      setListLoading(false);
+    }
+  }
+
+  async function loadDefaults() {
+    try {
+      const defaultsData = await api.relationshipDefaults();
       setDefaults(defaultsData);
       if (!notesTouched) applyRelationshipDefault(relationship, defaultsData);
     } catch {
-      setPeople([]);
-    } finally {
-      setLoading(false);
+      setDefaults(null);
+    }
+  }
+
+  async function loadConstellation() {
+    try {
+      const all = await api.people();
+      setConstellationPeople(all as PersonRow[]);
+    } catch {
+      setConstellationPeople([]);
     }
   }
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadPage(0);
+    loadDefaults();
   }, []);
+
+  useEffect(() => {
+    if (view === "constellation") loadConstellation();
+  }, [view]);
 
   function onRelationshipChange(rel: RelationshipType) {
     setRelationship(rel);
@@ -311,7 +372,13 @@ export default function PeoplePage() {
 
   async function handleDeletePerson(id: number) {
     await api.deletePerson(id);
-    setPeople((prev) => prev.filter((p) => p.id !== id));
+    if (people.length === 1 && page > 0) {
+      await loadPage(page - 1);
+    } else {
+      setPeople((prev) => prev.filter((p) => p.id !== id));
+      setTotal((t) => Math.max(0, t - 1));
+    }
+    setConstellationPeople((prev) => prev.filter((p) => p.id !== id));
     setConfirmDeletePersonId(null);
   }
 
@@ -333,7 +400,8 @@ export default function PeoplePage() {
       setNotesTouched(false);
       setShowForm(false);
       applyRelationshipDefault("colleague", defaults);
-      await load();
+      await loadPage(page);
+      if (view === "constellation") await loadConstellation();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add person");
     } finally {
@@ -347,7 +415,9 @@ export default function PeoplePage() {
         <div>
           <div className="kicker" style={{ marginBottom: 10 }}>People</div>
           <h1 className="page-title">The <em>people.</em></h1>
-          <p className="page-sub">Everyone you interact with — with context and history.</p>
+          <p className="page-sub">
+            {total} person{total === 1 ? "" : "s"} tracked.
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
@@ -393,40 +463,57 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {loading ? (
+      {listLoading && view !== "constellation" ? (
         <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>Loading…</p>
-      ) : people.length === 0 ? (
+      ) : total === 0 && view !== "constellation" ? (
         <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
           <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>No people yet.</p>
           <button onClick={() => setShowForm(true)} className="btn primary">Add your first person</button>
         </div>
       ) : view === "cards" ? (
-        <div className="people-grid">
-          {people.map((person) => (
-            <PersonCard
-              key={person.id}
-              person={person}
-              editing={editingPersonId === person.id}
-              confirmDelete={confirmDeletePersonId === person.id}
-              onEdit={() => { setEditingPersonId(person.id); setConfirmDeletePersonId(null); }}
-              onCancelEdit={() => setEditingPersonId(null)}
-              onSave={(data) => handleUpdatePerson(person.id, data)}
-              onDelete={() => handleDeletePerson(person.id)}
-              onConfirmDelete={() => { setConfirmDeletePersonId(person.id); setEditingPersonId(null); }}
-              onCancelDelete={() => setConfirmDeletePersonId(null)}
-              relationshipTypes={RELATIONSHIP_TYPES}
-              relationshipLabels={RELATIONSHIP_LABELS}
-            />
-          ))}
-        </div>
+        <>
+          <div className="people-grid" style={{ opacity: listLoading ? 0.5 : 1 }}>
+            {people.map((person) => (
+              <PersonCard
+                key={person.id}
+                person={person}
+                editing={editingPersonId === person.id}
+                confirmDelete={confirmDeletePersonId === person.id}
+                onEdit={() => { setEditingPersonId(person.id); setConfirmDeletePersonId(null); }}
+                onCancelEdit={() => setEditingPersonId(null)}
+                onSave={(data) => handleUpdatePerson(person.id, data)}
+                onDelete={() => handleDeletePerson(person.id)}
+                onConfirmDelete={() => { setConfirmDeletePersonId(person.id); setEditingPersonId(null); }}
+                onCancelDelete={() => setConfirmDeletePersonId(null)}
+                relationshipTypes={RELATIONSHIP_TYPES}
+                relationshipLabels={RELATIONSHIP_LABELS}
+              />
+            ))}
+          </div>
+          {total > PAGE_SIZE && (
+            <PeoplePagination page={page} total={total} loading={listLoading} onPageChange={loadPage} />
+          )}
+        </>
       ) : view === "table" ? (
-        <TableView
-          people={people}
-          onEdit={(id) => { setEditingPersonId(id); setView("cards"); }}
-          onDelete={handleDeletePerson}
-        />
+        <>
+          <div style={{ opacity: listLoading ? 0.5 : 1 }}>
+            <TableView
+              people={people}
+              onEdit={(id) => { setEditingPersonId(id); setView("cards"); }}
+              onDelete={handleDeletePerson}
+            />
+          </div>
+          {total > PAGE_SIZE && (
+            <PeoplePagination page={page} total={total} loading={listLoading} onPageChange={loadPage} />
+          )}
+        </>
+      ) : constellationPeople.length === 0 ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>No people yet.</p>
+          <button onClick={() => setShowForm(true)} className="btn primary">Add your first person</button>
+        </div>
       ) : (
-        <ConstellationView people={people} />
+        <ConstellationView people={constellationPeople} />
       )}
     </>
   );

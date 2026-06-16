@@ -1,30 +1,53 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps.auth import optional_auth_user
 from app.models import Person, User
 from app.schemas import PersonCreate, PersonRead, PersonUpdate
-from app.services import create_person, delete_person, list_people, person_to_read, update_person
+from app.services import count_people, create_person, delete_person, list_people, person_to_read, update_person
 
 router = APIRouter(prefix="/people", tags=["people"])
 
 
-@router.get("", response_model=list[PersonRead])
-def get_people(
-    q: Optional[str] = None,
-    db: Session = Depends(get_db),
-    user: Optional[User] = Depends(optional_auth_user),
-):
-    uid = user.id if user else None
+def _rows_to_read(rows) -> list[PersonRead]:
     return [
         PersonRead(**person_to_read(p, ix_count=int(cnt or 0), last_at_dt=last_at))
-        for p, cnt, last_at in list_people(db, q, user_id=uid)
+        for p, cnt, last_at in rows
     ]
+
+
+@router.get("")
+def get_people(
+    q: Optional[str] = None,
+    page: Optional[int] = Query(None, ge=1, description="1-based page; returns paginated payload"),
+    limit: int = 24,
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(optional_auth_user),
+) -> Union[list[PersonRead], dict]:
+    uid = user.id if user else None
+    filters = dict(q=q, user_id=uid)
+
+    if page is not None:
+        page_n = max(1, page)
+        limit_n = max(1, min(100, limit))
+        offset_n = (page_n - 1) * limit_n
+        total = count_people(db, **filters)
+        rows = list_people(db, **filters, limit=limit_n, offset=offset_n)
+        pages = max(1, (total + limit_n - 1) // limit_n) if total else 0
+        return {
+            "items": _rows_to_read(rows),
+            "total": total,
+            "page": page_n,
+            "limit": limit_n,
+            "pages": pages,
+        }
+
+    return _rows_to_read(list_people(db, **filters))
 
 
 @router.post("", response_model=PersonRead, status_code=201)
