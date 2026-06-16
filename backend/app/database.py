@@ -13,6 +13,8 @@ if settings.database_url.endswith(":memory:") or settings.database_url == "sqlit
 elif not settings.database_url.startswith("sqlite"):
     _engine_kwargs["pool_pre_ping"] = True
     _engine_kwargs["pool_recycle"] = 280
+    _engine_kwargs["pool_size"] = 2
+    _engine_kwargs["max_overflow"] = 3
 engine = create_engine(settings.database_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

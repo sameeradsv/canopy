@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -40,6 +40,18 @@ app.include_router(settings_router.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
 app.include_router(webauthn_router.router, prefix="/api")
+
+
+@app.middleware("http")
+async def add_cache_control(request: Request, call_next):
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and response.status_code == 200
+        and not request.url.path.startswith("/api/auth")
+    ):
+        response.headers["Cache-Control"] = "private, max-age=30"
+    return response
 
 
 @app.get("/api/relationship-defaults", response_model=RelationshipDefaults)
