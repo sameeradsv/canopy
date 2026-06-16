@@ -29,12 +29,32 @@ export default function LoginPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    api.authStatus()
-      .then((status) => {
-        setHasUsers(status.has_users);
-        setMode(status.has_users ? "login" : "register");
-      })
-      .catch(() => setHasUsers(false));
+    let cancelled = false;
+    const intervalMs = 3000;
+    const maxAttempts = 25;
+
+    async function loadAuthStatus() {
+      for (let attempt = 0; attempt < maxAttempts && !cancelled; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, intervalMs));
+          if (cancelled) return;
+        }
+        try {
+          const status = await api.authStatus();
+          if (!cancelled) {
+            setHasUsers(status.has_users);
+            setMode(status.has_users ? "login" : "register");
+          }
+          return;
+        } catch {
+          /* retry during cold start */
+        }
+      }
+      if (!cancelled) setHasUsers(false);
+    }
+
+    loadAuthStatus();
+    return () => { cancelled = true; };
   }, []);
 
   async function handlePasskeyLogin() {

@@ -115,6 +115,25 @@ export interface PersonCreate {
   notes?: string | null;
 }
 
+export interface InteractionPage {
+  items: Interaction[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export type InteractionListParams = {
+  person_id?: number;
+  tag?: string;
+  kind?: string;
+  from_date?: string;
+  to_date?: string;
+  limit?: number;
+  offset?: number;
+  page?: number;
+};
+
 export interface AuthResponse {
   token: string;
   user: { id: number; username: string; created_at: string };
@@ -186,14 +205,29 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  interactions: (params?: { person_id?: number; tag?: string; kind?: string; limit?: number }) => {
+  interactions: (params?: Omit<InteractionListParams, "page">) => {
     const search = new URLSearchParams();
     if (params?.person_id != null) search.set("person_id", String(params.person_id));
     if (params?.tag) search.set("tag", params.tag);
     if (params?.kind) search.set("kind", params.kind);
+    if (params?.from_date) search.set("from_date", params.from_date);
+    if (params?.to_date) search.set("to_date", params.to_date);
     if (params?.limit != null) search.set("limit", String(params.limit));
+    if (params?.offset != null) search.set("offset", String(params.offset));
     const qs = search.toString();
     return request<Interaction[]>(`/api/interactions${qs ? `?${qs}` : ""}`);
+  },
+
+  interactionsPage: (params?: Omit<InteractionListParams, "page"> & { page?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.person_id != null) search.set("person_id", String(params.person_id));
+    if (params?.tag) search.set("tag", params.tag);
+    if (params?.kind) search.set("kind", params.kind);
+    if (params?.from_date) search.set("from_date", params.from_date);
+    if (params?.to_date) search.set("to_date", params.to_date);
+    search.set("page", String(params?.page ?? 1));
+    search.set("limit", String(params?.limit ?? 30));
+    return request<InteractionPage>(`/api/interactions?${search.toString()}`);
   },
 
   createInteraction: (data: InteractionCreate) =>

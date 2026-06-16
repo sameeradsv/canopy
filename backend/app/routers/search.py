@@ -41,7 +41,10 @@ def get_summary_endpoint(
         total_tags=data["total_tags"],
         recent_interactions=[_to_read(i) for i in data["recent_interactions"]],
         top_tags=[TagRead.model_validate(t) for t in data["top_tags"]],
-        people_to_reach_out=[PersonRead(**person_to_read(p)) for p in data["people_to_reach_out"]],
+        people_to_reach_out=[
+            PersonRead(**person_to_read(person, ix_count=ix_count, last_at_dt=last_at))
+            for person, ix_count, last_at in data["people_to_reach_out"]
+        ],
     )
 
 

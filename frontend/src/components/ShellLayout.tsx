@@ -6,27 +6,54 @@ import { useAuth } from "@/lib/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
+function AuthBootScreen() {
+  return (
+    <div
+      className="app"
+      style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div className="brand-name" style={{ fontSize: 22 }}>
+          Canop<em>y</em>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                opacity: 0.55,
+                animationDelay: `${i * 0.15}s`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Close sidebar on navigation
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  // Normalize trailing slash (GitHub Pages trailingSlash:true adds it)
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
   const isLoginPage = normalizedPath === "/login";
 
-  // Redirect unauthenticated users to login
   useEffect(() => {
     if (!loading && !user && !isLoginPage) {
       router.replace("/login");
     }
   }, [loading, user, isLoginPage, router]);
 
-  // ⌘K → search, 1-6 keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName ?? "";
@@ -51,9 +78,8 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Show nothing while auth resolves or redirect is in-flight
   if (loading || !user) {
-    return null;
+    return <AuthBootScreen />;
   }
 
   return (

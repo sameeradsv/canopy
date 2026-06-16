@@ -376,8 +376,14 @@ function TerminalView({ interactions, onDelete }: {
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, people }: {
-  interactions: Interaction[];
+function monthDateRange(year: number, month: number) {
+  const from_date = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const to_date = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from_date, to_date };
+}
+
+function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDeleteId, onSave, onDelete, people }: {
   editingId: number | null;
   confirmDeleteId: number | null;
   setEditingId: (id: number | null) => void;
@@ -389,9 +395,35 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
   const todayKey = dateKey(new Date().toISOString());
   const [viewMonth, setViewMonth] = useState(() => new Date());
   const [selectedKey, setSelectedKey] = useState<string>(todayKey);
+  const [monthInteractions, setMonthInteractions] = useState<Interaction[]>([]);
+  const [monthLoading, setMonthLoading] = useState(true);
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+
+  useEffect(() => {
+    let cancelled = false;
+    setMonthLoading(true);
+    const { from_date, to_date } = monthDateRange(year, month);
+    api.interactions({ from_date, to_date, limit: 500 })
+      .then((items) => { if (!cancelled) setMonthInteractions(items); })
+      .catch(() => { if (!cancelled) setMonthInteractions([]); })
+      .finally(() => { if (!cancelled) setMonthLoading(false); });
+    return () => { cancelled = true; };
+  }, [year, month]);
+
+  async function handleSave(id: number, data: InteractionUpdate) {
+    const updated = await onSave(id, data);
+    setMonthInteractions((prev) => prev.map((ix) => (ix.id === id ? updated : ix)));
+  }
+
+  async function handleDeleteLocal(id: number) {
+    await onDelete(id);
+    setMonthInteractions((prev) => prev.filter((ix) => ix.id !== id));
+  }
 
   const byDate: Record<string, Interaction[]> = {};
-  for (const ix of interactions) {
+  for (const ix of monthInteractions) {
     const k = dateKey(ix.occurred_at);
     if (!byDate[k]) byDate[k] = [];
     byDate[k].push(ix);
@@ -404,8 +436,6 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
     return withEnergy.reduce((s, ix) => s + (ix.energy as number), 0) / withEnergy.length;
   }
 
-  const year = viewMonth.getFullYear();
-  const month = viewMonth.getMonth();
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -434,7 +464,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, opacity: monthLoading ? 0.5 : 1 }}>
         {cells.map((day, i) => {
           if (day === null) return <div key={`b${i}`} />;
           const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -512,7 +542,7 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
             {selectedInteractions.map((ix) => (
               <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
                 setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-                onSave={onSave} onDelete={onDelete} showDate={false} people={people} />
+                onSave={handleSave} onDelete={handleDeleteLocal} showDate={false} people={people} />
             ))}
           </div>
         )}
@@ -525,30 +555,103 @@ function CalendarView({ interactions, editingId, confirmDeleteId, setEditingId, 
 
 type View = "feed" | "diary" | "calendar";
 const VIEWS: View[] = ["feed", "diary", "calendar"];
+const PAGE_SIZE = 30;
+
+function TimelinePagination({
+  page,
+  pageSize,
+  total,
+  loading,
+  onPageChange,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : page * pageSize + 1;
+  const rangeEnd = Math.min(total, (page + 1) * pageSize);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 24, fontSize: 13 }}>
+      <span style={{ fontFamily: "var(--font-serif)", color: "var(--fg-mute)" }}>
+        {rangeStart}–{rangeEnd} of {total}
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          className="btn ghost"
+          style={{ height: 30, fontSize: 12 }}
+          disabled={page === 0 || loading}
+          onClick={() => onPageChange(page - 1)}
+        >
+          Previous
+        </button>
+        <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-faint)", fontSize: 12 }}>
+          {page + 1} / {pageCount}
+        </span>
+        <button
+          className="btn ghost"
+          style={{ height: 30, fontSize: 12 }}
+          disabled={page >= pageCount - 1 || loading}
+          onClick={() => onPageChange(page + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function TimelinePage() {
-  const [interactions, setInteractions] = useState<Interaction[] | null>(null);
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [unreachable, setUnreachable] = useState(false);
   const [view, setView] = useState<View>("feed");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
+  async function loadPage(nextPage = page) {
+    setListLoading(true);
+    try {
+      const data = await api.interactionsPage({ page: nextPage + 1, limit: PAGE_SIZE });
+      setInteractions(data.items);
+      setTotal(data.total);
+      setPage(nextPage);
+      setInitialized(true);
+    } catch {
+      setUnreachable(true);
+    } finally {
+      setListLoading(false);
+    }
+  }
+
   useEffect(() => {
-    api.interactions({ limit: 500 }).then(setInteractions).catch(() => setUnreachable(true));
+    loadPage(0);
     api.people().then(setPeople).catch(() => {});
   }, []);
 
-  async function handleSave(id: number, data: InteractionUpdate) {
+  async function handleSave(id: number, data: InteractionUpdate): Promise<Interaction> {
     const updated = await api.updateInteraction(id, data);
-    setInteractions((prev) => prev?.map((ix) => (ix.id === id ? updated : ix)) ?? null);
+    setInteractions((prev) => prev.map((ix) => (ix.id === id ? updated : ix)));
     setEditingId(null);
+    return updated;
   }
 
   async function handleDelete(id: number) {
     await api.deleteInteraction(id);
-    setInteractions((prev) => prev?.filter((ix) => ix.id !== id) ?? null);
     setConfirmDeleteId(null);
+    if (interactions.length === 1 && page > 0) {
+      await loadPage(page - 1);
+    } else {
+      setInteractions((prev) => prev.filter((ix) => ix.id !== id));
+      setTotal((t) => Math.max(0, t - 1));
+    }
   }
 
   if (unreachable) return (
@@ -558,7 +661,7 @@ export default function TimelinePage() {
     </>
   );
 
-  if (!interactions) return <div className="page-header"><h1 className="page-title">The <em>timeline.</em></h1></div>;
+  if (!initialized) return <div className="page-header"><h1 className="page-title">The <em>timeline.</em></h1></div>;
 
   const sorted = [...interactions].sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
 
@@ -568,7 +671,7 @@ export default function TimelinePage() {
         <div>
           <div className="kicker" style={{ marginBottom: 10 }}>Timeline</div>
           <h1 className="page-title">The <em>timeline.</em></h1>
-          <p className="page-sub">{sorted.length} interaction{sorted.length === 1 ? "" : "s"} logged.</p>
+          <p className="page-sub">{total} interaction{total === 1 ? "" : "s"} logged.</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
@@ -584,25 +687,49 @@ export default function TimelinePage() {
         </div>
       </div>
 
-      {sorted.length === 0 ? (
+      {total === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
           <p style={{ color: "var(--fg-mute)", marginBottom: 16 }}>Nothing captured yet.</p>
           <Link href="/capture" className="btn primary">Log your first interaction</Link>
         </div>
       ) : view === "feed" ? (
-        <div className="tl-feed">
-          {sorted.map((ix) => (
-            <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
-              setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-              onSave={handleSave} onDelete={handleDelete} showDate people={people} />
-          ))}
-        </div>
+        <>
+          <div className="tl-feed" style={{ opacity: listLoading ? 0.5 : 1 }}>
+            {sorted.map((ix) => (
+              <InteractionRow key={ix.id} ix={ix} editingId={editingId} confirmDeleteId={confirmDeleteId}
+                setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
+                onSave={handleSave} onDelete={handleDelete} showDate people={people} />
+            ))}
+          </div>
+          {total > PAGE_SIZE && (
+            <TimelinePagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              loading={listLoading}
+              onPageChange={loadPage}
+            />
+          )}
+        </>
       ) : view === "diary" ? (
-        <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
-          setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
-          onSave={handleSave} onDelete={handleDelete} people={people} />
+        <>
+          <div style={{ opacity: listLoading ? 0.5 : 1 }}>
+            <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
+              setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
+              onSave={handleSave} onDelete={handleDelete} people={people} />
+          </div>
+          {total > PAGE_SIZE && (
+            <TimelinePagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              loading={listLoading}
+              onPageChange={loadPage}
+            />
+          )}
+        </>
       ) : (
-        <CalendarView interactions={interactions} editingId={editingId} confirmDeleteId={confirmDeleteId}
+        <CalendarView editingId={editingId} confirmDeleteId={confirmDeleteId}
           setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
           onSave={handleSave} onDelete={handleDelete} people={people} />
       )}

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Union
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,6 +12,7 @@ from app.deps.auth import optional_auth_user
 from app.models import Interaction, User
 from app.schemas import InteractionCreate, InteractionRead, InteractionUpdate, PersonRead, TagRead
 from app.services import (
+    count_interactions,
     create_interaction,
     delete_interaction,
     list_interactions,
@@ -18,6 +21,21 @@ from app.services import (
 )
 
 router = APIRouter(prefix="/interactions", tags=["interactions"])
+_IST = ZoneInfo("Asia/Kolkata")
+
+
+def _parse_ist_date_range(
+    from_date: Optional[str],
+    to_date: Optional[str],
+) -> tuple[Optional[datetime], Optional[datetime]]:
+    start = end = None
+    if from_date:
+        y, m, d = map(int, from_date.split("-"))
+        start = datetime(y, m, d, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
+    if to_date:
+        y, m, d = map(int, to_date.split("-"))
+        end = datetime(y, m, d, 23, 59, 59, 999999, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
+    return start, end
 
 
 def _to_read(interaction: Interaction) -> InteractionRead:
@@ -39,18 +57,46 @@ def _to_read(interaction: Interaction) -> InteractionRead:
     )
 
 
-@router.get("", response_model=list[InteractionRead])
+@router.get("")
 def get_interactions(
     person_id: Optional[int] = None,
     tag: Optional[str] = None,
     kind: Optional[str] = None,
+    from_date: Optional[str] = Query(None, description="Inclusive start date (YYYY-MM-DD, IST)"),
+    to_date: Optional[str] = Query(None, description="Inclusive end date (YYYY-MM-DD, IST)"),
+    page: Optional[int] = Query(None, ge=1, description="1-based page; returns paginated payload"),
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(optional_auth_user),
-):
+) -> Union[list[InteractionRead], dict]:
     uid = user.id if user else None
-    items = list_interactions(db, person_id=person_id, tag=tag, kind=kind, limit=limit, offset=offset, user_id=uid)
+    from_dt, to_dt = _parse_ist_date_range(from_date, to_date)
+    filters = dict(
+        person_id=person_id,
+        tag=tag,
+        kind=kind,
+        from_dt=from_dt,
+        to_dt=to_dt,
+        user_id=uid,
+    )
+
+    if page is not None:
+        page_n = max(1, page)
+        limit_n = max(1, min(100, limit))
+        offset_n = (page_n - 1) * limit_n
+        total = count_interactions(db, **filters)
+        items = list_interactions(db, **filters, limit=limit_n, offset=offset_n)
+        pages = max(1, (total + limit_n - 1) // limit_n) if total else 0
+        return {
+            "items": [_to_read(i) for i in items],
+            "total": total,
+            "page": page_n,
+            "limit": limit_n,
+            "pages": pages,
+        }
+
+    items = list_interactions(db, **filters, limit=limit, offset=offset)
     return [_to_read(i) for i in items]
 
 

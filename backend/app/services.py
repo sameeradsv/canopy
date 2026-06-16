@@ -128,29 +128,86 @@ def delete_person(db: Session, person: Person) -> None:
     db.commit()
 
 
-def list_interactions(
-    db: Session,
+def interaction_query(db: Session):
+    return select(Interaction).options(
+        selectinload(Interaction.participants),
+        selectinload(Interaction.tags),
+    )
+
+
+def _apply_interaction_filters(
+    stmt,
     *,
     person_id: Optional[int] = None,
     tag: Optional[str] = None,
     kind: Optional[str] = None,
-    limit: int = 100,
-    offset: int = 0,
+    from_dt: Optional[datetime] = None,
+    to_dt: Optional[datetime] = None,
     user_id: Optional[int] = None,
-) -> list[Interaction]:
-    stmt = (
-        interaction_query(db)
-        .where(Interaction.user_id == user_id)
-        .order_by(Interaction.occurred_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+):
+    stmt = stmt.where(Interaction.user_id == user_id)
     if person_id is not None:
         stmt = stmt.join(Interaction.participants).where(Person.id == person_id)
     if tag:
         stmt = stmt.join(Interaction.tags).where(Tag.name == _normalize_tag(tag))
     if kind:
         stmt = stmt.where(Interaction.kind == kind)
+    if from_dt is not None:
+        stmt = stmt.where(Interaction.occurred_at >= from_dt)
+    if to_dt is not None:
+        stmt = stmt.where(Interaction.occurred_at <= to_dt)
+    return stmt
+
+
+def count_interactions(
+    db: Session,
+    *,
+    person_id: Optional[int] = None,
+    tag: Optional[str] = None,
+    kind: Optional[str] = None,
+    from_dt: Optional[datetime] = None,
+    to_dt: Optional[datetime] = None,
+    user_id: Optional[int] = None,
+) -> int:
+    stmt = select(func.count(func.distinct(Interaction.id))).select_from(Interaction)
+    stmt = _apply_interaction_filters(
+        stmt,
+        person_id=person_id,
+        tag=tag,
+        kind=kind,
+        from_dt=from_dt,
+        to_dt=to_dt,
+        user_id=user_id,
+    )
+    return int(db.scalar(stmt) or 0)
+
+
+def list_interactions(
+    db: Session,
+    *,
+    person_id: Optional[int] = None,
+    tag: Optional[str] = None,
+    kind: Optional[str] = None,
+    from_dt: Optional[datetime] = None,
+    to_dt: Optional[datetime] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user_id: Optional[int] = None,
+) -> list[Interaction]:
+    stmt = _apply_interaction_filters(
+        interaction_query(db),
+        person_id=person_id,
+        tag=tag,
+        kind=kind,
+        from_dt=from_dt,
+        to_dt=to_dt,
+        user_id=user_id,
+    )
+    stmt = (
+        stmt.order_by(Interaction.occurred_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     return list(db.scalars(stmt).unique().all())
 
 
@@ -241,6 +298,34 @@ def search(
     return interactions, people
 
 
+def _people_to_reach_out(
+    db: Session,
+    user_id: Optional[int] = None,
+    limit: int = 3,
+) -> list[tuple[Person, int, datetime]]:
+    """People with interactions, oldest last contact first — single aggregated query."""
+    agg = (
+        select(
+            interaction_participants.c.person_id,
+            func.count(interaction_participants.c.interaction_id).label("ix_count"),
+            func.max(Interaction.occurred_at).label("last_at"),
+        )
+        .join(Interaction, Interaction.id == interaction_participants.c.interaction_id)
+        .where(Interaction.user_id == user_id)
+        .group_by(interaction_participants.c.person_id)
+        .subquery()
+    )
+    stmt = (
+        select(Person, agg.c.ix_count, agg.c.last_at)
+        .join(agg, Person.id == agg.c.person_id)
+        .where(Person.user_id == user_id)
+        .order_by(agg.c.last_at.asc())
+        .limit(limit)
+    )
+    rows = db.execute(stmt).all()
+    return [(row[0], int(row[1] or 0), row[2]) for row in rows]
+
+
 def get_summary(db: Session, user_id: Optional[int] = None) -> dict:
     total_interactions = (
         db.scalar(select(func.count()).select_from(Interaction).where(Interaction.user_id == user_id)) or 0
@@ -267,17 +352,8 @@ def get_summary(db: Session, user_id: Optional[int] = None) -> dict:
             .limit(5)
         ).all()
     )
-    # People to reach out to: those with ≥1 interaction, sorted by oldest last contact
-    all_people = list(
-        db.scalars(
-            select(Person)
-            .options(selectinload(Person.interactions))
-            .where(Person.user_id == user_id)
-        ).all()
-    )
-    with_interactions = [p for p in all_people if p.interactions]
-    with_interactions.sort(key=lambda p: max(ix.occurred_at for ix in p.interactions))
-    people_to_reach_out = with_interactions[:3]
+    # People to reach out to: oldest last contact (aggregated — no full interaction load)
+    people_to_reach_out = _people_to_reach_out(db, user_id=user_id, limit=3)
     return {
         "total_interactions": total_interactions,
         "total_people": total_people,
