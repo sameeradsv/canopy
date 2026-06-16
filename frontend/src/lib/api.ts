@@ -58,6 +58,10 @@ export interface EnergyEvent {
   occurred_at: string;
   time: string;
   energy: number;
+  /** Signed energy change this event caused (positive = restored, negative = drained) */
+  delta?: number;
+  /** Cumulative energy balance after this event (0–1) */
+  running_energy?: number;
   label: "draining" | "neutral" | "energising";
   note: string;
   source: "canopy" | "circuit" | "chef";
@@ -66,6 +70,10 @@ export interface EnergyEvent {
 export interface EnergyTimeline {
   date: string;
   source: string;
+  /** Opening energy balance for the day (0–1) */
+  start_energy?: number;
+  /** Closing energy balance after all events (0–1) */
+  end_energy?: number;
   events: EnergyEvent[];
   avg_energy: number | null;
 }

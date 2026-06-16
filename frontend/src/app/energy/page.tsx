@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type EnergyEvent, type EnergyTimeline } from "@/lib/api";
 import { todayIST, TZ } from "@/lib/tz";
 
@@ -57,9 +57,9 @@ function hourLabel(h: number) {
   return h < 12 ? `${h}am` : `${h - 12}pm`;
 }
 
-interface Tip { event: EnergyEvent; svgX: number; svgY: number; }
+interface Tip { event: EnergyEvent; svgX: number; svgY: number; runningAfter: number; }
 
-function EnergyChart({ events }: { events: EnergyEvent[] }) {
+function EnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEnergy: number }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -93,12 +93,13 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
     {} as Record<Source, EnergyEvent[]>,
   );
 
-  let cumSum = 0;
+  // Combined running-energy line: starts at startEnergy, applies each event's delta in time order
+  let runningE = startEnergy;
   const combinedLine = [...events]
     .sort((a, b) => tm(a.time) - tm(b.time))
-    .map((e, i) => {
-      cumSum += e.energy;
-      return { x: mx(tm(e.time)), y: ey(cumSum / (i + 1)) };
+    .map((e) => {
+      runningE = Math.max(0, Math.min(1, runningE + (e.delta ?? 0)));
+      return { x: mx(tm(e.time)), y: ey(runningE), running: runningE };
     });
 
   return (
@@ -143,11 +144,12 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
             );
           })}
 
-          {/* Lines + dots per source */}
+          {/* Lines + dots per source — dots show event's intrinsic quality (energy field) */}
           {(["canopy", "circuit", "chef"] as Source[]).map((src) => {
             const pts = bySource[src].map((e) => ({
               x: mx(tm(e.time)),
               y: ey(e.energy),
+              runningAfter: e.running_energy ?? e.energy,
               e,
             }));
             if (pts.length === 0) return null;
@@ -164,7 +166,7 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
                   <circle key={i} cx={p.x} cy={p.y} r={4}
                     fill={color} stroke="var(--panel)" strokeWidth={1.5}
                     style={{ cursor: "pointer" }}
-                    onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: p.y })}
+                    onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: p.y, runningAfter: p.runningAfter })}
                   />
                 ))}
               </g>
@@ -224,12 +226,19 @@ function EnergyChart({ events }: { events: EnergyEvent[] }) {
             minWidth: 160,
             maxWidth: 240,
           }}>
-            <div style={{ fontFamily: "var(--font-mono)", color: SRC_COLOR[tip.event.source], fontSize: 10, marginBottom: 2 }}>
+            <div style={{ fontFamily: "var(--font-mono)", color: SRC_COLOR[tip.event.source as Source], fontSize: 10, marginBottom: 2 }}>
               {tip.event.source} · {tip.event.time}
             </div>
             <div style={{ color: "var(--fg)", fontWeight: 500 }}>
-              {Math.round(tip.event.energy * 100)}% — {tip.event.label}
+              {tip.event.delta !== undefined
+                ? `${tip.event.delta > 0 ? "+" : ""}${Math.round(tip.event.delta * 100)}% — ${tip.event.label}`
+                : `${Math.round(tip.event.energy * 100)}% — ${tip.event.label}`}
             </div>
+            {tip.event.running_energy !== undefined && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", marginTop: 1 }}>
+                → {Math.round(tip.runningAfter * 100)}% running
+              </div>
+            )}
             <div style={{ color: "var(--fg-mute)", marginTop: 2, fontSize: 10, wordBreak: "break-word" }}>
               {tip.event.note}
             </div>
@@ -258,16 +267,18 @@ function SourcePill({
   unavailable?: UnavailableReason;
 }) {
   const color = SRC_COLOR[source];
-  const avg = timeline?.avg_energy;
   const count = timeline?.events.length ?? 0;
 
+  const endEnergy = timeline?.end_energy;
   const statusText =
     unavailable === "no_url"   ? "not configured" :
     unavailable === "no_token" ? "not signed in" :
     unavailable === "error"    ? "unavailable" :
-    avg !== null && avg !== undefined
-      ? `${Math.round(avg * 100)}% avg · ${count} event${count !== 1 ? "s" : ""}`
-      : `${count} event${count !== 1 ? "s" : ""}`;
+    endEnergy !== undefined
+      ? `${Math.round(endEnergy * 100)}% end · ${count} event${count !== 1 ? "s" : ""}`
+      : count > 0
+        ? `${count} event${count !== 1 ? "s" : ""}`
+        : "no events";
 
   return (
     <div style={{
@@ -363,8 +374,15 @@ export default function EnergyPage() {
     ...(chef.timeline?.events ?? []),
   ].sort((a, b) => tm(a.time) - tm(b.time));
 
-  const combinedAvg = allEvents.length > 0
-    ? allEvents.reduce((s, e) => s + e.energy, 0) / allEvents.length
+  // Use Circuit's start_energy (has sleep factor + carry-over); fall back to 0.70
+  const startEnergy = circuit.timeline?.start_energy ?? 0.70;
+
+  // End-of-day running energy: apply all deltas from start
+  const endEnergy = allEvents.length > 0
+    ? allEvents.reduce(
+        (running, e) => Math.max(0, Math.min(1, running + (e.delta ?? 0))),
+        startEnergy,
+      )
     : null;
 
   const isToday = date === todayIST();
@@ -410,8 +428,8 @@ export default function EnergyPage() {
         <SourcePill source="chef"    timeline={chef.timeline}    unavailable={chef.unavailable} />
       </div>
 
-      {/* Combined total energy summary */}
-      {combinedAvg !== null && (
+      {/* Combined energy summary — shows opening and closing balance */}
+      {endEnergy !== null && (
         <div style={{
           display: "flex", alignItems: "baseline", gap: 14,
           padding: "10px 16px",
@@ -421,16 +439,20 @@ export default function EnergyPage() {
           marginBottom: 24,
         }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", textTransform: "uppercase", letterSpacing: "0.06em", minWidth: 70 }}>
-            combined
+            energy
           </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--fg-faint)" }}>
+            {Math.round(startEnergy * 100)}%
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--fg-faint)" }}>→</span>
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 700, lineHeight: 1,
-            color: combinedAvg < 0.35 ? "var(--danger)" : combinedAvg > 0.65 ? "var(--good)" : "var(--fg-mute)",
+            color: endEnergy < 0.35 ? "var(--danger)" : endEnergy > 0.65 ? "var(--good)" : "var(--fg-mute)",
           }}>
-            {Math.round(combinedAvg * 100)}%
+            {Math.round(endEnergy * 100)}%
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--fg-faint)" }}>
-            {combinedAvg < 0.35 ? "draining" : combinedAvg > 0.65 ? "energising" : "neutral"} · {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
+            {endEnergy < 0.35 ? "depleted" : endEnergy > 0.65 ? "sustained" : "moderate"} · {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
           </span>
         </div>
       )}
@@ -446,7 +468,7 @@ export default function EnergyPage() {
             <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>No events logged on this day.</p>
           </div>
         ) : (
-          <EnergyChart events={allEvents} />
+          <EnergyChart events={allEvents} startEnergy={startEnergy} />
         )}
 
         {/* Legend */}
@@ -488,39 +510,45 @@ export default function EnergyPage() {
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
             {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
           </div>
-          {allEvents.map((e, i) => {
-            const energyColor =
-              e.energy < 0.35 ? "var(--danger)" :
-              e.energy > 0.65 ? "var(--good)" :
-              "var(--fg-mute)";
-            return (
-              <div key={i} style={{
-                display: "flex", alignItems: "baseline", gap: 12,
-                padding: "8px 12px",
-                borderRadius: "var(--r-3)",
-                background: "var(--panel)",
-                border: "0.5px solid var(--line-soft)",
-              }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)", minWidth: 40, flexShrink: 0 }}>
-                  {e.time}
-                </span>
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: SRC_COLOR[e.source as Source],
-                  flexShrink: 0, marginTop: 2,
-                }} />
-                <span style={{ color: "var(--fg)", fontSize: 13, flex: 1, minWidth: 0 }}>
-                  {e.note}
-                </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: energyColor, flexShrink: 0 }}>
-                  {Math.round(e.energy * 100)}%
-                </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", flexShrink: 0, minWidth: 60, textAlign: "right" }}>
-                  {e.source}
-                </span>
-              </div>
-            );
-          })}
+          {(() => {
+            let running = startEnergy;
+            return allEvents.map((e, i) => {
+              running = Math.max(0, Math.min(1, running + (e.delta ?? 0)));
+              const deltaColor =
+                (e.delta ?? 0) < -0.05 ? "var(--danger)" :
+                (e.delta ?? 0) > 0.03  ? "var(--good)" :
+                "var(--fg-faint)";
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "baseline", gap: 12,
+                  padding: "8px 12px",
+                  borderRadius: "var(--r-3)",
+                  background: "var(--panel)",
+                  border: "0.5px solid var(--line-soft)",
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)", minWidth: 40, flexShrink: 0 }}>
+                    {e.time}
+                  </span>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: SRC_COLOR[e.source as Source],
+                    flexShrink: 0, marginTop: 2,
+                  }} />
+                  <span style={{ color: "var(--fg)", fontSize: 13, flex: 1, minWidth: 0 }}>
+                    {e.note}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: deltaColor, flexShrink: 0 }}>
+                    {e.delta !== undefined
+                      ? `${e.delta > 0 ? "+" : ""}${Math.round(e.delta * 100)}%`
+                      : `${Math.round(e.energy * 100)}%`}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", flexShrink: 0, minWidth: 50, textAlign: "right" }}>
+                    → {Math.round(running * 100)}%
+                  </span>
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
     </>

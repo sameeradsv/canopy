@@ -21,28 +21,41 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 
 _IST = ZoneInfo("Asia/Kolkata")
 
-# Tags that add to drain vs restore energy (fallback heuristic)
-_DRAIN_TAGS = {"stress", "conflict", "difficult", "disagreement", "argument", "frustrating", "hard"}
-_RESTORE_TAGS = {"celebration", "win", "support", "joy", "gratitude", "fun", "energizing"}
+# Tags that affect energy (fallback when no AI score)
+_DRAIN_TAGS    = {"stress", "conflict", "difficult", "disagreement", "argument", "frustrating", "hard"}
+_RESTORE_TAGS  = {"celebration", "win", "support", "joy", "gratitude", "fun", "energizing"}
+
+
+def _interaction_delta(interaction: Interaction) -> float:
+    """
+    Signed energy delta for an interaction.
+    Positive = restores energy (supportive/joyful), negative = drains.
+
+    When an AI energy score is available: 1.0 (fully energising) → +0.15,
+    0.5 (neutral) → 0, 0.0 (fully draining) → −0.18.
+    Restore-tagged interactions (support, joy, celebration, etc.) give a
+    genuine positive delta instead of merely reducing drain.
+    """
+    if interaction.energy is not None:
+        # Map 0–1 → −0.18 to +0.15 (asymmetric: draining interactions cost more)
+        delta = (interaction.energy - 0.5) * 0.33
+    else:
+        base = -0.08  # slight social cost by default
+        confidence_adj = (interaction.confidence - 0.70) * 0.10
+        tag_names = {t.name.lower() for t in interaction.tags}
+        tag_mod = (
+             0.10 if tag_names & _RESTORE_TAGS   # genuinely restoring
+            else -0.10 if tag_names & _DRAIN_TAGS  # genuinely draining
+            else 0.0
+        )
+        delta = base + confidence_adj + tag_mod
+    return round(max(-0.25, min(0.15, delta)), 3)
 
 
 def _interaction_drain(interaction: Interaction) -> float:
-    """
-    Per-interaction drain on a 0–1 scale.
-    Uses AI energy score when available (1.0=energising → 0 drain, 0.0=draining → 0.4 drain).
-    Falls back to base cost + confidence modifier + tag modifier.
-    """
-    if interaction.energy is not None:
-        return (1.0 - interaction.energy) * 0.4
-    base = 0.15
-    confidence_cost = (1.0 - interaction.confidence) * 0.20
-    tag_names = {t.name.lower() for t in interaction.tags}
-    tag_mod = (
-        0.10 if tag_names & _DRAIN_TAGS
-        else -0.05 if tag_names & _RESTORE_TAGS
-        else 0.0
-    )
-    return max(0.05, base + confidence_cost + tag_mod)
+    """Legacy drain helper — kept for backward compat in energy_summary."""
+    delta = _interaction_delta(interaction)
+    return round(max(0.0, -delta), 3)
 
 
 @router.get("/energy/timeline")
@@ -52,9 +65,12 @@ def energy_timeline(
     db: Session = Depends(get_db),
 ):
     """
-    Per-interaction energy for a given calendar day (default: today in IST).
-    Returns a common shape shared by all personal apps:
-      { date, source, events: [{occurred_at, time, energy, label, note, source}], avg_energy }
+    Cumulative interaction-energy timeline for a calendar day (default: today IST).
+
+    Each event now carries `delta` (signed change) and `running_energy` (balance
+    after that event). The day's social energy opens at 0.70 baseline — Canopy
+    does not have sleep data, so the combined running line is computed by the
+    frontend using Circuit's start_energy.
     """
     if date:
         try:
@@ -79,26 +95,36 @@ def energy_timeline(
         .order_by(Interaction.occurred_at)
     ).all()
 
+    START = 0.70  # Canopy-local baseline (frontend uses Circuit's start_energy for combined line)
+    running = START
     events = []
     for ix in interactions:
-        energy = round(ix.energy, 3) if ix.energy is not None else 0.5
-        label = "draining" if energy < 0.35 else "energising" if energy > 0.65 else "neutral"
+        delta = _interaction_delta(ix)
+        running = round(min(1.0, max(0.0, running + delta)), 3)
+        label = "draining" if delta < -0.05 else "energising" if delta > 0.03 else "neutral"
         local_time = ix.occurred_at.replace(tzinfo=timezone.utc).astimezone(_IST)
+        # energy field: map delta to 0–1 for backward compat with chart dots
+        energy_compat = round(min(1.0, max(0.0, (delta + 0.25) / 0.40)), 3)
         events.append({
-            "occurred_at": ix.occurred_at.isoformat() + "Z",
-            "time": local_time.strftime("%H:%M"),
-            "energy": round(energy, 3),
-            "label": label,
-            "note": ix.observation[:80],
-            "source": "canopy",
+            "occurred_at":    ix.occurred_at.isoformat() + "Z",
+            "time":           local_time.strftime("%H:%M"),
+            "energy":         energy_compat,
+            "delta":          delta,
+            "running_energy": running,
+            "label":          label,
+            "note":           ix.observation[:80],
+            "source":         "canopy",
         })
 
+    end_energy = running
     avg = round(sum(e["energy"] for e in events) / len(events), 3) if events else None
     return {
-        "date": target.isoformat(),
-        "source": "canopy",
-        "events": events,
-        "avg_energy": avg,
+        "date":         target.isoformat(),
+        "source":       "canopy",
+        "start_energy": START,
+        "end_energy":   end_energy,
+        "events":       events,
+        "avg_energy":   avg,
     }
 
 
@@ -129,26 +155,30 @@ def energy_summary(
         .options(selectinload(Interaction.tags))
     ).all()
 
-    past_drain = 0.0
-    future_drain = 0.0
+    past_delta = 0.0
+    future_delta = 0.0
 
     for ix in today_interactions:
-        drain = _interaction_drain(ix)
+        delta = _interaction_delta(ix)
         if ix.occurred_at <= now_utc:
-            past_drain += drain
+            past_delta += delta
         else:
-            future_drain += drain
+            future_delta += delta
 
-    drain_so_far = round(min(past_drain, 1.0), 3)
-    drain_ahead = round(min(future_drain, 1.0), 3)
+    # energy_so_far: 0.70 baseline + cumulative deltas (clamped 0–1)
+    energy_so_far = round(min(1.0, max(0.0, 0.70 + past_delta)), 3)
+    energy_ahead  = round(min(1.0, max(0.0, energy_so_far + future_delta)), 3)
+    # Retain drain fields for backward compat (positive-only portion of deltas)
+    drain_so_far = round(min(1.0, max(0.0, -past_delta)), 3)
+    drain_ahead  = round(min(1.0, max(0.0, -future_delta)), 3)
 
     return {
         "as_of": (now_ist).strftime("%Y-%m-%dT%H:%M:%S+05:30"),
         "source": "canopy",
         "drain_so_far": drain_so_far,
-        "energy_so_far": round(1.0 - drain_so_far, 3),
+        "energy_so_far": energy_so_far,
         "drain_ahead": drain_ahead,
-        "energy_ahead": round(1.0 - drain_ahead, 3),
+        "energy_ahead": energy_ahead,
         "interactions_so_far": sum(1 for ix in today_interactions if ix.occurred_at <= now_utc),
         "interactions_ahead": sum(1 for ix in today_interactions if ix.occurred_at > now_utc),
     }

@@ -60,10 +60,25 @@ docker compose up --build
 
 **No Alembic migrations.** Schema is managed by `Base.metadata.create_all` at startup with a manual `_migrate_sqlite()` function in `database.py` for additive column changes.
 
+### Energy system (`routers/sync.py`)
+
+Canopy contributes to the cross-app cumulative energy model via two endpoints:
+
+**`GET /api/sync/energy/timeline`** — cumulative interaction-energy timeline for a day.
+- Each event has `delta` (signed, positive = restores), `running_energy` (balance after event), `start_energy` (0.70 baseline — Canopy doesn't have sleep data), `end_energy`.
+- Delta rules: interactions tagged with `_RESTORE_TAGS` (support, joy, celebration, win, gratitude, fun, energizing) give a genuine positive delta (up to +0.15) — they restore, not just drain-less. `_DRAIN_TAGS` (conflict, stress, argument, difficult) give larger negatives (down to −0.25). AI energy score > 0.5 maps to positive delta; < 0.5 to negative.
+- `energy` compat field (0–1) is preserved for backward compat with dot colour in the chart.
+
+**`GET /api/sync/energy`** — real-time interaction energy state (used by Circuit's `use-combined-energy.ts`).
+- `energy_so_far`: 0.70 + cumulative deltas from past interactions today (clamped 0–1). Replaces the old `1.0 − drain` formula so restorative interactions actually raise it above 0.70.
+- Legacy `drain_so_far` / `drain_ahead` retained for backward compat.
+
+**Cross-app note**: Canopy's `start_energy` for the combined timeline line is always 0.70 locally. The frontend (Canopy energy page) overrides this with Circuit's `start_energy` (sleep factor + `energy_eod` carry-over) for the combined dashed running-balance line.
+
 ### Frontend layout (`frontend/src/`)
 | Path | Role |
 |------|------|
-| `lib/api.ts` | Central typed API client — all fetch calls go through this, reads `NEXT_PUBLIC_API_URL` for production |
+| `lib/api.ts` | Central typed API client — all fetch calls go through this, reads `NEXT_PUBLIC_API_URL` for production. `EnergyEvent` now includes `delta?` and `running_energy?`; `EnergyTimeline` includes `start_energy?` and `end_energy?`. |
 | `app/layout.tsx` | Root layout — mounts `Nav` and `AmbientBackground` |
 | `app/page.tsx` | Dashboard (summary stats + recent interactions) |
 | `app/capture/` | Quick-capture form |
@@ -72,6 +87,7 @@ docker compose up --build
 | `app/tasks/` | Task list with dimension sliders |
 | `app/dimensions/` | Configure saved dimension presets |
 | `app/search/` | Full-text search across interactions and people |
+| `app/energy/page.tsx` | Cross-app energy timeline. Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. |
 | `app/login/` | Auth (register / login) |
 | `components/Nav.tsx` | Navigation bar |
 | `lib/dimensions.ts` | Dimension label/key helpers (mirrors `constants.py`) |
