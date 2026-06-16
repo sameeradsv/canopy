@@ -47,7 +47,7 @@ function dayBg(avg: number | null): string {
 
 function EditForm({ ix, onSave, onCancel, people }: {
   ix: Interaction;
-  onSave: (data: InteractionUpdate) => Promise<void>;
+  onSave: (data: InteractionUpdate) => Promise<void | Interaction>;
   onCancel: () => void;
   people: Person[];
 }) {
@@ -188,7 +188,7 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
   confirmDeleteId: number | null;
   setEditingId: (id: number | null) => void;
   setConfirmDeleteId: (id: number | null) => void;
-  onSave: (id: number, data: InteractionUpdate) => Promise<void>;
+  onSave: (id: number, data: InteractionUpdate) => Promise<Interaction | void>;
   onDelete: (id: number) => Promise<void>;
   showDate?: boolean;
   people: Person[];
@@ -259,7 +259,7 @@ function DiaryView({ interactions, editingId, confirmDeleteId, setEditingId, set
   confirmDeleteId: number | null;
   setEditingId: (id: number | null) => void;
   setConfirmDeleteId: (id: number | null) => void;
-  onSave: (id: number, data: InteractionUpdate) => Promise<void>;
+  onSave: (id: number, data: InteractionUpdate) => Promise<Interaction | void>;
   onDelete: (id: number) => Promise<void>;
   people: Person[];
 }) {
@@ -388,7 +388,7 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
   confirmDeleteId: number | null;
   setEditingId: (id: number | null) => void;
   setConfirmDeleteId: (id: number | null) => void;
-  onSave: (id: number, data: InteractionUpdate) => Promise<void>;
+  onSave: (id: number, data: InteractionUpdate) => Promise<Interaction | void>;
   onDelete: (id: number) => Promise<void>;
   people: Person[];
 }) {
@@ -414,7 +414,9 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
 
   async function handleSave(id: number, data: InteractionUpdate) {
     const updated = await onSave(id, data);
-    setMonthInteractions((prev) => prev.map((ix) => (ix.id === id ? updated : ix)));
+    if (updated) {
+      setMonthInteractions((prev) => prev.map((ix) => (ix.id === id ? updated : ix)));
+    }
   }
 
   async function handleDeleteLocal(id: number) {

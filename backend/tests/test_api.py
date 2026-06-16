@@ -221,3 +221,29 @@ def test_user_isolation(client):
     alice_summary = client.get("/api/summary", headers=auth_a).json()
     assert alice_summary["total_interactions"] == 1
     assert alice_summary["total_people"] == 1
+
+
+def test_interactions_pagination(client):
+    person = client.post("/api/people", json={"name": "Pat"}).json()
+    for i in range(5):
+        client.post(
+            "/api/interactions",
+            json={
+                "observation": f"Note {i}",
+                "participant_ids": [person["id"]],
+            },
+        )
+
+    plain = client.get("/api/interactions", params={"limit": 2, "offset": 1}).json()
+    assert isinstance(plain, list)
+    assert len(plain) == 2
+
+    page1 = client.get("/api/interactions", params={"page": 1, "limit": 2}).json()
+    assert page1["total"] == 5
+    assert page1["page"] == 1
+    assert page1["limit"] == 2
+    assert page1["pages"] == 3
+    assert len(page1["items"]) == 2
+
+    page3 = client.get("/api/interactions", params={"page": 3, "limit": 2}).json()
+    assert len(page3["items"]) == 1
