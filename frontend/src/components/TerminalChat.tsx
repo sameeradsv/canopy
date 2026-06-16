@@ -143,8 +143,8 @@ export function TerminalChat() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: "calc(100dvh - 4rem)", background: "var(--bg)" }}
+      className="embedded-chat flex flex-col overflow-hidden"
+      style={{ background: "var(--bg)" }}
     >
       {/* Header */}
       <div
@@ -225,7 +225,7 @@ export function TerminalChat() {
 
       {/* Input */}
       <div
-        className="flex items-end gap-2 px-4 py-3 border-t flex-shrink-0"
+        className="flex items-end gap-2 px-4 py-3 border-t flex-shrink-0 embedded-chat-input"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         <textarea
