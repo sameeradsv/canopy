@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import settings
 from app.database import init_db
@@ -21,6 +22,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,

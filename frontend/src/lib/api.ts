@@ -133,7 +133,7 @@ export interface Preset {
   use: number;
 }
 
-import { getAuthToken } from "@/lib/auth";
+import { getAuthToken, setAuthToken } from "@/lib/auth";
 
 function resolveUrl(path: string): string {
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
@@ -159,6 +159,11 @@ async function request<T>(
     },
     ...options,
   });
+  if (res.status === 401) {
+    setAuthToken(null);
+    if (typeof window !== "undefined") window.location.replace("/login");
+    throw new Error("Session expired");
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(text || `Request failed: ${res.status}`);

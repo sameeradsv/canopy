@@ -21,7 +21,10 @@ def get_people(
     user: Optional[User] = Depends(optional_auth_user),
 ):
     uid = user.id if user else None
-    return [PersonRead(**person_to_read(p)) for p in list_people(db, q, user_id=uid)]
+    return [
+        PersonRead(**person_to_read(p, ix_count=int(cnt or 0), last_at_dt=last_at))
+        for p, cnt, last_at in list_people(db, q, user_id=uid)
+    ]
 
 
 @router.post("", response_model=PersonRead, status_code=201)

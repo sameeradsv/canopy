@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.dimensions_utils import parse_dimensions, serialize_dimensions
-from app.models import Interaction, Person, Tag
+from app.models import Interaction, Person, Tag, interaction_participants
 from app.schemas import (
     InteractionCreate,
     InteractionUpdate,
@@ -43,11 +43,16 @@ def get_or_create_tags(db: Session, names: list[str]) -> list[Tag]:
     return tags
 
 
-def person_to_read(person: Person) -> dict:
-    last_at = None
-    if person.interactions:
-        last_dt = max(ix.occurred_at for ix in person.interactions)
-        last_at = last_dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+def person_to_read(
+    person: Person,
+    ix_count: Optional[int] = None,
+    last_at_dt=None,
+) -> dict:
+    if ix_count is None:
+        # Fallback for create/update/get — relationship already loaded on the object
+        ix_count = len(person.interactions)
+        last_at_dt = max((ix.occurred_at for ix in person.interactions), default=None) if person.interactions else None
+    last_at = last_at_dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z" if last_at_dt else None
     return {
         "id": person.id,
         "name": person.name,
@@ -55,7 +60,7 @@ def person_to_read(person: Person) -> dict:
         "notes": person.notes,
         "created_at": person.created_at,
         "updated_at": person.updated_at,
-        "interaction_count": len(person.interactions),
+        "interaction_count": ix_count,
         "last_interaction_at": last_at,
     }
 
@@ -67,13 +72,30 @@ def interaction_query(db: Session):
     )
 
 
-def list_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None) -> list[Person]:
-    stmt = select(Person).options(selectinload(Person.interactions)).order_by(Person.name)
-    stmt = stmt.where(Person.user_id == user_id)
+def list_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None):
+    # Single query with LEFT JOIN subquery for count + last-date instead of
+    # loading all Interaction objects via selectinload.
+    agg = (
+        select(
+            interaction_participants.c.person_id,
+            func.count(interaction_participants.c.interaction_id).label("ix_count"),
+            func.max(Interaction.occurred_at).label("last_at"),
+        )
+        .join(Interaction, Interaction.id == interaction_participants.c.interaction_id)
+        .where(Interaction.user_id == user_id)
+        .group_by(interaction_participants.c.person_id)
+        .subquery()
+    )
+    stmt = (
+        select(Person, agg.c.ix_count, agg.c.last_at)
+        .outerjoin(agg, Person.id == agg.c.person_id)
+        .where(Person.user_id == user_id)
+        .order_by(Person.name)
+    )
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
-    return list(db.scalars(stmt).all())
+    return db.execute(stmt).all()  # rows of (Person, int|None, datetime|None)
 
 
 def create_person(db: Session, data: PersonCreate, user_id: Optional[int] = None) -> Person:
