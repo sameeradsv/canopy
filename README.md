@@ -92,7 +92,7 @@ Canopy's backend is consumed by **conduit** — the hub app that provides cross-
 - **Agent reads:** `GET /api/people`, `GET /api/interactions` — conduit answers "When did I last talk to Alice?" and "Who should I follow up with?"
 - **Diary writes:** `POST /api/interactions` (with participant name resolution) — conduit's diary mode logs interactions from freeform entries
 
-Canopy also has an embedded terminal chat at `/chat` (in the sidebar, or press `5`), powered by conduit's backend with the `scope=canopy` tool set. Set `NEXT_PUBLIC_CONDUIT_API_URL` in `frontend/.env.local` to point to the conduit backend (default: `http://localhost:8000`).
+Canopy also has an embedded terminal chat at `/chat` (in the sidebar, or press `5`), powered by Canopy's native Groq agent at `POST /api/ai/agent/chat`. Requires `GROQ_API_KEY` on the backend. No Conduit dependency for in-app chat.
 
 ## Philosophy
 

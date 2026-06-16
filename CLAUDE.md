@@ -56,7 +56,7 @@ docker compose up --build
 | `deps/auth.py` | Auth FastAPI dependencies: `optional_user`, `require_user`, `optional_auth_user` |
 | `export_crypto.py` | Passphrase-based XOR+PBKDF2-SHA256+HMAC encryption for data export blobs |
 | `dimensions_utils.py` | Parse/serialize `Task.dimensions_json` (a JSON string storing 0–1 floats per dimension) |
-| `routers/` | `auth`, `interactions`, `people`, `search`, `settings`, `sync`, `tasks` |
+| `routers/` | `auth`, `interactions`, `people`, `search`, `settings`, `sync`, `tasks`, `ai` |
 
 **No Alembic migrations.** Schema is managed by `Base.metadata.create_all` at startup with a manual `_migrate_sqlite()` function in `database.py` for additive column changes.
 
@@ -88,8 +88,10 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 | `app/dimensions/` | Configure saved dimension presets |
 | `app/search/` | Full-text search across interactions and people |
 | `app/energy/page.tsx` | Cross-app energy timeline. Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. |
+| `app/chat/` | Native Groq chat agent — people & interactions Q&A (`POST /api/ai/agent/chat`) |
 | `app/login/` | Auth (register / login) |
 | `components/Nav.tsx` | Navigation bar |
+| `components/TerminalChat.tsx` | Chat UI — streams from native Canopy agent (requires `GROQ_API_KEY`) |
 | `lib/dimensions.ts` | Dimension label/key helpers (mirrors `constants.py`) |
 
 Pages are all client components that call `api.*` in `useEffect`. No global state library.
@@ -114,6 +116,7 @@ Backend tests in `backend/tests/test_api.py` use `TestClient` with an in-memory 
 | `DATABASE_URL` | `sqlite:///./data/canopy.db` | SQLAlchemy connection string |
 | `CORS_ORIGINS` | comma-separated list | Allowed origins; split on comma in `config.py` |
 | `AUTH_REQUIRED` | `false` | Enforce Bearer token on write endpoints |
+| `GROQ_API_KEY` | _(empty)_ | AI classification, energy scoring, and `/api/ai/agent/chat` |
 | `NEXT_PUBLIC_API_URL` | _(none — uses proxy in dev)_ | Frontend API base URL for GitHub Pages / production |
 
 ## Key invariants

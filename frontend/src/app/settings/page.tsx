@@ -183,7 +183,7 @@ export default function SettingsPage() {
       <div className="card" style={{ marginBottom: 32 }}>
         <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Classify unscored interactions</div>
         <p className="faint small" style={{ marginBottom: 14 }}>
-          Use AI to automatically score interactions that have no energy rating yet. Requires <code>ANTHROPIC_API_KEY</code> to be set on the server.
+          Use AI to automatically score interactions that have no energy rating yet. Requires <code>GROQ_API_KEY</code> to be set on the server.
         </p>
         <button onClick={handleClassifyAll} disabled={classifyingAll} className="btn primary" style={{ width: "fit-content" }}>
           {classifyingAll ? "Classifying…" : "✦ Classify all unscored"}

@@ -76,7 +76,20 @@
       "Bash(Select-Object FullName, PSIsContainer)",
       "Bash(ConvertTo-Csv -NoTypeInformation)",
       "Bash(Out-String)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Read(//d/Downloads/Personal/Development/conduit/frontend/src/app/**)",
+      "Read(//d/Downloads/Personal/Development/conduit/src/**)",
+      "Read(//d/Downloads/Personal/Development/conduit/**)",
+      "Bash(npx eslint *)",
+      "Read(//d/Downloads/Personal/Development/circuit/backend/**)",
+      "Read(//d/Downloads/Personal/Development/circuit/**)",
+      "Bash(rm \"D:\\\\Downloads\\\\Personal\\\\Development\\\\chef\\\\backend\\\\fly.toml\")",
+      "Bash(rm \"D:\\\\Downloads\\\\Personal\\\\Development\\\\circuit\\\\backend\\\\fly.toml\")",
+      "Bash(chef)",
+      "Bash(circuit)",
+      "Bash(conduit)",
+      "Bash(cortex\")",
+      "PowerShell(git *)"
     ]
   }
 }
