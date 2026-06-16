@@ -327,7 +327,8 @@ function TerminalView({ interactions, onDelete }: {
   let lastDay = "";
 
   return (
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6 }}>
+    <div className="terminal-scroll">
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6, minWidth: 280 }}>
       {interactions.map((ix) => {
         const d = new Date(ix.occurred_at);
         const dayStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
@@ -368,6 +369,7 @@ function TerminalView({ interactions, onDelete }: {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -676,7 +678,7 @@ export default function TimelinePage() {
           <p className="page-sub">{total} interaction{total === 1 ? "" : "s"} logged.</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
+          <div className="view-switcher">
             {VIEWS.map((v) => (
               <button key={v} onClick={() => setView(v)}
                 className={view === v ? "btn primary" : "btn ghost"}

@@ -399,9 +399,9 @@ export default function EnergyPage() {
       </div>
 
       {/* Date nav */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+      <div className="date-nav-row" style={{ marginBottom: 24 }}>
         <button onClick={() => setDate((d) => offsetDate(d, -1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
-        <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, minWidth: 260, textAlign: "center" }}>
+        <span className="date-label" style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, textAlign: "center" }}>
           {formatDateDisplay(date)}
         </span>
         <button onClick={() => setDate((d) => offsetDate(d, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}
@@ -430,8 +430,7 @@ export default function EnergyPage() {
 
       {/* Combined energy summary — shows opening and closing balance */}
       {endEnergy !== null && (
-        <div style={{
-          display: "flex", alignItems: "baseline", gap: 14,
+        <div className="energy-summary-bar" style={{
           padding: "10px 16px",
           borderRadius: "var(--r-4)",
           background: "var(--panel)",

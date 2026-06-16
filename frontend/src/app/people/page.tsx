@@ -420,7 +420,7 @@ export default function PeoplePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ display: "flex", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", overflow: "hidden" }}>
+          <div className="view-switcher">
             {PEOPLE_VIEWS.map((v) => (
               <button key={v} onClick={() => setView(v)}
                 className={view === v ? "btn primary" : "btn ghost"}
