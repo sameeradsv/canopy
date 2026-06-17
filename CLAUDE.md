@@ -134,6 +134,8 @@ Backend tests in `backend/tests/test_api.py` use `TestClient` with an in-memory 
 
 **Export endpoints.** `GET /api/export` — plain JSON (`api.exportData()`, Settings → Download JSON). `POST /api/sync/export` — passphrase-encrypted backup (Settings). `POST /api/sync/import` merges decrypted blob; dedupes people by name, interactions by `(occurred_at, first 50 chars of observation)`.
 
+**`slowapi` + FastAPI body injection incompatibility**: `@limiter.limit` wraps the route function, hiding Pydantic model type annotations from FastAPI's dependency injector — FastAPI treats the parameter as a query param and returns 422 "Field required". Using `= Body()` as default is worse: FastAPI injects the raw `FieldInfo` object, causing `AttributeError` that escapes past `CORSMiddleware` to `ServerErrorMiddleware` (outside CORS) → 500 with no CORS headers → "Failed to fetch" in browser. **Fix**: all rate-limited endpoints that take a JSON body must use `async def` + `await request.json()` + `Model.model_validate()` via the `_parse_body` helper in `routers/auth.py`. Never add a typed Pydantic parameter to a `@limiter.limit`-decorated route.
+
 ## UI & Responsive Standards
 
 All UI changes must work correctly across **every** combination of these views before being considered done:
