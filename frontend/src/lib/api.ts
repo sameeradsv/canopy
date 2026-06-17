@@ -169,18 +169,47 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function parseErrorBody(text: string, status: number): string {
+  const trimmed = text.trim();
+  if (!trimmed) return `HTTP ${status}`;
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { detail?: string | { msg?: string }[] };
+      if (typeof parsed.detail === "string") return parsed.detail;
+      if (Array.isArray(parsed.detail)) {
+        return parsed.detail
+          .map((d) => (typeof d === "object" && d && "msg" in d ? String(d.msg) : String(d)))
+          .join("; ");
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  if (trimmed.length > 180) return `HTTP ${status}`;
+  return trimmed;
+}
+
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${apiBase}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...options?.headers,
-    },
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch {
+    throw new Error(
+      apiBase
+        ? "Network error — could not reach the API"
+        : "API URL not configured (set NEXT_PUBLIC_API_URL)",
+    );
+  }
   if (res.status === 401) {
     setAuthToken(null);
     if (typeof window !== "undefined") window.location.replace("/login");
@@ -188,7 +217,7 @@ async function request<T>(
   }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `Request failed: ${res.status}`);
+    throw new Error(parseErrorBody(text, res.status));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

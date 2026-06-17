@@ -243,3 +243,21 @@ def test_people_pagination(client):
 
     page3 = client.get("/api/people", params={"page": 3, "limit": 2}).json()
     assert len(page3["items"]) == 1
+
+
+def test_patterns_endpoint(client):
+    r = client.get("/api/ai/patterns")
+    assert r.status_code == 200
+    data = r.json()
+    assert "insights" in data
+    assert "recurring_tags" in data
+    assert "stale_contacts" in data
+
+
+def test_synthesize_endpoint_get_and_post(client):
+    for method in ("get", "post"):
+        r = getattr(client, method)("/api/ai/synthesize", params={"days": 7})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["days"] == 7
+        assert "summary" in data

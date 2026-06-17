@@ -61,6 +61,7 @@ async def add_cache_control(request: Request, call_next):
         request.method == "GET"
         and response.status_code == 200
         and not request.url.path.startswith("/api/auth")
+        and request.url.path != "/api/ai/synthesize"
     ):
         response.headers["Cache-Control"] = "private, max-age=30"
     return response

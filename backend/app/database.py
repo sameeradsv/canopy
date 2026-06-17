@@ -65,6 +65,24 @@ def _sqlite_column_names(conn, table: str) -> set[str]:
     return {row[1] for row in rows}
 
 
+def _migrate_sqlite_cortex_user_id() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        tables = inspect(conn).get_table_names()
+        if "users" not in tables:
+            return
+        cols = _sqlite_column_names(conn, "users")
+        if "cortex_user_id" not in cols:
+            conn.exec_driver_sql("ALTER TABLE users ADD COLUMN cortex_user_id INTEGER")
+            conn.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_cortex_user_id "
+                "ON users (cortex_user_id)"
+            )
+
+
 def _migrate_sqlite() -> None:
     if not settings.database_url.startswith("sqlite"):
         return
@@ -159,6 +177,7 @@ def init_db() -> None:
     for name, fn in [
         ("sqlite_schema", _migrate_sqlite),
         ("postgres_schema", _migrate_postgres),
+        ("sqlite_cortex_user_id", _migrate_sqlite_cortex_user_id),
     ]:
         if not _migration_done(name):
             fn()

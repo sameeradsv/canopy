@@ -214,12 +214,13 @@ def capture_suggestions(
     return suggest_capture(db, uid, observation, context)
 
 
-@router.get("/synthesize")
+@router.api_route("/synthesize", methods=["GET", "POST"])
 def synthesize(
     days: int = 7,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(optional_auth_user),
 ):
+    """GET preferred; POST kept for clients deployed before the method change."""
     from app.services.synthesis import synthesize_period
 
     uid = user.id if user else None

@@ -9,21 +9,38 @@ type SynthData = Awaited<ReturnType<typeof api.synthesize>>;
 
 const RANGE_OPTIONS = [7, 14, 30] as const;
 
+function formatApiError(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message.trim();
+  return "Request failed";
+}
+
 export default function PatternsPage() {
   const [patterns, setPatterns] = useState<PatternsData | null>(null);
   const [patternsLoading, setPatternsLoading] = useState(true);
+  const [patternsError, setPatternsError] = useState<string | null>(null);
   const [days, setDays] = useState<number>(7);
   const [synth, setSynth] = useState<SynthData | null>(null);
   const [synthLoading, setSynthLoading] = useState(false);
   const [synthRequested, setSynthRequested] = useState(false);
 
-  useEffect(() => {
+  const loadPatterns = useCallback(() => {
     setPatternsLoading(true);
+    setPatternsError(null);
     api.getPatterns()
-      .then(setPatterns)
-      .catch(() => setPatterns(null))
+      .then((data) => {
+        setPatterns(data);
+        setPatternsError(null);
+      })
+      .catch((err: unknown) => {
+        setPatterns(null);
+        setPatternsError(formatApiError(err));
+      })
       .finally(() => setPatternsLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadPatterns();
+  }, [loadPatterns]);
 
   const runSynthesis = useCallback(async (d = days) => {
     setSynthLoading(true);
@@ -31,8 +48,8 @@ export default function PatternsPage() {
     try {
       const res = await api.synthesize(d);
       setSynth(res);
-    } catch {
-      setSynth({ summary: "", days: d, error: "Request failed" });
+    } catch (err: unknown) {
+      setSynth({ summary: "", days: d, error: formatApiError(err) });
     } finally {
       setSynthLoading(false);
     }
@@ -56,7 +73,17 @@ export default function PatternsPage() {
         {patternsLoading && (
           <div className="card" style={{ minHeight: 100, opacity: 0.4 }} />
         )}
-        {!patternsLoading && patterns && (
+        {!patternsLoading && patternsError && (
+          <div className="card" style={{ padding: "16px 18px" }}>
+            <p style={{ fontSize: 13, color: "var(--fg-faint)", margin: "0 0 12px" }}>
+              Could not load pattern signals ({patternsError}).
+            </p>
+            <button type="button" className="btn" style={{ fontSize: 11 }} onClick={loadPatterns}>
+              Retry
+            </button>
+          </div>
+        )}
+        {!patternsLoading && !patternsError && patterns && (
           <div className="grid-2" style={{ gap: "var(--pad-6)" }}>
             <div className="card" style={{ padding: "16px 18px" }}>
               <div className="kicker" style={{ marginBottom: 10 }}>Insights</div>
@@ -154,7 +181,12 @@ export default function PatternsPage() {
           )}
           {synthRequested && synth?.error && (
             <p style={{ fontSize: 13, color: "var(--fg-faint)", margin: 0 }}>
-              Synthesis unavailable ({synth.error}).
+              Synthesis unavailable: {synth.error}
+            </p>
+          )}
+          {synthRequested && !synthLoading && synth && !synth.error && !synth.summary && (
+            <p style={{ fontSize: 13, color: "var(--fg-faint)", margin: 0 }}>
+              Groq returned an empty summary — try again or pick a shorter range.
             </p>
           )}
           {synthRequested && synth?.summary && !synth.error && (
