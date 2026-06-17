@@ -273,7 +273,6 @@ input, textarea, select { font: inherit; color: inherit; }
   min-width: 0;
   max-width: 100%;
 }
-}
 .topbar-search:hover { border-color: var(--fg-mute); }
 .topbar-btn {
   appearance: none; border: 0.5px solid var(--line);
