@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -21,13 +22,18 @@ def auth_status(db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    if db.scalar(select(User.id).where(User.username == data.username.strip().lower())):
-        raise HTTPException(409, "Username already taken")
+    username = data.username.strip().lower()
+    if len(username) < 2:
+        raise HTTPException(400, "Username must be at least 2 characters")
+    if not re.fullmatch(r'[a-z0-9_.-]+', username):
+        raise HTTPException(400, "Username may only contain letters, numbers, underscores, hyphens, and dots")
     if len(data.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
+    if db.scalar(select(User.id).where(User.username == username)):
+        raise HTTPException(409, "Username already taken")
 
     user = User(
-        username=data.username.strip().lower(),
+        username=username,
         password_hash=hash_password(data.password),
     )
     db.add(user)

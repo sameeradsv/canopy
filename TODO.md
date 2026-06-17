@@ -29,7 +29,7 @@ Tracked ideas and future work. Not a commitment order.
 - [x] **Plain JSON export** — Settings → Download JSON (`GET /api/export`).
 - [x] **`lib/dimensions.ts`** — dimension labels/keys deduped from `/dimensions` page.
 - [x] **Tag autocomplete on capture** — `TagInput` + `api.listTags()` on capture and timeline edit.
-- [x] **TerminalView** — mounted as fourth timeline view tab (`feed` / `diary` / `calendar` / `terminal`).
+- [x] **TerminalView removed** — terminal UX is Conduit-only; Canopy uses feed/diary/calendar + `/chat` for app-native agent (`DECISIONS.md` 2026-06-17).
 - [ ] **Tauri desktop shell** — feasible: Next.js static export or standalone server + Tauri webview; not started (non-trivial, ~1–2 days).
 - [x] **PWA / mobile shell** — Next.js PWA plugin, web manifest, installable icons; API still requires local backend when online.
 

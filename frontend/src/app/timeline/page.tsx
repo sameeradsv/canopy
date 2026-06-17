@@ -291,65 +291,6 @@ function DiaryView({ interactions, editingId, confirmDeleteId, setEditingId, set
   );
 }
 
-// ── Terminal view ──────────────────────────────────────────────────────────
-
-function TerminalView({ interactions, onDelete }: {
-  interactions: Interaction[];
-  onDelete: (id: number) => Promise<void>;
-}) {
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-
-  // Group by day for dashed day separators
-  let lastDay = "";
-
-  return (
-    <div className="terminal-scroll">
-    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.6, minWidth: 280 }}>
-      {interactions.map((ix) => {
-        const d = new Date(ix.occurred_at);
-        const dayStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
-        const isNewDay = dayStr !== lastDay;
-        lastDay = dayStr;
-        const dateStr = dayStr;
-        const timeStr = new Intl.DateTimeFormat("en-IN", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-        const kindStr = ix.kind ? ix.kind.padEnd(10) : "—".padEnd(10);
-        const names = ix.participants.map((p) => p.name.split(" ")[0]).join(", ") || "—";
-        const note = ix.observation.slice(0, 60) + (ix.observation.length > 60 ? "…" : "");
-
-        return (
-          <div key={ix.id}>
-            {isNewDay && (
-              <div style={{ color: "var(--fg-faint)", borderTop: "0.5px dashed var(--line)", marginTop: 8, paddingTop: 8, paddingBottom: 2, letterSpacing: "0.08em", fontSize: 10 }}>
-                {dateStr}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "baseline", gap: 0, padding: "1px 0" }}>
-              <span style={{ color: "var(--fg-faint)", minWidth: 44 }}>{timeStr}</span>
-              <span style={{ color: "var(--accent)", minWidth: 88 }}>{kindStr}</span>
-              <span style={{ color: "var(--fg-mute)", minWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{names.padEnd(12).slice(0, 12)}</span>
-              <span style={{ color: "var(--fg)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{note}</span>
-              <div style={{ marginLeft: 12, display: "flex", gap: 4, flexShrink: 0 }}>
-                {confirmDeleteId === ix.id ? (
-                  <>
-                    <button onClick={() => onDelete(ix.id)} style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "none", border: "none", color: "var(--danger)", cursor: "default", padding: "0 4px" }}>del</button>
-                    <button onClick={() => setConfirmDeleteId(null)} style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "none", border: "none", color: "var(--fg-faint)", cursor: "default", padding: "0 4px" }}>no</button>
-                  </>
-                ) : (
-                  <button onClick={() => setConfirmDeleteId(ix.id)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "none", border: "none", color: "var(--fg-faint)", cursor: "default", padding: "0 4px", opacity: 0 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-                  >×</button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-    </div>
-  );
-}
-
 // ── Calendar view ──────────────────────────────────────────────────────────
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -533,8 +474,8 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-type View = "feed" | "diary" | "calendar" | "terminal";
-const VIEWS: View[] = ["feed", "diary", "calendar", "terminal"];
+type View = "feed" | "diary" | "calendar";
+const VIEWS: View[] = ["feed", "diary", "calendar"];
 const PAGE_SIZE = 30;
 
 function TimelinePagination({
@@ -697,21 +638,6 @@ export default function TimelinePage() {
             <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
               setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
               onSave={handleSave} onDelete={handleDelete} people={people} />
-          </div>
-          {total > PAGE_SIZE && (
-            <TimelinePagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              loading={listLoading}
-              onPageChange={loadPage}
-            />
-          )}
-        </>
-      ) : view === "terminal" ? (
-        <>
-          <div style={{ opacity: listLoading ? 0.5 : 1 }}>
-            <TerminalView interactions={sorted} onDelete={handleDelete} />
           </div>
           {total > PAGE_SIZE && (
             <TimelinePagination

@@ -28,7 +28,9 @@ Features:
 - summaries
 - tag autocomplete on capture (`TagInput` + `api.listTags`)
 
-**Shipped (2026-06):** `TagInput` on capture + timeline edit; `TerminalView` mounted as timeline view tab.
+**Shipped (2026-06):** `TagInput` on capture + timeline edit.
+
+**Terminal:** mono terminal log view is **not** in Canopy — use Conduit for terminal/diary orchestration; Canopy `/chat` is app-native agent only.
 
 Questions:
 - What gets retrieved frequently?

@@ -90,7 +90,7 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 | `app/dimensions/` | Saved dimension presets (not task management — see `DECISIONS.md`) |
 | `app/search/` | Full-text search across interactions and people |
 | `app/energy/page.tsx` | Cross-app energy timeline. Fetches Circuit (`/api/energy/timeline`) and Chef (`/energy/timeline`) with the user's `canopy_auth_token` (Cortex JWT). Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. Requires Cortex sign-in on Canopy for sibling data; local-only Canopy accounts show Canopy events only. |
-| `app/chat/` | Native Groq chat agent — people & interactions Q&A (`POST /api/ai/agent/chat`) |
+| `app/chat/` | App-native Groq chat — people & interactions Q&A (`POST /api/ai/agent/chat`). Terminal/diary hub → Conduit only. |
 | `app/login/` | Auth (register / login) |
 | `components/ShellLayout.tsx` | App chrome — sidebar nav, topbar, mobile drawer |
 | `components/InteractionCard.tsx` | Shared timeline row (feed, dashboard, edit/actions via props) |

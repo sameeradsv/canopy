@@ -22,7 +22,9 @@
 
 **Removed during 2026 cleanup (superseded):** `Nav.tsx`, `AmbientBackground.tsx` → `ShellLayout.tsx`.
 
-**Restored (2026-06):** `TagInput` on capture/timeline; `TerminalView` mounted in timeline view switcher.
+**Restored (2026-06):** `TagInput` on capture/timeline.
+
+**Terminal UX:** Conduit-only — sibling apps use `/chat` (native Groq agent), not terminal timeline views.
 
 ---
 

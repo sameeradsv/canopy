@@ -23,11 +23,25 @@ This file records intentional divergences from the Tend design spec and consciou
 
 ---
 
-## TagInput + TerminalView restored (2026-06)
+## TagInput on capture (2026-06)
 
-**Decision:** Wire `TagInput` (datalist from `GET /api/tags`) on capture and timeline edit; mount `TerminalView` as the fourth timeline tab.
+**Decision:** Wire `TagInput` (datalist from `GET /api/tags`) on capture and timeline edit.
 
-**Reason:** `listTags` API existed but UI was free-text only; `TerminalView` was defined but never reachable.
+**Reason:** `listTags` API existed but UI was free-text only.
+
+---
+
+## Terminal UI: Conduit only (2026-06-17)
+
+**Decision:** Phosphor terminal shell (diary routing, cross-app agent, slash commands) lives **only in Conduit**. Sibling apps (Circuit, Canopy, Chef) expose **`/chat` — app-native personal Groq agent** — not a terminal view or mono log layout.
+
+**Do not:**
+- Mount terminal-style timeline views (e.g. Canopy `TerminalView`) in sibling apps
+- Duplicate Conduit diary/agent orchestration in Circuit/Canopy/Chef frontends
+
+**Sibling `/chat` is:** single-app Q&A via each app's native agent (`POST /api/agent/chat` or equivalent). Cross-app orchestration → use Conduit.
+
+**Supersedes:** mounting `TerminalView` on Canopy timeline (reverted 2026-06-17).
 
 ---
 
