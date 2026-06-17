@@ -96,7 +96,7 @@ class AgentChatRequest(BaseModel):
 
 
 @router.post("/agent/chat")
-def agent_chat(
+async def agent_chat(
     data: AgentChatRequest,
     db: Session = Depends(get_db),
     header_user: Optional[User] = Depends(optional_user),
@@ -168,36 +168,12 @@ def agent_chat(
         if role in ("user", "assistant") and content:
             groq_msgs.append({"role": role, "content": content})
 
-    def sse_stream():
-        from groq import Groq, APIStatusError
-        client = Groq(api_key=settings.groq_api_key)
-        fallback = ["llama-3.1-8b-instant"]
-        models_to_try = [data.model] + [m for m in fallback if m != data.model]
-        stream = None
-        for attempt_model in models_to_try:
-            try:
-                stream = client.chat.completions.create(
-                    model=attempt_model,
-                    messages=groq_msgs,
-                    max_tokens=1024,
-                    stream=True,
-                )
-                break
-            except APIStatusError as exc:
-                if exc.status_code == 429 and attempt_model != models_to_try[-1]:
-                    continue
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
-                yield "data: [DONE]\n\n"
-                return
-            except Exception as exc:
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
-                yield "data: [DONE]\n\n"
-                return
+    from app.services.canopy_agent import stream_agent
+
+    async def sse_stream():
         try:
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content if chunk.choices else None
-                if delta:
-                    yield f"data: {json.dumps({'delta': delta})}\n\n"
+            async for event in stream_agent(messages=groq_msgs, model=data.model):
+                yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'error': str(exc)})}\n\n"
         finally:

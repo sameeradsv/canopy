@@ -48,7 +48,7 @@ docker compose up --build
 | `main.py` | FastAPI app entry point — registers all routers, startup hook, `/api/export` and `/api/data` (delete-all) endpoints |
 | `models.py` | SQLAlchemy ORM: `Person`, `Tag`, `Interaction`, `Setting`, `User`, `AuthSession`, `PersonScore`, WebAuthn tables |
 | `schemas.py` | Pydantic request/response models mirroring the ORM |
-| `services/` | Python package (`__init__.py` holds all CRUD/business logic; submodules: `patterns.py` deterministic signals, `synthesis.py` Groq summarisation, `capture_suggestions.py`). |
+| `services/` | Python package (`__init__.py` holds all CRUD/business logic; submodules: `patterns.py` deterministic signals, `synthesis.py` Groq summarisation, `capture_suggestions.py`, `canopy_agent.py` native chat agent). |
 | `database.py` | Engine setup, `get_db` dependency, `init_db` (create_all + manual migration) |
 | `config.py` | `pydantic-settings` config — reads `DATABASE_URL`, `CORS_ORIGINS`, `AUTH_REQUIRED` from env |
 | `constants.py` | `RELATIONSHIP_TYPES`, `DIMENSION_KEYS` (`urgency`, `reversibility`, `visibility`, `effort`, `growth_value`, `operational_cost`) |
@@ -91,11 +91,11 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 | `app/search/` | Full-text search across interactions and people |
 | `app/energy/page.tsx` | Cross-app energy timeline. Fetches Circuit (`/api/energy/timeline`) and Chef (`/energy/timeline`) with the user's `canopy_auth_token` (Cortex JWT). Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. Requires Cortex sign-in on Canopy for sibling data; local-only Canopy accounts show Canopy events only. |
 | `app/patterns/` | Reflection page — deterministic signals (`GET /api/ai/patterns`) + on-demand Groq synthesis (`GET /api/ai/synthesize`). |
-| `app/chat/` | App-native Groq chat — people & interactions Q&A (`POST /api/ai/agent/chat`). Terminal/diary hub → Conduit only. |
+| `app/chat/` | App-native Groq chat — people & interactions Q&A (`POST /api/ai/agent/chat`). 429 fallback chain (`llama-3.3-70b-versatile` → `llama-3.1-8b-instant`) via `canopy_agent.py`. Terminal/diary hub → Conduit only. |
 | `app/login/` | Auth (register / login) |
 | `components/ShellLayout.tsx` | App chrome — sidebar nav, topbar, mobile drawer |
 | `components/InteractionCard.tsx` | Shared timeline row (feed, dashboard, edit/actions via props) |
-| `components/TerminalChat.tsx` | Chat UI — streams from native Canopy agent (requires `GROQ_API_KEY`) |
+| `components/TerminalChat.tsx` | Chat UI — streams from native Canopy agent (`services/canopy_agent.py`; requires `GROQ_API_KEY`) |
 | `lib/dimensions.ts` | `DIMENSION_KEYS`, labels, descriptions (shared with `/dimensions`) |
 
 Pages are all client components that call `api.*` in `useEffect`. No global state library.
