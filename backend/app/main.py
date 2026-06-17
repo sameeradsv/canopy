@@ -38,7 +38,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    # Bearer tokens only (no cookies) — must be False so cross-origin fetch from
+    # GitHub Pages works without credentials: "include" on the client.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

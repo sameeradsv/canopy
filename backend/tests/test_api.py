@@ -261,3 +261,18 @@ def test_synthesize_endpoint_get_and_post(client):
         data = r.json()
         assert data["days"] == 7
         assert "summary" in data
+
+
+def test_cors_allows_github_pages_without_credentials(client):
+    """GitHub Pages uses cross-origin fetch + Bearer token; credentials must stay off."""
+    r = client.options(
+        "/api/ai/patterns",
+        headers={
+            "Origin": "https://sameeradsv.github.io",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "https://sameeradsv.github.io"
+    assert r.headers.get("access-control-allow-credentials") not in ("true", "True")
