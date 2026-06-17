@@ -313,6 +313,14 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  captureSuggestions: (observation: string, context = "") => {
+    const params = new URLSearchParams({ observation, context });
+    return request<{
+      suggested_participants: { id: number; name: string; relationship: string | null }[];
+      suggested_tags: string[];
+    }>(`/api/ai/capture-suggestions?${params.toString()}`);
+  },
+
   classifyAll: () =>
     request<{ classified: number; errors: number; total: number }>("/api/ai/classify-all", {
       method: "POST",

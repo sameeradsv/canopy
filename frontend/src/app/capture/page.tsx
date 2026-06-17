@@ -105,15 +105,55 @@ export default function CapturePage() {
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [reflectionAnswers, setReflectionAnswers] = useState<Record<string, string>>({});
+  const [suggestedPeople, setSuggestedPeople] = useState<{ id: number; name: string }[]>([]);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
 
   useEffect(() => {
     api.people().then(setPeople).catch(() => setPeople([]));
   }, []);
 
+  useEffect(() => {
+    const text = observation.trim();
+    if (text.length < 8) {
+      setSuggestedPeople([]);
+      setSuggestedTags([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      api
+        .captureSuggestions(text, context.trim())
+        .then((r) => {
+          setSuggestedPeople(
+            r.suggested_participants.filter((p) => !participantIds.includes(p.id))
+          );
+          const existing = tagsInput
+            .split(",")
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean);
+          setSuggestedTags(
+            r.suggested_tags.filter((t) => !existing.includes(t.toLowerCase()))
+          );
+        })
+        .catch(() => {
+          setSuggestedPeople([]);
+          setSuggestedTags([]);
+        });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [observation, context, participantIds, tagsInput]);
+
   function toggleParticipant(id: number) {
     setParticipantIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  }
+
+  function addSuggestedTag(tag: string) {
+    const parts = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+    if (!parts.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+      setTagsInput(parts.length ? `${parts.join(", ")}, ${tag}` : tag);
+    }
+    setSuggestedTags((prev) => prev.filter((t) => t !== tag));
   }
 
   async function handleClassify() {
@@ -285,6 +325,22 @@ export default function CapturePage() {
                 })}
                 <Link href="/people" className="chip add">+ new person</Link>
               </div>
+              {suggestedPeople.length > 0 && (
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <span style={{ fontSize: 11, opacity: 0.5, width: "100%" }}>Suggested</span>
+                  {suggestedPeople.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => toggleParticipant(p.id)}
+                      className="chip"
+                      style={{ borderStyle: "dashed" }}
+                    >
+                      + {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="field">
@@ -350,6 +406,22 @@ export default function CapturePage() {
                 placeholder="follow-up, work (comma-separated)"
                 className="input"
               />
+              {suggestedTags.length > 0 && (
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <span style={{ fontSize: 11, opacity: 0.5, width: "100%" }}>Suggested tags</span>
+                  {suggestedTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => addSuggestedTag(tag)}
+                      className="chip"
+                      style={{ borderStyle: "dashed" }}
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

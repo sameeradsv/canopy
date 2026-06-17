@@ -201,6 +201,19 @@ def get_patterns(
     return detect_patterns(db, uid)
 
 
+@router.get("/capture-suggestions")
+def capture_suggestions(
+    observation: str = "",
+    context: str = "",
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(optional_auth_user),
+):
+    from app.services.capture_suggestions import suggest_capture
+
+    uid = user.id if user else None
+    return suggest_capture(db, uid, observation, context)
+
+
 @router.get("/synthesize")
 def synthesize(
     days: int = 7,
