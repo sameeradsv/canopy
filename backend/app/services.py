@@ -235,6 +235,7 @@ def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[i
         observation=data.observation.strip(),
         outcome=data.outcome,
         confidence=data.confidence,
+        energy=data.energy,
         reflection_json=json.dumps(data.reflection) if data.reflection else None,
     )
     if data.participant_ids:
@@ -261,6 +262,8 @@ def update_interaction(db: Session, interaction: Interaction, data: InteractionU
         interaction.outcome = data.outcome
     if data.confidence is not None:
         interaction.confidence = data.confidence
+    if data.energy is not None:
+        interaction.energy = data.energy
     if data.reflection is not None:
         interaction.reflection_json = json.dumps(data.reflection)
     if data.participant_ids is not None:

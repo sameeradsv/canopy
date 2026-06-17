@@ -36,7 +36,7 @@ def get_person_score(
     person = db.scalar(select(Person).where(Person.id == person_id, Person.user_id == uid))
     if not person:
         raise HTTPException(404, "Person not found")
-    ps = db.scalar(select(PersonScore).where(PersonScore.person_id == person_id))
+    ps = db.scalar(select(PersonScore).where(PersonScore.person_id == person_id, PersonScore.user_id == uid))
     if not ps:
         return None
     return _build_score_read(ps)

@@ -201,7 +201,7 @@ def get_patterns(
     return detect_patterns(db, uid)
 
 
-@router.post("/synthesize")
+@router.get("/synthesize")
 def synthesize(
     days: int = 7,
     db: Session = Depends(get_db),

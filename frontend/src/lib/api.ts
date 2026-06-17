@@ -357,6 +357,5 @@ export const api = {
   synthesize: (days = 7) =>
     request<{ summary: string; days: number; interaction_count?: number; error?: string }>(
       `/api/ai/synthesize?days=${days}`,
-      { method: "POST" },
     ),
 };
