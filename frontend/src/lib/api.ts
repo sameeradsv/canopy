@@ -352,6 +352,7 @@ export const api = {
       insights: string[];
       recurring_tags: { tag: string; count: number }[];
       stale_contacts: { name: string; days_since: number }[];
+      busiest_weekday: { weekday: string; count: number } | null;
     }>("/api/ai/patterns"),
 
   synthesize: (days = 7) =>

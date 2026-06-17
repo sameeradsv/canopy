@@ -131,3 +131,33 @@ Backend tests in `backend/tests/test_api.py` use `TestClient` with an in-memory 
 **Settings are namespaced.** The `Setting` table uses a composite primary key (`key`). When a user is authenticated, keys are stored as `{user_id}:{key}` (e.g., `1:dimensions`). Anonymous keys use the bare key name.
 
 **Export endpoints.** `GET /api/export` — plain JSON (`api.exportData()`, Settings → Download JSON). `POST /api/sync/export` — passphrase-encrypted backup (Settings). `POST /api/sync/import` merges decrypted blob; dedupes people by name, interactions by `(occurred_at, first 50 chars of observation)`.
+
+## UI & Responsive Standards
+
+All UI changes must work correctly across **every** combination of these views before being considered done:
+
+| View | Width | Notes |
+|------|-------|-------|
+| Mobile portrait | ≤ 430 px | Primary design target; no horizontal scroll |
+| Mobile landscape | ≤ 932 px, short viewport | Reflow; critical controls must stay on-screen |
+| Tablet / iPad portrait | 768–1024 px | Two-column layouts where content warrants |
+| Tablet / iPad landscape | 1024–1366 px | Same as portrait but wider; avoid dead whitespace |
+| Laptop / desktop | ≥ 1025 px | Full layout; sidebar nav preferred over bottom tabs |
+
+### Touch & gesture rules
+- **Minimum tap target: 44 × 44 px** — applies to all buttons, chips, and icon controls.
+- **Swipe-left to complete/confirm** (right-reveal action, green): implemented on Circuit task list and Chef grocery list via `SwipeTaskRow` / `SwipeGroceryRow`. Use the same pointer-event pattern for any new swipeable list.
+- **Swipe-left further to skip/secondary** (deeper swipe, amber): implemented in Circuit `SwipeTaskRow` only.
+- Swipe is layered on top of existing tap controls — both must remain functional.
+
+### Voice input
+- Present a mic button whenever the field accepts free-text input on the primary capture path.
+- Use the `useVoiceInput` hook from `src/lib/use-voice-input.ts` (Canopy) or the equivalent in each app.
+- Show a clear "listening…" state; hide the mic button entirely when `!voice.supported` (SSR / unsupported browser).
+- `autoFocus` **off** by default on mobile to avoid keyboard jump on load (CortexSignIn rule — extend to all forms).
+
+### Input affordances
+- Keyboard shortcut hints (e.g. `Ctrl+Enter`, `Esc`) are desktop-only — render them inside a `hidden sm:block` wrapper or equivalent so they don't clutter mobile.
+
+### Config & environment
+- **Never** add `localhost` or `127.0.0.1` to `CORS_ORIGINS`, `render.yaml`, or Pydantic config defaults. Dev origins belong in `.env` only.

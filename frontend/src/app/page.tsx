@@ -72,8 +72,6 @@ export default function HomePage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [unreachable, setUnreachable] = useState(false);
-  const [patternInsights, setPatternInsights] = useState<string[]>([]);
-  const [weekSummary, setWeekSummary] = useState<string | null>(null);
 
   const firstName = user?.username?.split(" ")[0] ?? user?.username ?? "there";
 
@@ -83,12 +81,6 @@ export default function HomePage() {
       .then(setSummary)
       .catch(() => setUnreachable(true))
       .finally(() => setSummaryLoading(false));
-    api.getPatterns()
-      .then((p) => setPatternInsights(p.insights ?? []))
-      .catch(() => {});
-    api.synthesize(7)
-      .then((s) => setWeekSummary(s.summary || null))
-      .catch(() => {});
   }, []);
 
   if (unreachable) {
@@ -120,26 +112,15 @@ export default function HomePage() {
             <StatCard label="Recent (7d)" value={summary.recent_interactions.length} />
           </div>
 
-          {(patternInsights.length > 0 || weekSummary) && (
-            <div className="grid-2" style={{ marginBottom: "var(--pad-6)", gap: "var(--pad-6)" }}>
-              {patternInsights.length > 0 && (
-                <div className="card" style={{ padding: "16px 18px" }}>
-                  <div className="kicker" style={{ marginBottom: 10 }}>Patterns (60d)</div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--fg-mute)", lineHeight: 1.5 }}>
-                    {patternInsights.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {weekSummary && (
-                <div className="card" style={{ padding: "16px 18px" }}>
-                  <div className="kicker" style={{ marginBottom: 10 }}>This week (Groq)</div>
-                  <p style={{ fontSize: 13, color: "var(--fg-mute)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{weekSummary}</p>
-                </div>
-              )}
+          <div className="card" style={{ padding: "14px 18px", marginBottom: "var(--pad-6)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div>
+              <div className="kicker" style={{ marginBottom: 4 }}>Reflection</div>
+              <p style={{ fontSize: 13, color: "var(--fg-mute)", margin: 0 }}>
+                Patterns and on-demand Groq synthesis live on a dedicated page — no AI calls on dashboard load.
+              </p>
             </div>
-          )}
+            <Link href="/patterns" className="btn">Open patterns →</Link>
+          </div>
 
           <div className="grid-2" style={{ marginBottom: "var(--pad-6)", gap: "var(--pad-6)" }}>
             {summary.frequently_contacted.length > 0 && (

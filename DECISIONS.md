@@ -45,6 +45,14 @@ This file records intentional divergences from the Tend design spec and consciou
 
 ---
 
+## Patterns page + lazy synthesis (2026-06-17)
+
+**Decision:** `/patterns` is the dedicated reflection route. Home fetches **`api.summary()` only** — no `getPatterns` or `synthesize` on dashboard mount (Groq synthesis is on-demand on `/patterns` with 7/14/30d range).
+
+**Reason:** Avoid Groq latency on every dashboard visit; show full structured pattern data (tags, stale contacts, busiest weekday) not just insight bullets.
+
+---
+
 ## Dimension names diverge from design spec
 **Decision (2026-05-27):** Canopy uses `urgency`, `reversibility`, `visibility`, `effort`, `growth_value`, `operational_cost` rather than the spec's `urgency`, `effort`, `growth`, `joy`, `alignment`, `leverage`.
 
