@@ -112,33 +112,21 @@ export default function HomePage() {
           </div>
 
           <div className="grid-2" style={{ marginBottom: "var(--pad-6)", gap: "var(--pad-6)" }}>
-            {summary.people_to_reach_out.length > 0 && (
+            {summary.frequently_contacted.length > 0 && (
               <div>
-                <div className="kicker" style={{ marginBottom: 14 }}>Reach out</div>
+                <div className="kicker" style={{ marginBottom: 14 }}>Frequently contacted</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {summary.people_to_reach_out.map((p) => {
-                    const lastStr = p.last_interaction_at
-                      ? (() => {
-                          const days = Math.floor((Date.now() - new Date(p.last_interaction_at).getTime()) / (1000 * 60 * 60 * 24));
-                          if (days === 0) return "today";
-                          if (days === 1) return "yesterday";
-                          if (days < 7) return `${days}d ago`;
-                          if (days < 30) return `${Math.floor(days / 7)}w ago`;
-                          return `${Math.floor(days / 30)}mo ago`;
-                        })()
-                      : "never";
-                    return (
-                      <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-                        <div className="avatar big">{p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-                          <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--fg-faint)", marginTop: 2 }}>
-                            {p.relationship ?? "—"} · last {lastStr}
-                          </div>
+                  {summary.frequently_contacted.map((p) => (
+                    <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+                      <div className="avatar big">{p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                        <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--fg-faint)", marginTop: 2 }}>
+                          {p.relationship ?? "—"} · {p.interaction_count} interaction{p.interaction_count === 1 ? "" : "s"}
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

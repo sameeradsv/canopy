@@ -400,24 +400,25 @@ export default function EnergyPage() {
 
       {/* Date nav */}
       <div className="date-nav-row" style={{ marginBottom: 24 }}>
-        <button onClick={() => setDate((d) => offsetDate(d, -1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
-        <span className="date-label" style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, textAlign: "center" }}>
-          {formatDateDisplay(date)}
-        </span>
-        <button onClick={() => setDate((d) => offsetDate(d, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}
-          disabled={isToday}>›</button>
-        {!isToday && (
-          <button onClick={() => setDate(todayIST())} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>
-            Today
-          </button>
-        )}
+        <div className="date-nav-controls">
+          <button onClick={() => setDate((d) => offsetDate(d, -1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
+          <span className="date-label" style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, textAlign: "center" }}>
+            {formatDateDisplay(date)}
+          </span>
+          <button onClick={() => setDate((d) => offsetDate(d, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}
+            disabled={isToday}>›</button>
+          {!isToday && (
+            <button onClick={() => setDate(todayIST())} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>
+              Today
+            </button>
+          )}
+        </div>
         <input
           type="date"
           value={date}
           max={todayIST()}
           onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="input"
-          style={{ fontFamily: "var(--font-mono)", fontSize: 12, height: 30, width: 140 }}
+          className="input date-picker-input"
         />
       </div>
 

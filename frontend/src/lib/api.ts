@@ -45,7 +45,7 @@ export interface Summary {
   total_tags: number;
   recent_interactions: Interaction[];
   top_tags: Tag[];
-  people_to_reach_out: Person[];
+  frequently_contacted: Person[];
 }
 
 export interface SearchResult {

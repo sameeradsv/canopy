@@ -314,12 +314,12 @@ def search(
     return interactions, people
 
 
-def _people_to_reach_out(
+def _frequently_contacted(
     db: Session,
     user_id: Optional[int] = None,
     limit: int = 3,
 ) -> list[tuple[Person, int, datetime]]:
-    """People with interactions, oldest last contact first — single aggregated query."""
+    """People with the most interactions — single aggregated query."""
     agg = (
         select(
             interaction_participants.c.person_id,
@@ -335,7 +335,7 @@ def _people_to_reach_out(
         select(Person, agg.c.ix_count, agg.c.last_at)
         .join(agg, Person.id == agg.c.person_id)
         .where(Person.user_id == user_id)
-        .order_by(agg.c.last_at.asc())
+        .order_by(agg.c.ix_count.desc())
         .limit(limit)
     )
     rows = db.execute(stmt).all()
@@ -368,15 +368,14 @@ def get_summary(db: Session, user_id: Optional[int] = None) -> dict:
             .limit(5)
         ).all()
     )
-    # People to reach out to: oldest last contact (aggregated — no full interaction load)
-    people_to_reach_out = _people_to_reach_out(db, user_id=user_id, limit=3)
+    frequently_contacted = _frequently_contacted(db, user_id=user_id, limit=3)
     return {
         "total_interactions": total_interactions,
         "total_people": total_people,
         "total_tags": total_tags,
         "recent_interactions": recent,
         "top_tags": top_tags,
-        "people_to_reach_out": people_to_reach_out,
+        "frequently_contacted": frequently_contacted,
     }
 
 

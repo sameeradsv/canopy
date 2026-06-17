@@ -116,7 +116,7 @@ class Summary(BaseModel):
     total_tags: int
     recent_interactions: list[InteractionRead]
     top_tags: list[TagRead]
-    people_to_reach_out: list[PersonRead] = []
+    frequently_contacted: list[PersonRead] = []
 
 
 class DimensionsRead(BaseModel):
