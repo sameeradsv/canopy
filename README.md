@@ -12,7 +12,7 @@ Local-first contextual memory — preserve what you notice, who you interact wit
 - **Search** — keyword search across interactions and people
 - **Dashboard** — counts and recent activity summary
 
-Data stays on your machine (SQLite by default). Export and delete-all endpoints are available on the API for backup and reset.
+Data stays on your machine (SQLite by default). Export (`GET /api/export`) and delete-all (`DELETE /api/data`) endpoints are available on the API for backup and reset; both require a valid Bearer token.
 
 Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Enable or check status in **Settings → Security** after first login.
 

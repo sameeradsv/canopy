@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Optional
-
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -10,7 +8,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
 from app.database import init_db
 from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
-from app.deps.auth import optional_auth_user, require_user
+from app.deps.auth import require_user
 from app.models import User
 from app.routers import ai, auth, interactions, people, scores, search, sync
 from app.routers import settings as settings_router
@@ -73,7 +71,7 @@ def health():
 
 
 @app.get("/api/export")
-def export_data(_user: Optional[User] = Depends(optional_auth_user)):
+def export_data(_user: User = Depends(require_user)):
     from app.database import SessionLocal
     from app.routers.sync import _collect_export_payload
 
