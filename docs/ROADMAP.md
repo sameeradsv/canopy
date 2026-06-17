@@ -19,14 +19,13 @@ Create a usable low-friction memory layer.
 
 ---
 
-# v0.2 — Contextual Retrieval
+# v0.2 — Contextual Retrieval (partial)
 
 Features:
-- embeddings
-- semantic search
-- contextual linking
-- summaries
-- tag autocomplete on capture (`TagInput` + `api.listTags`)
+- tag autocomplete on capture (`TagInput` + `api.listTags`) — shipped
+- enhanced search (tag name match on `/api/search`) — shipped
+- Groq weekly synthesis (`POST /api/ai/synthesize`) — shipped
+- embeddings / pgvector — deferred (no embedding API on Groq)
 
 **Shipped (2026-06):** `TagInput` on capture + timeline edit.
 
@@ -39,13 +38,13 @@ Questions:
 
 ---
 
-# v0.3 — Pattern Assistance
+# v0.3 — Pattern Assistance (partial)
 
 Features:
-- recurring pattern detection
-- operational burden visibility
-- low-confidence insights
-- periodic synthesis
+- recurring pattern detection — `GET /api/ai/patterns` (deterministic) shipped
+- operational burden visibility — stale contacts on dashboard
+- low-confidence insights — dashboard pattern cards
+- periodic synthesis — Groq weekly summary on home
 
 Goal:
 Support reflection without replacing judgment.

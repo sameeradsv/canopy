@@ -5,10 +5,14 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.config import settings
 from app.database import init_db
 from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
 from app.deps.auth import require_user
+from app.limiter import limiter
 from app.models import User
 from app.routers import ai, auth, interactions, people, scores, search, sync
 from app.routers import settings as settings_router
@@ -27,6 +31,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(

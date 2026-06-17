@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Interaction, Person, Tag, interaction_participants
+from app.models import Interaction, Person, Tag, interaction_participants, interaction_tags
 from app.schemas import (
     InteractionCreate,
     InteractionUpdate,
@@ -284,6 +284,13 @@ def search(
     if not query.strip():
         return [], []
 
+    tag_ix_subq = (
+        select(Interaction.id)
+        .join(interaction_tags, Interaction.id == interaction_tags.c.interaction_id)
+        .join(Tag, Tag.id == interaction_tags.c.tag_id)
+        .where(Tag.name.ilike(pattern))
+    )
+
     interactions = list(
         db.scalars(
             interaction_query(db)
@@ -293,6 +300,7 @@ def search(
                     Interaction.observation.ilike(pattern),
                     Interaction.context.ilike(pattern),
                     Interaction.outcome.ilike(pattern),
+                    Interaction.id.in_(tag_ix_subq),
                 )
             )
             .order_by(Interaction.occurred_at.desc())

@@ -188,3 +188,27 @@ def agent_chat(
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(sse_stream(), media_type="text/event-stream")
+
+
+@router.get("/patterns")
+def get_patterns(
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(optional_auth_user),
+):
+    from app.services.patterns import detect_patterns
+
+    uid = user.id if user else None
+    return detect_patterns(db, uid)
+
+
+@router.post("/synthesize")
+def synthesize(
+    days: int = 7,
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(optional_auth_user),
+):
+    from app.services.synthesis import synthesize_period
+
+    uid = user.id if user else None
+    days_n = max(1, min(30, days))
+    return synthesize_period(db, uid, days=days_n)

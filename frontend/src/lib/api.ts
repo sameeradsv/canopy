@@ -346,4 +346,17 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ values }),
     }),
+
+  getPatterns: () =>
+    request<{
+      insights: string[];
+      recurring_tags: { tag: string; count: number }[];
+      stale_contacts: { name: string; days_since: number }[];
+    }>("/api/ai/patterns"),
+
+  synthesize: (days = 7) =>
+    request<{ summary: string; days: number; interaction_count?: number; error?: string }>(
+      `/api/ai/synthesize?days=${days}`,
+      { method: "POST" },
+    ),
 };

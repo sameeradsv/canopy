@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _db_path = (Path(__file__).resolve().parents[2] / "data" / "canopy.db").as_posix()
 
-_default_cors = "http://localhost:3000,http://127.0.0.1:3000,https://sameeradsv.github.io"
+_default_cors = "https://sameeradsv.github.io"
 
 
 class Settings(BaseSettings):

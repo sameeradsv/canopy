@@ -1,13 +1,14 @@
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.auth_utils import create_session, hash_password, verify_password
 from app.database import get_db
 from app.deps.auth import require_user
+from app.limiter import limiter
 from app.models import AuthSession, User
 from app.schemas import AuthResponse, LoginRequest, RegisterRequest, UserRead
 
@@ -17,11 +18,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.get("/status")
 def auth_status(db: Session = Depends(get_db)):
     has_users = db.scalar(select(User.id).limit(1)) is not None
-    return {"has_users": has_users, "sync_ready": has_users}
+    return {"has_users": has_users}
 
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)):
     username = data.username.strip().lower()
     if len(username) < 2:
         raise HTTPException(400, "Username must be at least 2 characters")
@@ -44,7 +46,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == data.username.strip().lower()))
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid username or password")
@@ -67,3 +70,9 @@ def logout(
         token = authorization[7:].strip()
         db.execute(delete(AuthSession).where(AuthSession.token == token))
         db.commit()
+
+
+@router.delete("/account", status_code=204)
+def delete_account(db: Session = Depends(get_db), user: User = Depends(require_user)):
+    db.delete(user)
+    db.commit()
