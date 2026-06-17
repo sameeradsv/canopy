@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Summary } from "@/lib/api";
+import { InteractionCard } from "@/components/InteractionCard";
 import { istHour, fmtDateIST, TZ } from "@/lib/tz";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -135,31 +136,9 @@ export default function HomePage() {
               <div>
                 <div className="kicker" style={{ marginBottom: 14 }}>Recent capture</div>
                 <div className="tl-feed">
-                  {summary.recent_interactions.slice(0, 3).map((ix) => {
-                    const timeStr = fmtDateIST(ix.occurred_at, { month: "short", day: "numeric" });
-                    return (
-                      <div key={ix.id} className="tl-item">
-                        <div className="tl-time">{timeStr}</div>
-                        <div className="tl-body">
-                          {ix.participants.length > 0 && (
-                            <div className="who">
-                              {ix.participants.map((p) => (
-                                <b key={p.id}>{p.name}</b>
-                              ))}
-                            </div>
-                          )}
-                          <div className="note">{ix.observation}</div>
-                          {ix.tags.length > 0 && (
-                            <div className="tags">
-                              {ix.tags.map((t) => (
-                                <span key={t.id} className="tag">{t.name}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {summary.recent_interactions.slice(0, 3).map((ix) => (
+                    <InteractionCard key={ix.id} ix={ix} showDate showTime={false} />
+                  ))}
                 </div>
               </div>
             )}

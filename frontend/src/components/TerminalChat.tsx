@@ -4,12 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 const TOKEN_KEY = "canopy_auth_token";
 
-function resolveUrl(path: string): string {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (configured) return `${configured}${path}`;
-  if (typeof window !== "undefined") return path;
-  return `http://127.0.0.1:8000${path}`;
-}
+const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 type Role = "user" | "assistant" | "system";
 interface Msg { id: string; role: Role; content: string; streaming?: boolean; }
@@ -25,7 +20,7 @@ async function* agentStream(
 ): AsyncGenerator<string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(resolveUrl("/api/ai/agent/chat"), {
+  const res = await fetch(`${apiBase}/api/ai/agent/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({

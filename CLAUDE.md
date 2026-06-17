@@ -46,7 +46,7 @@ docker compose up --build
 | File | Role |
 |------|------|
 | `main.py` | FastAPI app entry point — registers all routers, startup hook, `/api/export` and `/api/data` (delete-all) endpoints |
-| `models.py` | SQLAlchemy ORM: `Person`, `Tag`, `Interaction`, `Task`, `Setting`, `User`, `AuthSession` |
+| `models.py` | SQLAlchemy ORM: `Person`, `Tag`, `Interaction`, `Setting`, `User`, `AuthSession`, `PersonScore`, WebAuthn tables |
 | `schemas.py` | Pydantic request/response models mirroring the ORM |
 | `services.py` | All business logic — list/create/update/delete for every entity |
 | `database.py` | Engine setup, `get_db` dependency, `init_db` (create_all + manual migration) |
@@ -55,8 +55,9 @@ docker compose up --build
 | `auth_utils.py` | Password hashing (PBKDF2-SHA256, 100k iterations), session token creation/validation, 30-day expiry |
 | `deps/auth.py` | Auth FastAPI dependencies: `optional_user`, `require_user`, `optional_auth_user` |
 | `export_crypto.py` | Passphrase-based XOR+PBKDF2-SHA256+HMAC encryption for data export blobs |
-| `dimensions_utils.py` | Parse/serialize `Task.dimensions_json` (a JSON string storing 0–1 floats per dimension) |
-| `routers/` | `auth`, `interactions`, `people`, `search`, `settings`, `sync`, `tasks`, `ai` |
+| `routers/` | `auth`, `interactions`, `people`, `search`, `settings`, `sync`, `scores`, `ai`, `webauthn` |
+
+**Product scope:** Tasks live in **Circuit**, not Canopy. See `DECISIONS.md` (2026-05-27). Dimension presets on `/dimensions` are retained for possible future interaction scoring — not task management.
 
 **No Alembic migrations.** Schema is managed by `Base.metadata.create_all` at startup with a manual `_migrate_sqlite()` function in `database.py` for additive column changes.
 
@@ -80,21 +81,21 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 ### Frontend layout (`frontend/src/`)
 | Path | Role |
 |------|------|
-| `lib/api.ts` | Central typed API client — all fetch calls go through this, reads `NEXT_PUBLIC_API_URL` for production. `EnergyEvent` now includes `delta?` and `running_energy?`; `EnergyTimeline` includes `start_energy?` and `end_energy?`. |
-| `app/layout.tsx` | Root layout — mounts `Nav` and `AmbientBackground` |
+| `lib/api.ts` | Central typed API client — `NEXT_PUBLIC_API_URL` in production; relative `/api/*` in dev when env unset (Next proxy). |
+| `app/layout.tsx` | Root layout — `AuthProvider`, `ThemeInit`, `ShellLayout` (sidebar + topbar) |
 | `app/page.tsx` | Dashboard (summary stats + recent interactions) |
 | `app/capture/` | Quick-capture form |
 | `app/timeline/` | Chronological interaction list |
 | `app/people/` | Entity list with interaction counts |
-| `app/tasks/` | Task list with dimension sliders |
-| `app/dimensions/` | Configure saved dimension presets |
+| `app/dimensions/` | Saved dimension presets (not task management — see `DECISIONS.md`) |
 | `app/search/` | Full-text search across interactions and people |
 | `app/energy/page.tsx` | Cross-app energy timeline. Fetches Circuit (`/api/energy/timeline`) and Chef (`/energy/timeline`) with the user's `canopy_auth_token` (Cortex JWT). Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. Requires Cortex sign-in on Canopy for sibling data; local-only Canopy accounts show Canopy events only. |
 | `app/chat/` | Native Groq chat agent — people & interactions Q&A (`POST /api/ai/agent/chat`) |
 | `app/login/` | Auth (register / login) |
-| `components/Nav.tsx` | Navigation bar |
+| `components/ShellLayout.tsx` | App chrome — sidebar nav, topbar, mobile drawer |
+| `components/InteractionCard.tsx` | Shared timeline row (feed, dashboard, edit/actions via props) |
 | `components/TerminalChat.tsx` | Chat UI — streams from native Canopy agent (requires `GROQ_API_KEY`) |
-| `lib/dimensions.ts` | Dimension label/key helpers (mirrors `constants.py`) |
+| `lib/dimensions.ts` | `DIMENSION_KEYS`, labels, descriptions (shared with `/dimensions`) |
 
 Pages are all client components that call `api.*` in `useEffect`. No global state library.
 
@@ -105,7 +106,7 @@ Pages are all client components that call `api.*` in `useEffect`. No global stat
 - **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials in `webauthn_credentials`; challenges in `webauthn_challenges` (2-min TTL). Frontend: `src/lib/usePasskey.ts` hook + `PasskeyBanner`.
 
 ### Frontend build modes
-- `npm run dev` — local with API proxy (`next.config.ts` rewrites `/api/*` → `localhost:8000`)
+- `npm run dev` — local with API proxy when `NEXT_PUBLIC_API_URL` is set in `.env.local` (`next.config.ts` rewrites `/api/*`)
 - `GITHUB_PAGES=true npm run build` — static export (`out/`), `basePath=/canopy`, PWA disabled, no rewrites
 - `npm run build` + `npm run start` — standalone output, PWA service worker enabled
 
@@ -123,10 +124,10 @@ Backend tests in `backend/tests/test_api.py` use `TestClient` with an in-memory 
 
 ## Key invariants
 
-**User data isolation.** Every entity (`Person`, `Interaction`, `Task`) has a `user_id` foreign key. All service queries filter by `user_id`. In anonymous mode (`AUTH_REQUIRED=false`, no token), `user_id=None` is used — all anonymous data is shared globally across any unauthenticated request.
+**User data isolation.** Every entity (`Person`, `Interaction`) has a `user_id` foreign key. All service queries filter by `user_id`. In anonymous mode (`AUTH_REQUIRED=false`, no token), `user_id=None` is used — all anonymous data is shared globally across any unauthenticated request.
 
 **Tags are global.** `Tag` records have no `user_id` and are shared across all users. `get_or_create_tags` uses a global uniqueness check on `Tag.name`.
 
 **Settings are namespaced.** The `Setting` table uses a composite primary key (`key`). When a user is authenticated, keys are stored as `{user_id}:{key}` (e.g., `1:dimensions`). Anonymous keys use the bare key name.
 
-**Two export endpoints.** `GET /api/export` returns a plain JSON dump for the current user. `POST /api/sync/export` (body: `{passphrase}`) returns the same payload encrypted with XOR-stream + PBKDF2 + HMAC. `POST /api/sync/import` merges a decrypted blob, deduplicating people by name, interactions by `(occurred_at, first 50 chars of observation)`, and tasks by title.
+**Export endpoints.** `GET /api/export` — plain JSON (`api.exportData()`, Settings → Download JSON). `POST /api/sync/export` — passphrase-encrypted backup (Settings). `POST /api/sync/import` merges decrypted blob; dedupes people by name, interactions by `(occurred_at, first 50 chars of observation)`.

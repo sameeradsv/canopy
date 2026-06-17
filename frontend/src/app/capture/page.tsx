@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { api, type Person } from "@/lib/api";
 import { toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 import { useVoiceInput } from "@/lib/use-voice-input";
+import { TagInput } from "@/components/TagInput";
 
 type ReflectionQuestion = {
   key: string;
@@ -343,10 +344,9 @@ export default function CapturePage() {
                 Tags
                 <Tip text="Comma-separated labels to categorise and search this interaction later." />
               </div>
-              <input
-                type="text"
+              <TagInput
                 value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
+                onChange={setTagsInput}
                 placeholder="follow-up, work (comma-separated)"
                 className="input"
               />

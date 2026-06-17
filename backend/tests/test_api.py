@@ -90,27 +90,6 @@ def test_person_with_relationship(client):
     assert person["relationship"] == "colleague"
 
 
-def test_task_dimensions(client):
-    task = client.post(
-        "/api/tasks",
-        json={
-            "title": "Quarterly review prep",
-            "description": "Invisible coordination work",
-            "dimensions": {"urgency": 0.7, "effort": 0.5},
-        },
-    ).json()
-    assert task["title"] == "Quarterly review prep"
-    assert task["dimensions"]["urgency"] == 0.7
-    assert task["dimensions"]["visibility"] is None
-
-    updated = client.patch(
-        f"/api/tasks/{task['id']}",
-        json={"dimensions": {"visibility": 0.2}},
-    ).json()
-    assert updated["dimensions"]["urgency"] == 0.7
-    assert updated["dimensions"]["visibility"] == 0.2
-
-
 def test_encrypted_export_import(client):
     # Register a user so import (which requires auth) works
     reg = client.post("/api/auth/register", json={"username": "exporter", "password": "secret99"})

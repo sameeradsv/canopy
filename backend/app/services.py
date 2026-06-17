@@ -7,7 +7,6 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.dimensions_utils import parse_dimensions, serialize_dimensions
 from app.models import Interaction, Person, Tag, interaction_participants
 from app.schemas import (
     InteractionCreate,

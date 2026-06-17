@@ -4,16 +4,25 @@
 
 | Layer | Status |
 |-------|--------|
-| Next.js UI (capture, timeline, people, search, dimensions, tasks) | Shipped |
+| Next.js UI (capture, timeline, people, search, dimensions, energy, chat) | Shipped |
 | FastAPI + SQLAlchemy (SQLite local / Postgres via `DATABASE_URL`) | Shipped |
 | Person `relationship` + editable defaults | Shipped |
 | Global dimension defaults (`/api/settings/dimensions`) | Shipped |
-| Per-task dimension values (`Task` entity, `/api/tasks`) | Shipped |
+| Dimension presets UI (`/dimensions`) — for future interaction scoring, not tasks | Shipped |
 | Auth register/login (bearer token, 30-day session) | Shipped |
 | Optional auth gate (`AUTH_REQUIRED=true`) | Shipped |
-| Encrypted export/import (`/api/sync/*`, XOR+PBKDF2+HMAC) | Shipped |
+| Encrypted export/import (`/api/sync/*`) | Shipped |
+| Plain JSON export (`GET /api/export`) | Shipped — Settings UI + `api.exportData()` |
+| `InteractionCard` shared timeline row | Shipped — dashboard, timeline |
+| `lib/dimensions.ts` shared constants | Shipped — `/dimensions` page |
 | Cross-device sync (same backend, same credentials) | Shipped |
 | pgvector / embeddings / local LLM | Planned (v0.2) |
+
+**Tasks:** Intentionally **not** in Canopy — task management belongs in Circuit. See `DECISIONS.md`.
+
+**Removed during 2026 cleanup (superseded):** `Nav.tsx`, `AmbientBackground.tsx` → `ShellLayout.tsx`.
+
+**Restored (2026-06):** `TagInput` on capture/timeline; `TerminalView` mounted in timeline view switcher.
 
 ---
 
@@ -77,7 +86,6 @@ Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connec
 Stores:
 - entities (Person, Tag)
 - interactions
-- tasks
 - settings
 - users / auth sessions
 
@@ -124,4 +132,4 @@ Required:
 - `format`: `canopy-encrypted-export`
 - `salt`, `nonce`, `iterations`, `ciphertext`, `mac`
 
-`POST /api/sync/import` decrypts the blob and merges it into the current user's data, deduplicating people by name, interactions by `(occurred_at, first 50 chars of observation)`, and tasks by title.
+`POST /api/sync/import` decrypts the blob and merges it into the current user's data, deduplicating people by name and interactions by `(occurred_at, first 50 chars of observation)`.

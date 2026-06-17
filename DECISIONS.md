@@ -9,7 +9,25 @@ This file records intentional divergences from the Tend design spec and consciou
 
 **Reason:** Tasks functionality conflicts with the Circuit product. Canopy's scope is relationship tracking (people + interactions) only.
 
-**Implication:** The `/tasks` route remains empty. Task-related scoring UI variants (radar, steppers, XY plot) are excluded from scope. Dimension presets on the Dimensions page are retained as they may apply to interaction scoring in the future.
+**Implication:** The `/tasks` route is absent. Task-related scoring UI variants (radar, steppers, XY plot) are excluded from scope. Dimension presets on the Dimensions page are retained as they may apply to interaction scoring in the future.
+
+---
+
+## Nav / AmbientBackground removed (2026-06)
+
+**Decision:** Deleted `Nav.tsx` and `AmbientBackground.tsx` in favor of `ShellLayout.tsx` (sidebar + topbar + mobile drawer).
+
+**Reason:** Duplicate app chrome; ShellLayout is the single navigation surface.
+
+**Do not restore** standalone `Nav` without removing ShellLayout duplication.
+
+---
+
+## TagInput + TerminalView restored (2026-06)
+
+**Decision:** Wire `TagInput` (datalist from `GET /api/tags`) on capture and timeline edit; mount `TerminalView` as the fourth timeline tab.
+
+**Reason:** `listTags` API existed but UI was free-text only; `TerminalView` was defined but never reachable.
 
 ---
 

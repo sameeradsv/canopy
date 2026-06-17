@@ -162,12 +162,7 @@ export interface Preset {
 
 import { getAuthToken, setAuthToken } from "@/lib/auth";
 
-function resolveUrl(path: string): string {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (configured) return `${configured}${path}`;
-  if (typeof window !== "undefined") return path;
-  return `http://127.0.0.1:8000${path}`;
-}
+const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 function authHeaders(): Record<string, string> {
   const token = getAuthToken();
@@ -178,7 +173,7 @@ async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(resolveUrl(path), {
+  const res = await fetch(`${apiBase}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...authHeaders(),
@@ -200,8 +195,6 @@ async function request<T>(
 }
 
 export const api = {
-  health: () => request<{ status: string; version: string }>("/api/health"),
-
   summary: () => request<Summary>("/api/summary"),
 
   people: (q?: string) =>
@@ -273,14 +266,6 @@ export const api = {
   search: (q: string) =>
     request<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
 
-  tags: () => request<Tag[]>("/api/tags"),
-
-  exportData: () =>
-    request<{ people: unknown[]; tags: unknown[]; interactions: unknown[] }>("/api/export"),
-
-  deleteAll: () =>
-    request<void>("/api/data", { method: "DELETE" }),
-
   relationshipDefaults: () =>
     request<RelationshipDefaults>("/api/relationship-defaults"),
 
@@ -299,8 +284,6 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
 
-  me: () => request<AuthResponse["user"]>("/api/auth/me"),
-
   encryptedExport: (passphrase: string) =>
     request<Record<string, unknown>>("/api/sync/export", {
       method: "POST",
@@ -316,7 +299,10 @@ export const api = {
       },
     ),
 
-  logout: () => request<void>("/api/auth/logout", { method: "DELETE" }),
+  /** Plain JSON export (ops / scripts — not encrypted). */
+  exportData: () => request<Record<string, unknown>>("/api/export"),
+
+  listTags: () => request<Tag[]>("/api/tags"),
 
   energyTimeline: (date?: string) =>
     request<EnergyTimeline>(`/api/sync/energy/timeline${date ? `?date=${date}` : ""}`),
@@ -331,9 +317,6 @@ export const api = {
     request<{ classified: number; errors: number; total: number }>("/api/ai/classify-all", {
       method: "POST",
     }),
-
-  getPersonScore: (personId: number) =>
-    request<PersonScore | null>(`/api/people/${personId}/score`),
 
   scorePersonById: (personId: number) =>
     request<PersonScore>(`/api/people/${personId}/score`, { method: "POST" }),

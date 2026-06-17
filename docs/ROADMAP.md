@@ -26,6 +26,9 @@ Features:
 - semantic search
 - contextual linking
 - summaries
+- tag autocomplete on capture (`TagInput` + `api.listTags`)
+
+**Shipped (2026-06):** `TagInput` on capture + timeline edit; `TerminalView` mounted as timeline view tab.
 
 Questions:
 - What gets retrieved frequently?

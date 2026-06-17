@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Interaction, type InteractionUpdate, type Person } from "@/lib/api";
+import { InteractionCard } from "@/components/InteractionCard";
+import { TagInput } from "@/components/TagInput";
 import { TZ, fmtDateIST, fmtTimeIST, toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 
 const KIND_GLYPH: Record<string, string> = {
@@ -169,7 +171,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
       </div>
       <div className="field">
         <div className="field-label">Tags</div>
-        <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} className="input" placeholder="comma-separated" />
+        <TagInput value={tagsInput} onChange={setTagsInput} className="input" placeholder="comma-separated" />
       </div>
       {error && <p style={{ color: "var(--danger)", fontSize: 12 }}>{error}</p>}
       <div style={{ display: "flex", gap: 8 }}>
@@ -193,61 +195,35 @@ function InteractionRow({ ix, editingId, confirmDeleteId, setEditingId, setConfi
   showDate?: boolean;
   people: Person[];
 }) {
-  const time = fmtTimeIST(ix.occurred_at);
-  const date = fmtDateIST(ix.occurred_at, { month: "short", day: "numeric" });
+  if (editingId === ix.id) {
+    return (
+      <InteractionCard
+        ix={ix}
+        showDate={showDate}
+        body={<EditForm ix={ix} onSave={(data) => onSave(ix.id, data)} onCancel={() => setEditingId(null)} people={people} />}
+      />
+    );
+  }
 
   return (
-    <div className="tl-item">
-      <div className="tl-time">
-        {showDate && <div>{date}</div>}
-        <div style={{ marginTop: showDate ? 2 : 0, opacity: showDate ? 0.7 : 1 }}>{time}</div>
-        {ix.kind && (
-          <div style={{ fontSize: 13, marginTop: 4, color: "var(--accent)", opacity: 0.8 }} title={ix.kind}>
-            {KIND_GLYPH[ix.kind] ?? ix.kind}
-          </div>
-        )}
-        {ix.energy !== null && ix.energy !== undefined && (
-          <div style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: energyColor(ix.energy), marginTop: 3, letterSpacing: "0.03em" }}>
-            {energyLabel(ix.energy)}
-          </div>
-        )}
-      </div>
-      <div className="tl-body">
-        {editingId === ix.id ? (
-          <EditForm ix={ix} onSave={(data) => onSave(ix.id, data)} onCancel={() => setEditingId(null)} people={people} />
+    <InteractionCard
+      ix={ix}
+      showDate={showDate}
+      actions={
+        confirmDeleteId === ix.id ? (
+          <>
+            <span style={{ fontSize: 11, color: "var(--fg-mute)" }}>Sure?</span>
+            <button onClick={() => onDelete(ix.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Yes</button>
+            <button onClick={() => setConfirmDeleteId(null)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>No</button>
+          </>
         ) : (
           <>
-            {ix.participants.length > 0 && (
-              <div className="who">
-                {ix.participants.map((p) => <b key={p.id}>{p.name}</b>)}
-                <span style={{ fontSize: 11, color: "var(--fg-faint)" }}>· {Math.round(ix.confidence * 100)}% confidence</span>
-              </div>
-            )}
-            <div className="note">{ix.observation}</div>
-            {ix.context && <div style={{ marginTop: 6, fontSize: 13, color: "var(--fg-mute)" }}>{ix.context}</div>}
-            {ix.tags.length > 0 && (
-              <div className="tags">{ix.tags.map((t) => <span key={t.id} className="tag">{t.name}</span>)}</div>
-            )}
+            <button onClick={() => { setEditingId(ix.id); setConfirmDeleteId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Edit</button>
+            <button onClick={() => { setConfirmDeleteId(ix.id); setEditingId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Delete</button>
           </>
-        )}
-      </div>
-      {editingId !== ix.id && (
-        <div className="tl-actions">
-          {confirmDeleteId === ix.id ? (
-            <>
-              <span style={{ fontSize: 11, color: "var(--fg-mute)" }}>Sure?</span>
-              <button onClick={() => onDelete(ix.id)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Yes</button>
-              <button onClick={() => setConfirmDeleteId(null)} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>No</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => { setEditingId(ix.id); setConfirmDeleteId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11 }}>Edit</button>
-              <button onClick={() => { setConfirmDeleteId(ix.id); setEditingId(null); }} className="btn ghost" style={{ height: 22, padding: "0 8px", fontSize: 11, color: "var(--danger)" }}>Delete</button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+        )
+      }
+    />
   );
 }
 
@@ -557,8 +533,8 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
-type View = "feed" | "diary" | "calendar";
-const VIEWS: View[] = ["feed", "diary", "calendar"];
+type View = "feed" | "diary" | "calendar" | "terminal";
+const VIEWS: View[] = ["feed", "diary", "calendar", "terminal"];
 const PAGE_SIZE = 30;
 
 function TimelinePagination({
@@ -721,6 +697,21 @@ export default function TimelinePage() {
             <DiaryView interactions={sorted} editingId={editingId} confirmDeleteId={confirmDeleteId}
               setEditingId={setEditingId} setConfirmDeleteId={setConfirmDeleteId}
               onSave={handleSave} onDelete={handleDelete} people={people} />
+          </div>
+          {total > PAGE_SIZE && (
+            <TimelinePagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              loading={listLoading}
+              onPageChange={loadPage}
+            />
+          )}
+        </>
+      ) : view === "terminal" ? (
+        <>
+          <div style={{ opacity: listLoading ? 0.5 : 1 }}>
+            <TerminalView interactions={sorted} onDelete={handleDelete} />
           </div>
           {total > PAGE_SIZE && (
             <TimelinePagination

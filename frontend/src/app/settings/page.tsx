@@ -25,6 +25,8 @@ export default function SettingsPage() {
   const [exportPass,   setExportPass]   = useState("");
   const [exporting,    setExporting]    = useState(false);
   const [exportError,  setExportError]  = useState<string | null>(null);
+  const [plainExporting, setPlainExporting] = useState(false);
+  const [plainExportError, setPlainExportError] = useState<string | null>(null);
 
   const [importPass,   setImportPass]   = useState("");
   const [importBlob,   setImportBlob]   = useState<Record<string, unknown> | null>(null);
@@ -91,6 +93,25 @@ export default function SettingsPage() {
       setExportError(err instanceof Error ? err.message : "Export failed");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handlePlainExport() {
+    setPlainExporting(true);
+    setPlainExportError(null);
+    try {
+      const blob = await api.exportData();
+      const json = JSON.stringify(blob, null, 2);
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `canopy-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPlainExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setPlainExporting(false);
     }
   }
 
@@ -220,6 +241,17 @@ export default function SettingsPage() {
           </button>
         </form>
         {exportError && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{exportError}</p>}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Export JSON (unencrypted)</div>
+        <p className="faint small" style={{ marginBottom: 14 }}>
+          Plain data dump for scripts or inspection. Requires sign-in; do not share this file.
+        </p>
+        <button type="button" onClick={() => void handlePlainExport()} disabled={plainExporting} className="btn">
+          {plainExporting ? "Exporting…" : "Download JSON"}
+        </button>
+        {plainExportError && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{plainExportError}</p>}
       </div>
 
       <div className="card">
