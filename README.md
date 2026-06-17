@@ -98,4 +98,4 @@ Canopy also has an embedded terminal chat at `/chat` (in the sidebar, or press `
 
 Canopy is not a CRM, therapy app, or gamified productivity tool. It focuses on cognitive offloading and contextual continuity — remembering nuance and uncertainty so you spend less mental energy recomputing the same interpretations.
 
-Product docs live in [`docs/`](docs/) (vision, architecture, ontology, roadmap). Backlog: [`TODO.md`](TODO.md).
+Product docs live in [`docs/`](docs/) (vision, architecture, ontology, roadmap). **Deferred work:** [`docs/DEFERRED.md`](docs/DEFERRED.md). Backlog: [`TODO.md`](TODO.md).
