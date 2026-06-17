@@ -291,6 +291,8 @@ input, textarea, select { font: inherit; color: inherit; }
   flex: 1; overflow-y: auto; overflow-x: clip; padding: var(--pad-8) 36px;
   padding-bottom: calc(var(--pad-8) + env(safe-area-inset-bottom, 0px));
   min-width: 0;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Toolbar / nav rows that must wrap on narrow screens */
@@ -475,6 +477,37 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* ── Timeline ────────────────────────────────────────────────────────────── */
 .tl-feed { display: flex; flex-direction: column; }
+
+/* Timeline calendar — grid must shrink on narrow viewports; page scroll handles the rest */
+.tl-cal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.tl-cal-dow,
+.tl-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 0;
+}
+.tl-cal-dow { margin-bottom: 3px; }
+.tl-cal-cell {
+  min-height: 72px;
+  border-radius: var(--r-3);
+  cursor: pointer;
+  padding: 5px 5px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .tl-cal-cell { min-height: 52px; padding: 3px 2px 2px; }
+}
 .tl-item {
   display: grid; grid-template-columns: 80px 1fr auto; gap: 20px;
   padding: 18px 0; border-bottom: 0.5px solid var(--line-soft);

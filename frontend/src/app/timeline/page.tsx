@@ -370,22 +370,22 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+      <div className="tl-cal-nav">
         <button onClick={() => setViewMonth(new Date(year, month - 1, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>‹</button>
-        <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, minWidth: 160, textAlign: "center" }}>
+        <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, flex: "1 1 auto", minWidth: 0, textAlign: "center" }}>
           {fmtDateIST(viewMonth, { month: "long", year: "numeric" })}
         </span>
         <button onClick={() => setViewMonth(new Date(year, month + 1, 1))} className="btn ghost" style={{ height: 30, padding: "0 10px" }}>›</button>
         <button onClick={() => { setViewMonth(new Date()); setSelectedKey(todayKey); }} className="btn ghost" style={{ height: 30, padding: "0 12px", fontSize: 12 }}>Today</button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+      <div className="tl-cal-dow">
         {DOW.map((d) => (
           <div key={d} style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", letterSpacing: "0.06em", padding: "4px 0" }}>{d}</div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, opacity: monthLoading ? 0.5 : 1 }}>
+      <div className="tl-cal-grid" style={{ opacity: monthLoading ? 0.5 : 1 }}>
         {cells.map((day, i) => {
           if (day === null) return <div key={`b${i}`} />;
           const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -397,17 +397,11 @@ function CalendarView({ editingId, confirmDeleteId, setEditingId, setConfirmDele
           return (
             <div
               key={k}
+              className="tl-cal-cell"
               onClick={() => setSelectedKey(isSelected ? selectedKey : k)}
               style={{
-                minHeight: 72,
                 border: isSelected ? "1.5px solid var(--accent)" : `0.5px solid ${isToday ? "var(--accent)" : "var(--line-soft)"}`,
-                borderRadius: "var(--r-3)",
                 background: isSelected ? "var(--accent-soft)" : dayBg(avg),
-                cursor: "pointer",
-                padding: "5px 5px 4px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
               }}
             >
               <span style={{ fontSize: 11, fontWeight: isToday ? 600 : 400, color: isToday ? "var(--accent)" : "var(--fg)", lineHeight: 1, marginBottom: 2 }}>
