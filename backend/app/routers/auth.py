@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ def auth_status(db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
 @limiter.limit("3/minute")
-def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: Request, data: RegisterRequest = Body(), db: Session = Depends(get_db)):
     username = data.username.strip().lower()
     if len(username) < 2:
         raise HTTPException(400, "Username must be at least 2 characters")
@@ -47,7 +47,7 @@ def register(request: Request, data: RegisterRequest, db: Session = Depends(get_
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("5/minute")
-def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, data: LoginRequest = Body(), db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == data.username.strip().lower()))
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid username or password")
