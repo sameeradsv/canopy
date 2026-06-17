@@ -174,7 +174,6 @@ export default function LoginPage() {
                       placeholder="your username"
                       required
                       autoComplete="username"
-                      autoFocus
                       className="input"
                     />
                   </div>
@@ -208,7 +207,7 @@ export default function LoginPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setMode(mode === "login" ? "register" : "login")}
+                    onClick={() => { setMode(mode === "login" ? "register" : "login"); setPassword(""); setError(null); }}
                     className="btn ghost"
                     style={{ justifyContent: "center", fontSize: 12 }}
                   >

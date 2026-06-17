@@ -1,13 +1,13 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.auth_utils import create_session, hash_password, verify_password
 from app.database import get_db
 from app.deps.auth import require_user
-from app.models import User
+from app.models import AuthSession, User
 from app.schemas import AuthResponse, LoginRequest, RegisterRequest, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -21,8 +21,7 @@ def auth_status(db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    existing = db.scalar(select(User).where(User.username == data.username.strip().lower()))
-    if existing:
+    if db.scalar(select(User.id).where(User.username == data.username.strip().lower())):
         raise HTTPException(409, "Username already taken")
     if len(data.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
@@ -35,10 +34,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     session = create_session(db, user)
-    return AuthResponse(
-        token=session.token,
-        user=UserRead(id=user.id, username=user.username, created_at=user.created_at),
-    )
+    return AuthResponse(token=session.token, user=UserRead.model_validate(user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -47,15 +43,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid username or password")
     session = create_session(db, user)
-    return AuthResponse(
-        token=session.token,
-        user=UserRead(id=user.id, username=user.username, created_at=user.created_at),
-    )
+    return AuthResponse(token=session.token, user=UserRead.model_validate(user))
 
 
 @router.get("/me", response_model=UserRead)
 def me(user: User = Depends(require_user)):
-    return UserRead(id=user.id, username=user.username, created_at=user.created_at)
+    return UserRead.model_validate(user)
 
 
 @router.delete("/logout", status_code=204)
@@ -64,11 +57,7 @@ def logout(
     db: Session = Depends(get_db),
     _user: User = Depends(require_user),
 ):
-    """Invalidate the current session token."""
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization[7:].strip()
-        from app.models import AuthSession
-        session = db.get(AuthSession, token)
-        if session:
-            db.delete(session)
-            db.commit()
+        db.execute(delete(AuthSession).where(AuthSession.token == token))
+        db.commit()

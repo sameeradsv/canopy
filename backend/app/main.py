@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Request
@@ -16,10 +17,17 @@ from app.routers import settings as settings_router
 from app.routers import webauthn as webauthn_router
 from app.schemas import RelationshipDefaults
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Canopy API",
     description="Local-first contextual memory system",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -57,11 +65,6 @@ async def add_cache_control(request: Request, call_next):
 @app.get("/api/relationship-defaults", response_model=RelationshipDefaults)
 def relationship_defaults():
     return RelationshipDefaults(types=RELATIONSHIP_TYPES, defaults=RELATIONSHIP_DEFAULTS)
-
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
 
 
 @app.get("/api/health")
