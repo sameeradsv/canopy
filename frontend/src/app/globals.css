@@ -778,7 +778,9 @@ input, textarea, select { font: inherit; color: inherit; }
   .stat-num { font-size: 28px; }
   .kind-grid { grid-template-columns: repeat(3, 1fr); }
   .tl-item { grid-template-columns: 1fr; gap: 6px; }
+  .tl-body { min-width: 0; }
   .tl-time { font-size: 10px; }
+  .grid-2 { grid-template-columns: 1fr; }
   .people-grid { grid-template-columns: 1fr 1fr; }
 }
 
