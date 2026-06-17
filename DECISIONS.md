@@ -53,6 +53,16 @@ This file records intentional divergences from the Tend design spec and consciou
 
 ---
 
+## `services/` must be a package, not a module + directory (2026-06-17)
+
+**Decision:** All service logic lives in `app/services/` as a Python package (`__init__.py` for CRUD, submodules for AI services). There must be no `app/services.py` sibling file.
+
+**Reason:** Python's `FileFinder` gives regular modules (`.py` files) priority over namespace packages (directories without `__init__.py`) in the same parent package. When both `services.py` and `services/` existed, `app.services` resolved to `services.py`, making `from app.services.patterns import detect_patterns` raise `ModuleNotFoundError`. FastAPI's `ServerErrorMiddleware` catches unhandled exceptions and returns a 500 that bypasses `CORSMiddleware`, so the browser received a CORS-less error and reported it as a network error — the "Network error reaching canopy-api-*.onrender.com" seen on the Patterns page.
+
+**Do not** add a top-level `app/services.py` alongside `app/services/`.
+
+---
+
 ## Render cold-start retry strategy (2026-06-17)
 
 **Decision:** On network errors, `request()` in `lib/api.ts` calls `waitForBackend()` — polls `GET /api/health` every 2.5 s for up to 28 s — before each retry, rather than fire-and-forget with a fixed 2–4 s sleep.
