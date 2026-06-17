@@ -169,15 +169,31 @@ def agent_chat(
             groq_msgs.append({"role": role, "content": content})
 
     def sse_stream():
-        from groq import Groq
+        from groq import Groq, APIStatusError
         client = Groq(api_key=settings.groq_api_key)
+        fallback = ["llama-3.1-8b-instant"]
+        models_to_try = [data.model] + [m for m in fallback if m != data.model]
+        stream = None
+        for attempt_model in models_to_try:
+            try:
+                stream = client.chat.completions.create(
+                    model=attempt_model,
+                    messages=groq_msgs,
+                    max_tokens=1024,
+                    stream=True,
+                )
+                break
+            except APIStatusError as exc:
+                if exc.status_code == 429 and attempt_model != models_to_try[-1]:
+                    continue
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            except Exception as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
         try:
-            stream = client.chat.completions.create(
-                model=data.model,
-                messages=groq_msgs,
-                max_tokens=1024,
-                stream=True,
-            )
             for chunk in stream:
                 delta = chunk.choices[0].delta.content if chunk.choices else None
                 if delta:
