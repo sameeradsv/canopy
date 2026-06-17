@@ -10,7 +10,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
 from app.database import init_db
 from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
-from app.deps.auth import optional_auth_user
+from app.deps.auth import optional_auth_user, require_user
 from app.models import User
 from app.routers import ai, auth, interactions, people, scores, search, sync
 from app.routers import settings as settings_router
@@ -86,7 +86,7 @@ def export_data(_user: Optional[User] = Depends(optional_auth_user)):
 
 
 @app.delete("/api/data", status_code=204)
-def delete_all_data(_user: Optional[User] = Depends(optional_auth_user)):
+def delete_all_data(_user: User = Depends(require_user)):
     from app.database import SessionLocal
     from app.models import AuthSession, Interaction, Person, Setting, Tag, User
 
