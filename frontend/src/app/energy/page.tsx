@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type EnergyEvent, type EnergyTimeline } from "@/lib/api";
+import { getAuthToken } from "@/lib/auth";
 import { todayIST, TZ } from "@/lib/tz";
 
 // ── Cross-app fetch ────────────────────────────────────────────────────────
@@ -9,12 +10,11 @@ import { todayIST, TZ } from "@/lib/tz";
 async function fetchExternal(
   envUrl: string | undefined,
   path: string,
-  tokenKey: string,
+  token: string,
 ): Promise<EnergyTimeline | null> {
   if (typeof window === "undefined") return null;
   const baseUrl = envUrl?.trim();
   if (!baseUrl) return null;
-  const token = localStorage.getItem(tokenKey);
   if (!token) return null;
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
@@ -272,7 +272,7 @@ function SourcePill({
   const endEnergy = timeline?.end_energy;
   const statusText =
     unavailable === "no_url"   ? "not configured" :
-    unavailable === "no_token" ? "not signed in" :
+    unavailable === "no_token" ? "sign in to Canopy" :
     unavailable === "error"    ? "unavailable" :
     endEnergy !== undefined
       ? `${Math.round(endEnergy * 100)}% end · ${count} event${count !== 1 ? "s" : ""}`
@@ -343,26 +343,28 @@ export default function EnergyPage() {
       .then((t) => setCanopy({ timeline: t, state: "done" }))
       .catch(() => setCanopy({ timeline: null, state: "error" }));
 
-    // Circuit — direct cross-app call using circuit_auth_token
+    // Circuit / Chef — cross-origin calls use Canopy's Cortex token (sibling app
+    // tokens live in those apps' localStorage and are not readable here).
+    const crossAppToken = getAuthToken() ?? "";
+
     const circuitUrl = process.env.NEXT_PUBLIC_CIRCUIT_API_URL;
     if (!circuitUrl) {
       setCircuit({ timeline: null, state: "done", unavailable: "no_url" });
-    } else if (!localStorage.getItem("circuit_auth_token")) {
+    } else if (!crossAppToken) {
       setCircuit({ timeline: null, state: "done", unavailable: "no_token" });
     } else {
-      fetchExternal(circuitUrl, `/api/energy/timeline?date=${date}`, "circuit_auth_token")
+      fetchExternal(circuitUrl, `/api/energy/timeline?date=${date}`, crossAppToken)
         .then((t) => setCircuit({ timeline: t, state: "done" }))
         .catch(() => setCircuit({ timeline: null, state: "done" }));
     }
 
-    // Chef — direct cross-app call using chef_auth_token
     const chefUrl = process.env.NEXT_PUBLIC_CHEF_API_URL;
     if (!chefUrl) {
       setChef({ timeline: null, state: "done", unavailable: "no_url" });
-    } else if (!localStorage.getItem("chef_auth_token")) {
+    } else if (!crossAppToken) {
       setChef({ timeline: null, state: "done", unavailable: "no_token" });
     } else {
-      fetchExternal(chefUrl, `/energy/timeline?date=${date}`, "chef_auth_token")
+      fetchExternal(chefUrl, `/energy/timeline?date=${date}`, crossAppToken)
         .then((t) => setChef({ timeline: t, state: "done" }))
         .catch(() => setChef({ timeline: null, state: "done" }));
     }

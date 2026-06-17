@@ -75,6 +75,8 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 
 **Cross-app note**: Canopy's `start_energy` for the combined timeline line is always 0.70 locally. The frontend (Canopy energy page) overrides this with Circuit's `start_energy` (sleep factor + `energy_eod` carry-over) for the combined dashed running-balance line.
 
+**Cross-app auth (Energy page)**: Circuit and Chef timelines are fetched client-side from their backends using `NEXT_PUBLIC_CIRCUIT_API_URL` / `NEXT_PUBLIC_CHEF_API_URL`. The request carries Canopy's `canopy_auth_token` (the Cortex JWT when signed in with Cortex) — **not** `circuit_auth_token` / `chef_auth_token`, which live on those apps' origins and are not readable from Canopy's `localStorage`. Circuit and Chef backends accept the shared Cortex token via `CORTEX_AUTH_URL` validation.
+
 ### Frontend layout (`frontend/src/`)
 | Path | Role |
 |------|------|
@@ -87,7 +89,7 @@ Canopy contributes to the cross-app cumulative energy model via two endpoints:
 | `app/tasks/` | Task list with dimension sliders |
 | `app/dimensions/` | Configure saved dimension presets |
 | `app/search/` | Full-text search across interactions and people |
-| `app/energy/page.tsx` | Cross-app energy timeline. Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. |
+| `app/energy/page.tsx` | Cross-app energy timeline. Fetches Circuit (`/api/energy/timeline`) and Chef (`/energy/timeline`) with the user's `canopy_auth_token` (Cortex JWT). Combined dashed line = `startEnergy + Σdeltas` (true running balance from Circuit's `start_energy`). Per-source dots show event intrinsic quality. Summary card shows `open → close` balance. Event list shows `+x%` delta and `→ y%` running balance per row. Requires Cortex sign-in on Canopy for sibling data; local-only Canopy accounts show Canopy events only. |
 | `app/chat/` | Native Groq chat agent — people & interactions Q&A (`POST /api/ai/agent/chat`) |
 | `app/login/` | Auth (register / login) |
 | `components/Nav.tsx` | Navigation bar |
