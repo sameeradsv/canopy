@@ -1,7 +1,8 @@
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,15 @@ from app.schemas import AuthResponse, LoginRequest, RegisterRequest, UserRead
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+async def _parse_body(request: Request, model: type):
+    try:
+        return model.model_validate(await request.json())
+    except ValidationError as exc:
+        raise HTTPException(422, detail=exc.errors())
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
+
+
 @router.get("/status")
 def auth_status(db: Session = Depends(get_db)):
     has_users = db.scalar(select(User.id).limit(1)) is not None
@@ -23,7 +33,8 @@ def auth_status(db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
 @limiter.limit("3/minute")
-def register(request: Request, data: RegisterRequest = Body(), db: Session = Depends(get_db)):
+async def register(request: Request, db: Session = Depends(get_db)):
+    data: RegisterRequest = await _parse_body(request, RegisterRequest)
     username = data.username.strip().lower()
     if len(username) < 2:
         raise HTTPException(400, "Username must be at least 2 characters")
@@ -47,7 +58,8 @@ def register(request: Request, data: RegisterRequest = Body(), db: Session = Dep
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("5/minute")
-def login(request: Request, data: LoginRequest = Body(), db: Session = Depends(get_db)):
+async def login(request: Request, db: Session = Depends(get_db)):
+    data: LoginRequest = await _parse_body(request, LoginRequest)
     user = db.scalar(select(User).where(User.username == data.username.strip().lower()))
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid username or password")
