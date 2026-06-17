@@ -48,8 +48,7 @@ docker compose up --build
 | `main.py` | FastAPI app entry point — registers all routers, startup hook, `/api/export` and `/api/data` (delete-all) endpoints |
 | `models.py` | SQLAlchemy ORM: `Person`, `Tag`, `Interaction`, `Setting`, `User`, `AuthSession`, `PersonScore`, WebAuthn tables |
 | `schemas.py` | Pydantic request/response models mirroring the ORM |
-| `services.py` | All business logic — list/create/update/delete for every entity |
-| `services/` | AI-specific service modules: `patterns.py` (deterministic signals), `synthesis.py` (Groq summarisation), `capture_suggestions.py`. Imported as `app.services.<module>` (namespace package — no `__init__.py`; `services.py` handles the top-level `from app.services import …` imports). |
+| `services/` | Python package (`__init__.py` holds all CRUD/business logic; submodules: `patterns.py` deterministic signals, `synthesis.py` Groq summarisation, `capture_suggestions.py`). |
 | `database.py` | Engine setup, `get_db` dependency, `init_db` (create_all + manual migration) |
 | `config.py` | `pydantic-settings` config — reads `DATABASE_URL`, `CORS_ORIGINS`, `AUTH_REQUIRED` from env |
 | `constants.py` | `RELATIONSHIP_TYPES`, `DIMENSION_KEYS` (`urgency`, `reversibility`, `visibility`, `effort`, `growth_value`, `operational_cost`) |

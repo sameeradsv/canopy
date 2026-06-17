@@ -48,7 +48,6 @@ def person_to_read(
     last_at_dt=None,
 ) -> dict:
     if ix_count is None:
-        # Fallback for create/update/get — relationship already loaded on the object
         ix_count = len(person.interactions)
         last_at_dt = max((ix.occurred_at for ix in person.interactions), default=None) if person.interactions else None
     last_at = last_at_dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z" if last_at_dt else None
@@ -78,8 +77,6 @@ def list_people(
     limit: Optional[int] = None,
     offset: int = 0,
 ):
-    # Single query with LEFT JOIN subquery for count + last-date instead of
-    # loading all Interaction objects via selectinload.
     agg = (
         select(
             interaction_participants.c.person_id,
@@ -102,7 +99,7 @@ def list_people(
         stmt = stmt.where(or_(Person.name.ilike(pattern), Person.notes.ilike(pattern)))
     if limit is not None:
         stmt = stmt.limit(limit).offset(offset)
-    return db.execute(stmt).all()  # rows of (Person, int|None, datetime|None)
+    return db.execute(stmt).all()
 
 
 def count_people(db: Session, q: Optional[str] = None, user_id: Optional[int] = None) -> int:
@@ -141,13 +138,6 @@ def update_person(db: Session, person: Person, data: PersonUpdate) -> Person:
 def delete_person(db: Session, person: Person) -> None:
     db.delete(person)
     db.commit()
-
-
-def interaction_query(db: Session):
-    return select(Interaction).options(
-        selectinload(Interaction.participants),
-        selectinload(Interaction.tags),
-    )
 
 
 def _apply_interaction_filters(
@@ -329,7 +319,6 @@ def _frequently_contacted(
     user_id: Optional[int] = None,
     limit: int = 3,
 ) -> list[tuple[Person, int, datetime]]:
-    """People with the most interactions — single aggregated query."""
     agg = (
         select(
             interaction_participants.c.person_id,
@@ -409,5 +398,3 @@ def set_setting(db: Session, key: str, value: str, user_id: Optional[int] = None
         setting.value = value
     db.commit()
     return setting
-
-
