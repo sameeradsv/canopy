@@ -270,7 +270,7 @@ export const api = {
     request<RelationshipDefaults>("/api/relationship-defaults"),
 
   authStatus: () =>
-    request<{ has_users: boolean; sync_ready: boolean }>("/api/auth/status"),
+    request<{ has_users: boolean }>("/api/auth/status"),
 
   register: (username: string, password: string) =>
     request<AuthResponse>("/api/auth/register", {
