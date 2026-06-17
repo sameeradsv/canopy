@@ -45,7 +45,7 @@ App: http://localhost:3000 — requests to `/api/*` are proxied to the backend (
 | Piece | URL |
 |-------|-----|
 | UI | https://sameeradsv.github.io/canopy/ |
-| API | https://canopy-api.onrender.com (after Render setup below) |
+| API | Your Render service URL (repo variable `CANOPY_API_URL`, e.g. `https://canopy-api-xxxx.onrender.com`) |
 
 Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): triggers a **Render** deploy for the API, then builds the Next.js UI with `NEXT_PUBLIC_API_URL` and publishes to **GitHub Pages**.
 
@@ -59,7 +59,7 @@ Render’s free plan allows **only one managed PostgreSQL database per account**
 2. **Database:** Create a PostgreSQL instance (Neon, or a second logical database on an existing host). Copy the connection string.
 3. **Render:** [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → connect this repo → apply `render.yaml`. On the `canopy-api` service, set **`DATABASE_URL`** to your connection string (Blueprint leaves it unset via `sync: false`).
 4. **GitHub secret:** `RENDER_DEPLOY_HOOK` — from the Render service **Settings → Deploy Hook**.
-5. Optional repo variable **`CANOPY_API_URL`** if your API host differs from `https://canopy-api.onrender.com`.
+5. Set repo variable **`CANOPY_API_URL`** to your Render service URL (Dashboard → service → URL). The workflow health-checks this before building; the default `canopy-api.onrender.com` is only a placeholder and is not a live host.
 
 On first visit from the hosted UI, open **Account** and register — production API has `AUTH_REQUIRED=true`.
 

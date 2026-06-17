@@ -161,12 +161,25 @@ export interface Preset {
 }
 
 import { getAuthToken, setAuthToken } from "@/lib/auth";
+import { apiHostLabel, getApiBase } from "@/lib/api-base";
 
-const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+type RequestOptions = RequestInit & { retries?: number };
 
 function authHeaders(): Record<string, string> {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function buildHeaders(method: string, extra?: HeadersInit): Record<string, string> {
+  const headers: Record<string, string> = { ...authHeaders() };
+  if (extra) {
+    Object.assign(headers, extra as Record<string, string>);
+  }
+  const upper = method.toUpperCase();
+  if (upper !== "GET" && upper !== "HEAD" && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  return headers;
 }
 
 function parseErrorBody(text: string, status: number): string {
@@ -189,24 +202,19 @@ function parseErrorBody(text: string, status: number): string {
   return trimmed;
 }
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function requestOnce<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = options?.method ?? "GET";
+  const base = getApiBase();
   let res: Response;
   try {
-    res = await fetch(`${apiBase}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-        ...options?.headers,
-      },
+    res = await fetch(`${base}${path}`, {
       ...options,
+      headers: buildHeaders(method, options?.headers),
     });
   } catch {
     throw new Error(
-      apiBase
-        ? "Network error — could not reach the API"
+      base
+        ? `Network error reaching ${apiHostLabel()}`
         : "API URL not configured (set NEXT_PUBLIC_API_URL)",
     );
   }
@@ -223,7 +231,38 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isNetworkError(err: unknown): boolean {
+  return err instanceof Error && err.message.toLowerCase().includes("network error");
+}
+
+async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const retries = options?.retries ?? 0;
+  const { retries: _r, ...fetchOptions } = options ?? {};
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestOnce<T>(path, fetchOptions);
+    } catch (err) {
+      lastErr = err;
+      if (!isNetworkError(err) || attempt >= retries) throw err;
+      try {
+        await requestOnce<{ status: string }>("/api/health");
+      } catch {
+        /* wake attempt — ignore */
+      }
+      await sleep(2000 * (attempt + 1));
+    }
+  }
+  throw lastErr;
+}
+
 export const api = {
+  health: () => request<{ status: string; version: string }>("/api/health"),
+
   summary: () => request<Summary>("/api/summary"),
 
   people: (q?: string) =>
@@ -390,10 +429,11 @@ export const api = {
       recurring_tags: { tag: string; count: number }[];
       stale_contacts: { name: string; days_since: number }[];
       busiest_weekday: { weekday: string; count: number } | null;
-    }>("/api/ai/patterns"),
+    }>("/api/ai/patterns", { retries: 2 }),
 
   synthesize: (days = 7) =>
     request<{ summary: string; days: number; interaction_count?: number; error?: string }>(
       `/api/ai/synthesize?days=${days}`,
+      { retries: 2 },
     ),
 };

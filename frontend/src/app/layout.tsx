@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Spectral, JetBrains_Mono } from "next/font/google";
-import { AuthProvider } from "@/lib/AuthContext";
+import { CanopyAuthProvider } from "@/components/CanopyAuthProvider";
 import { ShellLayout } from "@/components/ShellLayout";
 import { ThemeInit } from "@/components/ThemeInit";
 import "./globals.css";
@@ -67,12 +67,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <ThemeInit />
-        <AuthProvider
-          apiBase={process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? ""}
-          tokenKey="canopy_auth_token"
-        >
+        <CanopyAuthProvider>
           <ShellLayout>{children}</ShellLayout>
-        </AuthProvider>
+        </CanopyAuthProvider>
       </body>
     </html>
   );

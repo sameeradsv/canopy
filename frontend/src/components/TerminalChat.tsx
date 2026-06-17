@@ -2,9 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const TOKEN_KEY = "canopy_auth_token";
+import { getApiBase } from "@/lib/api-base";
 
-const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+const TOKEN_KEY = "canopy_auth_token";
 
 type Role = "user" | "assistant" | "system";
 interface Msg { id: string; role: Role; content: string; streaming?: boolean; }
@@ -20,7 +20,7 @@ async function* agentStream(
 ): AsyncGenerator<string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${apiBase}/api/ai/agent/chat`, {
+  const res = await fetch(`${getApiBase()}/api/ai/agent/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({

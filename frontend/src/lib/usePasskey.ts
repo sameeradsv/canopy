@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+import { getApiBase } from "@/lib/api-base";
 
 const PASSKEY_KEY = "canopy_passkey_registered";
 const TOKEN_KEY = "canopy_auth_token";
@@ -25,7 +25,7 @@ export function usePasskey() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) throw new Error("Not authenticated");
 
-    const beginRes = await fetch(`${API_BASE}/api/auth/webauthn/register/begin`, {
+    const beginRes = await fetch(`${getApiBase()}/api/auth/webauthn/register/begin`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -36,7 +36,7 @@ export function usePasskey() {
     const { challenge_id, options } = await beginRes.json();
     const credential = await startRegistration(options);
 
-    const completeRes = await fetch(`${API_BASE}/api/auth/webauthn/register/complete`, {
+    const completeRes = await fetch(`${getApiBase()}/api/auth/webauthn/register/complete`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -55,7 +55,7 @@ export function usePasskey() {
   async function loginWithPasskey(): Promise<{ token: string; user: { id: number; username: string } }> {
     const { startAuthentication } = await import("@simplewebauthn/browser");
 
-    const beginRes = await fetch(`${API_BASE}/api/auth/webauthn/login/begin`, {
+    const beginRes = await fetch(`${getApiBase()}/api/auth/webauthn/login/begin`, {
       method: "POST",
     });
     if (!beginRes.ok) {
@@ -65,7 +65,7 @@ export function usePasskey() {
     const { challenge_id, options } = await beginRes.json();
     const credential = await startAuthentication(options);
 
-    const completeRes = await fetch(`${API_BASE}/api/auth/webauthn/login/complete`, {
+    const completeRes = await fetch(`${getApiBase()}/api/auth/webauthn/login/complete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challenge_id, credential }),
