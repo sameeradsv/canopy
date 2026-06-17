@@ -31,7 +31,7 @@ function energyColor(v: number | undefined): string {
 }
 
 function RadarChart({ scores, dims }: { scores: Record<string, number>; dims: string[] }) {
-  const cx = 90, cy = 90, r = 68;
+  const cx = 100, cy = 100, r = 62;
   const n = dims.length;
   if (n < 3) return null;
 
@@ -50,10 +50,10 @@ function RadarChart({ scores, dims }: { scores: Record<string, number>; dims: st
     return [cx + v * r * Math.cos((2 * Math.PI * i) / n - Math.PI / 2), cy + v * r * Math.sin((2 * Math.PI * i) / n - Math.PI / 2)];
   });
 
-  const labelPts = pts(1.22);
+  const labelPts = pts(1.18);
 
   return (
-    <svg viewBox="0 0 180 180" className="radar-svg" width={180} height={180}>
+    <svg viewBox="0 0 200 200" className="radar-svg" width={200} height={200}>
       {webs.map((pts, i) => <polygon key={i} points={pts} className="radar-web" />)}
       {pts(1).map(([x, y], i) => (
         <line key={i} x1={cx} y1={cy} x2={x} y2={y} className="radar-spoke" />
@@ -163,7 +163,7 @@ export default function GraphPage() {
       {loading ? (
         <p style={{ color: "var(--fg-faint)", fontFamily: "var(--font-mono)", fontSize: 13 }}>Loading…</p>
       ) : (
-        <div className="graph-wrap">
+        <div className={`graph-wrap${selected ? " has-detail" : ""}`}>
           <div className="graph-panel">
             <div className="graph-controls">
               <div className="graph-axis-select">
@@ -193,11 +193,12 @@ export default function GraphPage() {
               )}
             </div>
 
+            <div className="graph-svg-wrap">
             <svg
               ref={svgRef}
               className="graph-svg"
               viewBox={`0 0 ${W} ${H}`}
-              style={{ maxHeight: 460 }}
+              preserveAspectRatio="xMidYMid meet"
             >
               <g transform={`translate(${pad.left},${pad.top})`}>
                 {/* Grid lines + ticks */}
@@ -273,6 +274,7 @@ export default function GraphPage() {
                 ))}
               </g>
             </svg>
+            </div>
 
             {people.length === 0 && (
               <p style={{ textAlign: "center", color: "var(--fg-faint)", fontSize: 13, marginTop: 40 }}>
@@ -302,7 +304,7 @@ export default function GraphPage() {
                     dims={Object.keys(selected.score.scores)}
                   />
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="graph-detail-dims">
                     {Object.entries(selected.score.scores).map(([dim, val]) => (
                       <div key={dim} className="dim-score-row">
                         <span className="dim-score-label">{DIM_LABEL[dim] ?? dim}</span>

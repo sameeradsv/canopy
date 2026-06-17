@@ -185,7 +185,8 @@ function TableView({ people, onEdit, onDelete }: {
 
 function ConstellationView({ people }: { people: PersonRow[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const W = 560, H = 520, cx = W / 2, cy = H / 2;
+  const W = 560, H = 520, PAD = 48;
+  const cx = W / 2, cy = H / 2;
   const now = Date.now();
 
   function daysSince(iso: string | null): number {
@@ -218,8 +219,12 @@ function ConstellationView({ people }: { people: PersonRow[] }) {
   );
 
   return (
-    <div style={{ overflowX: "auto", display: "flex", justifyContent: "center" }}>
-      <svg width={W} height={H} style={{ maxWidth: "100%" }}>
+    <div className="constellation-scroll">
+      <svg
+        className="constellation-svg"
+        viewBox={`-${PAD} -${PAD} ${W + PAD * 2} ${H + PAD * 2}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
         {RADII.map((r, i) => (
           <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke="var(--line-soft)" strokeWidth={0.5} />
         ))}

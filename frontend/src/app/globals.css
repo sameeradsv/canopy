@@ -607,9 +607,33 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 
 /* ── Graph page ──────────────────────────────────────────────────────────── */
-.graph-wrap { display: flex; gap: 24px; align-items: flex-start; }
-.graph-panel { flex: 1; min-width: 0; }
-.graph-svg { width: 100%; display: block; overflow: visible; }
+.graph-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.graph-wrap.has-detail {
+  grid-template-columns: minmax(480px, 1fr) minmax(260px, 300px);
+  overflow-x: auto;
+  max-width: 100%;
+}
+@media (max-width: 960px) {
+  .graph-wrap.has-detail { grid-template-columns: 1fr; }
+}
+.graph-panel { min-width: 0; }
+.graph-svg-wrap {
+  overflow: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.graph-svg {
+  display: block;
+  width: 100%;
+  min-width: 480px;
+  height: auto;
+  overflow: visible;
+}
 .graph-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   margin-bottom: 18px;
@@ -632,17 +656,31 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* Person detail panel */
 .graph-detail {
-  width: 260px; flex-shrink: 0;
+  width: 100%;
+  max-width: 300px;
   background: var(--panel); border: 0.5px solid var(--line);
   border-radius: var(--r-5); padding: var(--pad-5);
   display: flex; flex-direction: column; gap: 14px;
+  max-height: min(80vh, 720px);
+  overflow: hidden;
+}
+.graph-detail-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+@media (max-width: 960px) {
+  .graph-detail { max-width: none; max-height: none; }
 }
 .graph-detail-name { font-size: 15px; font-weight: 600; }
 .graph-detail-rel { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); }
 .graph-detail-summary { font-size: 12.5px; color: var(--fg-mute); font-style: italic; line-height: 1.5; }
 
 /* Radar chart */
-.radar-svg { display: block; margin: 0 auto; }
+.radar-svg { display: block; margin: 0 auto; overflow: visible; }
 .radar-web { fill: none; stroke: var(--line); stroke-width: 0.5; }
 .radar-spoke { stroke: var(--line); stroke-width: 0.5; }
 .radar-shape { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; fill-opacity: 0.45; }
@@ -658,6 +696,20 @@ input, textarea, select { font: inherit; color: inherit; }
 .dim-score-bar { height: 4px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
 .dim-score-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
 .dim-score-val { font-family: var(--font-mono); font-size: 10px; color: var(--fg-faint); text-align: right; }
+
+/* People constellation */
+.constellation-scroll {
+  overflow: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.constellation-svg {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  height: auto;
+  overflow: visible;
+}
 
 /* Reflection panel */
 .reflection-panel {
