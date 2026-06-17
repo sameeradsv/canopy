@@ -239,6 +239,19 @@ function isNetworkError(err: unknown): boolean {
   return err instanceof Error && err.message.toLowerCase().includes("network error");
 }
 
+/** Poll /api/health until it responds or maxMs elapses (handles Render cold-start). */
+async function waitForBackend(maxMs: number): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      await requestOnce<{ status: string }>("/api/health");
+      return;
+    } catch {
+      await sleep(2500);
+    }
+  }
+}
+
 async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const retries = options?.retries ?? 0;
   const { retries: _r, ...fetchOptions } = options ?? {};
@@ -249,12 +262,7 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
     } catch (err) {
       lastErr = err;
       if (!isNetworkError(err) || attempt >= retries) throw err;
-      try {
-        await requestOnce<{ status: string }>("/api/health");
-      } catch {
-        /* wake attempt — ignore */
-      }
-      await sleep(2000 * (attempt + 1));
+      await waitForBackend(28000);
     }
   }
   throw lastErr;

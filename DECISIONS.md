@@ -53,6 +53,14 @@ This file records intentional divergences from the Tend design spec and consciou
 
 ---
 
+## Render cold-start retry strategy (2026-06-17)
+
+**Decision:** On network errors, `request()` in `lib/api.ts` calls `waitForBackend()` — polls `GET /api/health` every 2.5 s for up to 28 s — before each retry, rather than fire-and-forget with a fixed 2–4 s sleep.
+
+**Reason:** Render free-tier spins down after inactivity; cold starts take 15–30 s. The old approach (three quick attempts with 2 s / 4 s sleeps) exhausted all retries before the backend finished waking, leaving the Patterns page stuck on "Network error." The health-poll approach waits for the server to actually respond before retrying the real request.
+
+---
+
 ## Dimension names diverge from design spec
 **Decision (2026-05-27):** Canopy uses `urgency`, `reversibility`, `visibility`, `effort`, `growth_value`, `operational_cost` rather than the spec's `urgency`, `effort`, `growth`, `joy`, `alignment`, `leverage`.
 
