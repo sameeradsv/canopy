@@ -122,10 +122,16 @@ Required:
 ## Authentication
 
 - Register/login issues a 30-day bearer token stored client-side in `localStorage`.
-- **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials stored in `webauthn_credentials` table (public key + sign_count); challenges in `webauthn_challenges` (2-min TTL, single-use). `PasskeyBanner` post-login prompt; `usePasskey` hook in frontend.
+- **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials stored in `webauthn_credentials` table (public key + sign_count); challenges in `webauthn_challenges` (2-min TTL, single-use). `PasskeyBanner` post-login prompt; `usePasskey` hook in frontend. WebAuthn's native dependency stack is imported lazily inside these route handlers so ordinary API startup and non-passkey routes do not depend on local passkey runtime health.
 - `optional_auth_user` dependency validates `Authorization: Bearer …` when present; most write endpoints use this.
 - `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production — already set in `render.yaml`.
 - Cross-device sync works by logging in with the same credentials on any device pointing at the same backend.
+
+## Data isolation and caching
+
+- People and interactions are always filtered by `user_id`; interaction create/update also validates that every `participant_id` belongs to the current user before linking.
+- Dynamic authenticated GET responses use `Cache-Control: no-store` to prevent stale browser views after writes. Stable metadata such as `/api/relationship-defaults` may be cached.
+- `DELETE /api/data` is a user-scoped reset: it deletes only the current user's interactions, people, namespaced settings, and any tags left unused afterwards. It intentionally keeps the user account and current session.
 
 ## Encrypted export format
 

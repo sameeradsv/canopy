@@ -124,11 +124,12 @@ def create_person(db: Session, data: PersonCreate, user_id: Optional[int] = None
 
 
 def update_person(db: Session, person: Person, data: PersonUpdate) -> Person:
-    if data.name is not None:
+    fields = data.model_fields_set
+    if "name" in fields and data.name is not None:
         person.name = data.name.strip()
-    if data.relationship is not None:
+    if "relationship" in fields:
         person.relationship = data.relationship
-    if data.notes is not None:
+    if "notes" in fields:
         person.notes = data.notes
     db.commit()
     db.refresh(person)
@@ -216,6 +217,23 @@ def list_interactions(
     return list(db.scalars(stmt).unique().all())
 
 
+def _people_for_user(db: Session, person_ids: list[int], user_id: Optional[int]) -> list[Person]:
+    unique_ids = list(dict.fromkeys(person_ids))
+    if not unique_ids:
+        return []
+    people = list(
+        db.scalars(
+            select(Person).where(
+                Person.id.in_(unique_ids),
+                Person.user_id == user_id,
+            )
+        ).all()
+    )
+    if len(people) != len(unique_ids):
+        raise ValueError("One or more participants were not found")
+    return people
+
+
 def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[int] = None) -> Interaction:
     interaction = Interaction(
         user_id=user_id,
@@ -228,37 +246,36 @@ def create_interaction(db: Session, data: InteractionCreate, user_id: Optional[i
         energy=data.energy,
         reflection_json=json.dumps(data.reflection) if data.reflection else None,
     )
+    db.add(interaction)
     if data.participant_ids:
-        people = db.scalars(select(Person).where(Person.id.in_(data.participant_ids))).all()
-        interaction.participants = list(people)
+        interaction.participants = _people_for_user(db, data.participant_ids, user_id)
     if data.tag_names:
         interaction.tags = get_or_create_tags(db, data.tag_names)
-    db.add(interaction)
     db.commit()
     db.refresh(interaction)
     return db.scalar(interaction_query(db).where(Interaction.id == interaction.id))
 
 
 def update_interaction(db: Session, interaction: Interaction, data: InteractionUpdate) -> Interaction:
-    if data.occurred_at is not None:
+    fields = data.model_fields_set
+    if "occurred_at" in fields and data.occurred_at is not None:
         interaction.occurred_at = data.occurred_at
-    if data.kind is not None:
+    if "kind" in fields:
         interaction.kind = data.kind
-    if data.context is not None:
+    if "context" in fields:
         interaction.context = data.context
-    if data.observation is not None:
+    if "observation" in fields and data.observation is not None:
         interaction.observation = data.observation.strip()
-    if data.outcome is not None:
+    if "outcome" in fields:
         interaction.outcome = data.outcome
-    if data.confidence is not None:
+    if "confidence" in fields and data.confidence is not None:
         interaction.confidence = data.confidence
-    if data.energy is not None:
+    if "energy" in fields:
         interaction.energy = data.energy
-    if data.reflection is not None:
-        interaction.reflection_json = json.dumps(data.reflection)
+    if "reflection" in fields:
+        interaction.reflection_json = json.dumps(data.reflection) if data.reflection is not None else None
     if data.participant_ids is not None:
-        people = db.scalars(select(Person).where(Person.id.in_(data.participant_ids))).all()
-        interaction.participants = list(people)
+        interaction.participants = _people_for_user(db, data.participant_ids, interaction.user_id)
     if data.tag_names is not None:
         interaction.tags = get_or_create_tags(db, data.tag_names)
     db.commit()

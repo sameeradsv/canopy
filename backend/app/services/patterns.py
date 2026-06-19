@@ -36,15 +36,23 @@ def detect_patterns(db: Session, user_id: Optional[int]) -> dict:
         if count >= 3
     ]
 
+    last_contact = {
+        person_id: last_at
+        for person_id, last_at in db.execute(
+            select(
+                interaction_participants.c.person_id,
+                func.max(Interaction.occurred_at),
+            )
+            .join(Interaction, Interaction.id == interaction_participants.c.interaction_id)
+            .where(Interaction.user_id == user_id)
+            .group_by(interaction_participants.c.person_id)
+        ).all()
+    }
+
     stale_people: list[dict] = []
     people = list(db.scalars(select(Person).where(Person.user_id == user_id)).all())
     for p in people:
-        last_ix = (
-            db.query(func.max(Interaction.occurred_at))
-            .join(interaction_participants, Interaction.id == interaction_participants.c.interaction_id)
-            .filter(interaction_participants.c.person_id == p.id)
-            .scalar()
-        )
+        last_ix = last_contact.get(p.id)
         if last_ix and (now - last_ix).days >= 21:
             stale_people.append({"name": p.name, "days_since": (now - last_ix).days})
 

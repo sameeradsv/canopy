@@ -59,13 +59,11 @@ app.include_router(webauthn_router.router, prefix="/api")
 @app.middleware("http")
 async def add_cache_control(request: Request, call_next):
     response = await call_next(request)
-    if (
-        request.method == "GET"
-        and response.status_code == 200
-        and not request.url.path.startswith("/api/auth")
-        and request.url.path != "/api/ai/synthesize"
-    ):
-        response.headers["Cache-Control"] = "private, max-age=30"
+    if request.method == "GET" and response.status_code == 200:
+        if request.url.path == "/api/relationship-defaults":
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        else:
+            response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -94,14 +92,30 @@ def export_data(_user: User = Depends(require_user)):
 
 @app.delete("/api/data", status_code=204)
 def delete_all_data(_user: User = Depends(require_user)):
+    from sqlalchemy import delete, select
+
     from app.database import SessionLocal
-    from app.models import AuthSession, Interaction, Person, Setting, Tag, User
+    from app.models import Interaction, Person, Setting, Tag
 
     db = SessionLocal()
     try:
-        for model in (Interaction, Person, Tag, Setting, AuthSession, User):
-            for row in db.query(model).all():
-                db.delete(row)
+        uid = _user.id
+        for row in db.query(Interaction).filter(Interaction.user_id == uid).all():
+            db.delete(row)
+        for row in db.query(Person).filter(Person.user_id == uid).all():
+            db.delete(row)
+        db.flush()
+        db.execute(
+            delete(Setting)
+            .where(Setting.key.like(f"{uid}:%"))
+            .execution_options(synchronize_session=False)
+        )
+        unused_tag_ids = select(Tag.id).where(~Tag.interactions.any())
+        db.execute(
+            delete(Tag)
+            .where(Tag.id.in_(unused_tag_ids))
+            .execution_options(synchronize_session=False)
+        )
         db.commit()
     finally:
         db.close()

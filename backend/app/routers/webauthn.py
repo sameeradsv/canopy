@@ -11,15 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-import webauthn
-from webauthn.helpers import options_to_json
-from webauthn.helpers.cose import COSEAlgorithmIdentifier
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    ResidentKeyRequirement,
-    UserVerificationRequirement,
-)
-
 from app.auth_utils import create_session
 from app.database import get_db
 from app.deps.auth import require_user
@@ -31,6 +22,31 @@ RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost")
 RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "canopy")
 ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:3000").rstrip("/")
 _TTL = 120
+
+
+def _webauthn_libs():
+    try:
+        import webauthn
+        from webauthn.helpers import options_to_json
+        from webauthn.helpers.cose import COSEAlgorithmIdentifier
+        from webauthn.helpers.structs import (
+            AuthenticatorSelectionCriteria,
+            ResidentKeyRequirement,
+            UserVerificationRequirement,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Passkey support is not available in this runtime",
+        ) from exc
+    return {
+        "webauthn": webauthn,
+        "options_to_json": options_to_json,
+        "COSEAlgorithmIdentifier": COSEAlgorithmIdentifier,
+        "AuthenticatorSelectionCriteria": AuthenticatorSelectionCriteria,
+        "ResidentKeyRequirement": ResidentKeyRequirement,
+        "UserVerificationRequirement": UserVerificationRequirement,
+    }
 
 
 def _b64u(data: bytes) -> str:
@@ -81,23 +97,24 @@ class _AuthComplete(BaseModel):
 
 @router.post("/register/begin")
 def register_begin(user: User = Depends(require_user), db: Session = Depends(get_db)):
-    opts = webauthn.generate_registration_options(
+    libs = _webauthn_libs()
+    opts = libs["webauthn"].generate_registration_options(
         rp_id=RP_ID,
         rp_name=RP_NAME,
         user_id=str(user.id).encode(),
         user_name=user.username,
         user_display_name=user.username,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.PREFERRED,
+        authenticator_selection=libs["AuthenticatorSelectionCriteria"](
+            resident_key=libs["ResidentKeyRequirement"].PREFERRED,
+            user_verification=libs["UserVerificationRequirement"].PREFERRED,
         ),
         supported_pub_key_algs=[
-            COSEAlgorithmIdentifier.ECDSA_SHA_256,
-            COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
+            libs["COSEAlgorithmIdentifier"].ECDSA_SHA_256,
+            libs["COSEAlgorithmIdentifier"].RSASSA_PKCS1_v1_5_SHA_256,
         ],
     )
     cid = _store(db, opts.challenge, user_id=user.id)
-    return {"challenge_id": cid, "options": json.loads(options_to_json(opts))}
+    return {"challenge_id": cid, "options": json.loads(libs["options_to_json"](opts))}
 
 
 @router.post("/register/complete")
@@ -106,9 +123,10 @@ def register_complete(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
+    libs = _webauthn_libs()
     challenge = _pop(db, body.challenge_id)
     try:
-        v = webauthn.verify_registration_response(
+        v = libs["webauthn"].verify_registration_response(
             credential=body.credential,
             expected_challenge=challenge,
             expected_rp_id=RP_ID,
@@ -136,23 +154,25 @@ def register_complete(
 
 @router.post("/login/begin")
 def login_begin(db: Session = Depends(get_db)):
-    opts = webauthn.generate_authentication_options(
+    libs = _webauthn_libs()
+    opts = libs["webauthn"].generate_authentication_options(
         rp_id=RP_ID,
-        user_verification=UserVerificationRequirement.PREFERRED,
+        user_verification=libs["UserVerificationRequirement"].PREFERRED,
     )
     cid = _store(db, opts.challenge)
-    return {"challenge_id": cid, "options": json.loads(options_to_json(opts))}
+    return {"challenge_id": cid, "options": json.loads(libs["options_to_json"](opts))}
 
 
 @router.post("/login/complete")
 def login_complete(body: _AuthComplete, db: Session = Depends(get_db)):
+    libs = _webauthn_libs()
     challenge = _pop(db, body.challenge_id)
     cred_id = body.credential.get("id", "")
     cred = db.get(WebAuthnCredential, cred_id)
     if not cred:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Passkey not recognised")
     try:
-        v = webauthn.verify_authentication_response(
+        v = libs["webauthn"].verify_authentication_response(
             credential=body.credential,
             expected_challenge=challenge,
             expected_rp_id=RP_ID,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, type Person } from "@/lib/api";
 import { toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 import { useVoiceInput } from "@/lib/use-voice-input";
@@ -105,8 +105,8 @@ export default function CapturePage() {
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [reflectionAnswers, setReflectionAnswers] = useState<Record<string, string>>({});
-  const [suggestedPeople, setSuggestedPeople] = useState<{ id: number; name: string }[]>([]);
-  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [rawSuggestedPeople, setRawSuggestedPeople] = useState<{ id: number; name: string }[]>([]);
+  const [rawSuggestedTags, setRawSuggestedTags] = useState<string[]>([]);
 
   useEffect(() => {
     api.people().then(setPeople).catch(() => setPeople([]));
@@ -115,32 +115,37 @@ export default function CapturePage() {
   useEffect(() => {
     const text = observation.trim();
     if (text.length < 8) {
-      setSuggestedPeople([]);
-      setSuggestedTags([]);
+      setRawSuggestedPeople([]);
+      setRawSuggestedTags([]);
       return;
     }
     const timer = setTimeout(() => {
       api
         .captureSuggestions(text, context.trim())
         .then((r) => {
-          setSuggestedPeople(
-            r.suggested_participants.filter((p) => !participantIds.includes(p.id))
-          );
-          const existing = tagsInput
-            .split(",")
-            .map((t) => t.trim().toLowerCase())
-            .filter(Boolean);
-          setSuggestedTags(
-            r.suggested_tags.filter((t) => !existing.includes(t.toLowerCase()))
-          );
+          setRawSuggestedPeople(r.suggested_participants);
+          setRawSuggestedTags(r.suggested_tags);
         })
         .catch(() => {
-          setSuggestedPeople([]);
-          setSuggestedTags([]);
+          setRawSuggestedPeople([]);
+          setRawSuggestedTags([]);
         });
     }, 400);
     return () => clearTimeout(timer);
-  }, [observation, context, participantIds, tagsInput]);
+  }, [observation, context]);
+
+  const existingTags = useMemo(
+    () => tagsInput.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
+    [tagsInput],
+  );
+  const suggestedPeople = useMemo(
+    () => rawSuggestedPeople.filter((p) => !participantIds.includes(p.id)),
+    [rawSuggestedPeople, participantIds],
+  );
+  const suggestedTags = useMemo(
+    () => rawSuggestedTags.filter((t) => !existingTags.includes(t.toLowerCase())),
+    [rawSuggestedTags, existingTags],
+  );
 
   function toggleParticipant(id: number) {
     setParticipantIds((prev) =>
@@ -153,7 +158,6 @@ export default function CapturePage() {
     if (!parts.some((t) => t.toLowerCase() === tag.toLowerCase())) {
       setTagsInput(parts.length ? `${parts.join(", ")}, ${tag}` : tag);
     }
-    setSuggestedTags((prev) => prev.filter((t) => t !== tag));
   }
 
   async function handleClassify() {

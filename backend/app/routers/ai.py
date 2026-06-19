@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -41,8 +42,9 @@ def classify(
         raise HTTPException(503, "AI classification is not configured (GROQ_API_KEY missing)")
 
     person_notes: list[tuple[str, str]] = []
+    uid = user.id if user else None
     for pid in data.participant_ids:
-        p = db.get(Person, pid)
+        p = db.scalar(select(Person).where(Person.id == pid, Person.user_id == uid))
         if p:
             person_notes.append((p.name, p.notes or ""))
 

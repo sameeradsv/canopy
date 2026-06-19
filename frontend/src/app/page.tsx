@@ -109,7 +109,7 @@ export default function HomePage() {
             <StatCard label="Interactions" value={summary.total_interactions} />
             <StatCard label="People" value={summary.total_people} />
             <StatCard label="Tags" value={summary.total_tags} />
-            <StatCard label="Recent (7d)" value={summary.recent_interactions.length} />
+            <StatCard label="Latest shown" value={summary.recent_interactions.length} />
           </div>
 
           <div className="card" style={{ padding: "14px 18px", marginBottom: "var(--pad-6)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>

@@ -11,20 +11,16 @@ async function fetchExternal(
   envUrl: string | undefined,
   path: string,
   token: string,
-): Promise<EnergyTimeline | null> {
-  if (typeof window === "undefined") return null;
+): Promise<EnergyTimeline> {
+  if (typeof window === "undefined") throw new Error("Browser unavailable");
   const baseUrl = envUrl?.trim();
-  if (!baseUrl) return null;
-  if (!token) return null;
-  try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
+  if (!baseUrl) throw new Error("API URL not configured");
+  if (!token) throw new Error("Authentication token missing");
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 // ── Chart ─────────────────────────────────────────────────────────────────
@@ -355,7 +351,7 @@ export default function EnergyPage() {
     } else {
       fetchExternal(circuitUrl, `/api/energy/timeline?date=${date}`, crossAppToken)
         .then((t) => setCircuit({ timeline: t, state: "done" }))
-        .catch(() => setCircuit({ timeline: null, state: "done" }));
+        .catch(() => setCircuit({ timeline: null, state: "done", unavailable: "error" }));
     }
 
     const chefUrl = process.env.NEXT_PUBLIC_CHEF_API_URL;
@@ -366,7 +362,7 @@ export default function EnergyPage() {
     } else {
       fetchExternal(chefUrl, `/energy/timeline?date=${date}`, crossAppToken)
         .then((t) => setChef({ timeline: t, state: "done" }))
-        .catch(() => setChef({ timeline: null, state: "done" }));
+        .catch(() => setChef({ timeline: null, state: "done", unavailable: "error" }));
     }
   }, [date]);
 

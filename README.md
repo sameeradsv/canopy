@@ -12,9 +12,9 @@ Local-first contextual memory — preserve what you notice, who you interact wit
 - **Search** — keyword search across interactions and people
 - **Dashboard** — counts and recent activity summary
 
-Data stays on your machine (SQLite by default). Export (`GET /api/export`) and delete-all (`DELETE /api/data`) endpoints are available on the API for backup and reset; both require a valid Bearer token.
+Data stays on your machine (SQLite by default). Export (`GET /api/export`) and clear-my-data (`DELETE /api/data`) endpoints are available on the API for backup and reset; both require a valid Bearer token. `DELETE /api/data` removes only the authenticated user's people, interactions, namespaced settings, and now-unused tags; it does not delete other users or the current login account/session.
 
-Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Enable or check status in **Settings → Security** after first login.
+Auth supports username + password and **WebAuthn passkey / biometric sign-in** (fingerprint / Face ID). Enable or check status in **Settings → Security** after first login. Passkey support is loaded only when passkey endpoints are called, so normal API startup is not blocked by optional native WebAuthn runtime dependencies.
 
 ## Run locally
 
@@ -27,6 +27,8 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 API: http://127.0.0.1:8000 — health check at `/api/health`.
+
+On Windows/Python environments that do not ship system timezone data, `tzdata` from `backend/requirements.txt` is required for `zoneinfo.ZoneInfo("Asia/Kolkata")`.
 
 ### Frontend
 

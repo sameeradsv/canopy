@@ -6,12 +6,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import Base, engine, init_db
+from app.limiter import limiter
 from app.main import app
 
 
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.drop_all(bind=engine)
+    limiter._storage.reset()
     init_db()
     yield
     Base.metadata.drop_all(bind=engine)
@@ -200,6 +202,100 @@ def test_user_isolation(client):
     alice_summary = client.get("/api/summary", headers=auth_a).json()
     assert alice_summary["total_interactions"] == 1
     assert alice_summary["total_people"] == 1
+
+
+def test_interaction_rejects_foreign_participant(client):
+    token_a = client.post(
+        "/api/auth/register", json={"username": "owner-a", "password": "alicepass1"}
+    ).json()["token"]
+    token_b = client.post(
+        "/api/auth/register", json={"username": "owner-b", "password": "bobpass123"}
+    ).json()["token"]
+    auth_a = {"Authorization": f"Bearer {token_a}"}
+    auth_b = {"Authorization": f"Bearer {token_b}"}
+
+    bob_person = client.post("/api/people", json={"name": "Bob Contact"}, headers=auth_b).json()
+
+    r = client.post(
+        "/api/interactions",
+        json={"observation": "Should not attach Bob's person", "participant_ids": [bob_person["id"]]},
+        headers=auth_a,
+    )
+    assert r.status_code == 404
+    assert client.get("/api/interactions", headers=auth_a).json() == []
+
+
+def test_interaction_patch_can_clear_nullable_fields(client):
+    person = client.post("/api/people", json={"name": "Pat"}).json()
+    interaction = client.post(
+        "/api/interactions",
+        json={
+            "observation": "Has nullable fields",
+            "context": "Office",
+            "outcome": "Follow up",
+            "energy": 0.8,
+            "reflection": {"felt_good": "Yes"},
+            "participant_ids": [person["id"]],
+        },
+    ).json()
+
+    patched = client.patch(
+        f"/api/interactions/{interaction['id']}",
+        json={"context": None, "outcome": None, "energy": None, "reflection": None},
+    ).json()
+
+    assert patched["context"] is None
+    assert patched["outcome"] is None
+    assert patched["energy"] is None
+    assert patched["reflection"] is None
+
+
+def test_interactions_invalid_date_returns_400(client):
+    r = client.get("/api/interactions", params={"from_date": "2026-99-99"})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "from_date must be YYYY-MM-DD"
+
+
+def test_delete_data_is_scoped_to_current_user(client):
+    token_a = client.post(
+        "/api/auth/register", json={"username": "clear-a", "password": "alicepass1"}
+    ).json()["token"]
+    token_b = client.post(
+        "/api/auth/register", json={"username": "clear-b", "password": "bobpass123"}
+    ).json()["token"]
+    auth_a = {"Authorization": f"Bearer {token_a}"}
+    auth_b = {"Authorization": f"Bearer {token_b}"}
+
+    alice_person = client.post("/api/people", json={"name": "Alice Contact"}, headers=auth_a).json()
+    bob_person = client.post("/api/people", json={"name": "Bob Contact"}, headers=auth_b).json()
+    client.post(
+        "/api/interactions",
+        json={"observation": "Alice private", "participant_ids": [alice_person["id"]], "tag_names": ["alice-only"]},
+        headers=auth_a,
+    )
+    client.post(
+        "/api/interactions",
+        json={"observation": "Bob private", "participant_ids": [bob_person["id"]], "tag_names": ["bob-only"]},
+        headers=auth_b,
+    )
+
+    assert client.delete("/api/data", headers=auth_a).status_code == 204
+
+    alice_summary = client.get("/api/summary", headers=auth_a).json()
+    bob_summary = client.get("/api/summary", headers=auth_b).json()
+    assert alice_summary["total_interactions"] == 0
+    assert alice_summary["total_people"] == 0
+    assert bob_summary["total_interactions"] == 1
+    assert bob_summary["total_people"] == 1
+    assert client.get("/api/auth/me", headers=auth_a).status_code == 200
+
+
+def test_dynamic_gets_are_not_browser_cached(client):
+    r = client.get("/api/summary")
+    assert r.headers["cache-control"] == "no-store"
+
+    defaults = client.get("/api/relationship-defaults")
+    assert defaults.headers["cache-control"] == "public, max-age=86400"
 
 
 def test_interactions_pagination(client):

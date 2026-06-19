@@ -44,6 +44,11 @@ Recommended:
 - end-to-end encrypted sync
 - self-hosting support
 
+Current implementation notes:
+- Authenticated people and interactions are scoped by `user_id`; interaction participant links must point to people owned by the current user.
+- `DELETE /api/data` clears only the authenticated user's Canopy data and leaves other users, the account row, and the current session intact.
+- Dynamic user-data GET responses are marked `Cache-Control: no-store` to avoid stale browser caches after writes.
+
 ---
 
 # Ethical Boundaries

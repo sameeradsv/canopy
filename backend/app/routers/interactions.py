@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date as date_cls, datetime, timezone
 from typing import Optional, Union
 from zoneinfo import ZoneInfo
 
@@ -30,11 +30,17 @@ def _parse_ist_date_range(
 ) -> tuple[Optional[datetime], Optional[datetime]]:
     start = end = None
     if from_date:
-        y, m, d = map(int, from_date.split("-"))
-        start = datetime(y, m, d, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
+        try:
+            parsed = date_cls.fromisoformat(from_date)
+        except ValueError as exc:
+            raise HTTPException(400, "from_date must be YYYY-MM-DD") from exc
+        start = datetime(parsed.year, parsed.month, parsed.day, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
     if to_date:
-        y, m, d = map(int, to_date.split("-"))
-        end = datetime(y, m, d, 23, 59, 59, 999999, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
+        try:
+            parsed = date_cls.fromisoformat(to_date)
+        except ValueError as exc:
+            raise HTTPException(400, "to_date must be YYYY-MM-DD") from exc
+        end = datetime(parsed.year, parsed.month, parsed.day, 23, 59, 59, 999999, tzinfo=_IST).astimezone(timezone.utc).replace(tzinfo=None)
     return start, end
 
 
@@ -106,7 +112,10 @@ def post_interaction(
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(optional_auth_user),
 ):
-    interaction = create_interaction(db, data, user_id=user.id if user else None)
+    try:
+        interaction = create_interaction(db, data, user_id=user.id if user else None)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
     return _to_read(interaction)
 
 
@@ -135,7 +144,10 @@ def patch_interaction(
     uid = user.id if user else None
     if not interaction or interaction.user_id != uid:
         raise HTTPException(404, "Interaction not found")
-    interaction = update_interaction(db, interaction, data)
+    try:
+        interaction = update_interaction(db, interaction, data)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
     return _to_read(interaction)
 
 
