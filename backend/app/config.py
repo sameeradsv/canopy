@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     cortex_auth_url: str = ""
     # Optional: Groq API key for AI classification
     groq_api_key: str = ""
+    # Run schema creation/migrations during API startup. Keep enabled for local
+    # dev and Render; disable on Vercel after the database has been initialized.
+    init_db_on_startup: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:

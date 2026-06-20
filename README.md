@@ -47,25 +47,43 @@ App: http://localhost:3000 — requests to `/api/*` are proxied to the backend (
 | Piece | URL |
 |-------|-----|
 | UI | https://sameeradsv.github.io/canopy/ |
-| API | Your Render service URL (repo variable `CANOPY_API_URL`, e.g. `https://canopy-api-xxxx.onrender.com`) |
+| API | Your Vercel API URL (repo variable `CANOPY_API_URL`, e.g. `https://canopy-api.vercel.app`) |
 
-Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): triggers a **Render** deploy for the API, then builds the Next.js UI with `NEXT_PUBLIC_API_URL` and publishes to **GitHub Pages**.
+Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): Vercel's Git integration deploys the API from `backend/`, then GitHub Actions health-checks `CANOPY_API_URL`, builds the Next.js UI with `NEXT_PUBLIC_API_URL`, and publishes to **GitHub Pages**.
 
-#### Render (recommended)
+#### Vercel API + Neon database (recommended free-tier compute)
 
-Render’s free plan allows **only one managed PostgreSQL database per account**. Chef or Circuit may already use that slot, so Canopy’s [`render.yaml`](render.yaml) deploys **only the web service** — you supply `DATABASE_URL` yourself (e.g. [Neon](https://neon.tech) free PostgreSQL).
+Canopy's API can run as a Vercel Python Function from the `backend/` directory. Keep data in PostgreSQL via `DATABASE_URL` (Neon is the expected free-tier database); do not use SQLite for Vercel because function filesystems are ephemeral.
+
+The Vercel entrypoint is [`backend/app/index.py`](backend/app/index.py). [`backend/vercel.json`](backend/vercel.json) routes all requests to the FastAPI app and excludes tests/cache files from the function bundle. Set `INIT_DB_ON_STARTUP=false` on Vercel after the target database schema already exists; this avoids running `create_all` and migration checks on every cold start.
 
 **One-time setup**
 
-1. **GitHub Pages:** Repo **Settings → Pages → Source** → **GitHub Actions**.
+1. **GitHub Pages:** Repo **Settings -> Pages -> Source** -> **GitHub Actions**.
 2. **Database:** Create a PostgreSQL instance (Neon, or a second logical database on an existing host). Copy the connection string.
-3. **Render:** [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → connect this repo → apply `render.yaml`. On the `canopy-api` service, set **`DATABASE_URL`** to your connection string (Blueprint leaves it unset via `sync: false`).
-4. **GitHub secret:** `RENDER_DEPLOY_HOOK` — from the Render service **Settings → Deploy Hook**.
-5. Set repo variable **`CANOPY_API_URL`** to your Render service URL (Dashboard → service → URL). The workflow health-checks this before building; the default `canopy-api.onrender.com` is only a placeholder and is not a live host.
+3. **Vercel:** Import this GitHub repo as a new project. Set **Root Directory** to `backend`. Vercel reads Python `3.12` from `backend/.python-version`.
+4. **Vercel environment variables:**
+   - `DATABASE_URL` = Neon/PostgreSQL connection string
+   - `AUTH_REQUIRED` = `true`
+   - `CORS_ORIGINS` = `https://sameeradsv.github.io`
+   - `INIT_DB_ON_STARTUP` = `false` once the schema exists
+   - `GROQ_API_KEY` = optional, enables AI classification/chat
+   - `CORTEX_AUTH_URL` = Cortex auth server URL, if using shared Cortex auth
+5. **Schema initialization:** if this is a new database, initialize it once before disabling startup schema work:
 
-On first visit from the hosted UI, open **Account** and register — production API has `AUTH_REQUIRED=true`.
+```bash
+cd backend
+$env:DATABASE_URL="postgresql://..."
+python -m app.database
+```
 
-Without `RENDER_DEPLOY_HOOK`, only the UI is deployed on push; trigger Render deploys manually or from the dashboard.
+For an existing Neon database already used by Render, leave the data in place and set `INIT_DB_ON_STARTUP=false` immediately.
+
+6. Set repo variable **`CANOPY_API_URL`** to your Vercel API URL. The workflow health-checks this before building the GitHub Pages UI.
+
+On first visit from the hosted UI, open **Account** and register - production API has `AUTH_REQUIRED=true`.
+
+`render.yaml` remains in the repo only as a rollback/reference path. The recommended compute target is Vercel.
 
 ### Docker Compose (optional)
 

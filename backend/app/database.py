@@ -182,3 +182,8 @@ def init_db() -> None:
         if not _migration_done(name):
             fn()
             _mark_done(name)
+
+
+if __name__ == "__main__":
+    init_db()
+    print("Database schema is ready.")

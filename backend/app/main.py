@@ -21,7 +21,8 @@ from app.schemas import RelationshipDefaults
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    if settings.init_db_on_startup:
+        init_db()
     yield
 
 
