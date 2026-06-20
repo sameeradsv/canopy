@@ -55,7 +55,7 @@ Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.ym
 
 Canopy's API can run as a Vercel Python Function from the `backend/` directory. Keep data in PostgreSQL via `DATABASE_URL` (Neon is the expected free-tier database); do not use SQLite for Vercel because function filesystems are ephemeral.
 
-The Vercel entrypoint is [`backend/app/index.py`](backend/app/index.py). [`backend/vercel.json`](backend/vercel.json) routes all requests to the FastAPI app and excludes tests/cache files from the function bundle. Set `INIT_DB_ON_STARTUP=false` on Vercel after the target database schema already exists; this avoids running `create_all` and migration checks on every cold start.
+The Vercel entrypoint is [`backend/api/index.py`](backend/api/index.py). [`backend/vercel.json`](backend/vercel.json) routes all requests to the FastAPI app and excludes tests/cache files from the function bundle. Set `INIT_DB_ON_STARTUP=false` on Vercel after the target database schema already exists; this avoids running `create_all` and migration checks on every cold start.
 
 **One-time setup**
 
