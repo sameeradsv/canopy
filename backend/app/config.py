@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Optional: Groq API key for AI classification
     groq_api_key: str = ""
     # Run schema creation/migrations during API startup. Keep enabled for local
-    # dev and Render; disable on Vercel after the database has been initialized.
+    # dev; disable on Vercel after the database has been initialized.
     init_db_on_startup: bool = True
 
     @property

@@ -80,13 +80,11 @@ $env:DATABASE_URL="postgresql://..."
 python -m app.database
 ```
 
-For an existing Neon database already used by Render, leave the data in place and set `INIT_DB_ON_STARTUP=false` immediately.
+For an existing Neon database already used in production, leave the data in place and set `INIT_DB_ON_STARTUP=false` immediately.
 
 6. Set repo variable **`CANOPY_API_URL`** to your Vercel API URL. The workflow health-checks this before building the GitHub Pages UI.
 
 On first visit from the hosted UI, open **Account** and register - production API has `AUTH_REQUIRED=true`.
-
-`render.yaml` remains in the repo only as a rollback/reference path. The recommended compute target is Vercel.
 
 ### Docker Compose (optional)
 

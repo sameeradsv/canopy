@@ -66,7 +66,7 @@ Responsibilities:
 Stack:
 - Python / FastAPI
 - SQLAlchemy 2.0 (sync sessions)
-- Lightweight migrations via `Base.metadata.create_all` plus additive helpers in `database.py`. Local/Render startup runs this by default; Vercel should set `INIT_DB_ON_STARTUP=false` after the database is initialized to reduce cold-start work.
+- Lightweight migrations via `Base.metadata.create_all` plus additive helpers in `database.py`. Local startup runs this by default; Vercel should set `INIT_DB_ON_STARTUP=false` after the database is initialized to reduce cold-start work.
 
 Responsibilities:
 - ingestion
@@ -83,7 +83,7 @@ Responsibilities:
 
 Default: **SQLite** (`data/canopy.db`) — zero-config for local and single-user hosted use.
 
-Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connection string (Neon, Render, self-hosted). Vercel deployments use Neon/PostgreSQL and must not rely on SQLite persistence. Docker Compose brings up pgvector-enabled Postgres for local production-shaped dev.
+Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connection string (Neon, Supabase, self-hosted, etc.). Vercel deployments use Neon/PostgreSQL and must not rely on SQLite persistence. Docker Compose brings up pgvector-enabled Postgres for local production-shaped dev.
 
 Stores:
 - entities (Person, Tag)

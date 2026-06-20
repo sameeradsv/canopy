@@ -239,7 +239,7 @@ function isNetworkError(err: unknown): boolean {
   return err instanceof Error && err.message.toLowerCase().includes("network error");
 }
 
-/** Poll /api/health until it responds or maxMs elapses (handles Render cold-start). */
+/** Poll /api/health until it responds or maxMs elapses (handles serverless cold starts). */
 async function waitForBackend(maxMs: number): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
