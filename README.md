@@ -69,6 +69,9 @@ The Vercel entrypoint is [`backend/app/index.py`](backend/app/index.py). [`backe
    - `INIT_DB_ON_STARTUP` = `false` once the schema exists
    - `GROQ_API_KEY` = optional, enables AI classification/chat
    - `CORTEX_AUTH_URL` = Cortex auth server URL, if using shared Cortex auth
+   - `WEBAUTHN_RP_ID` = `sameeradsv.github.io` when using the GitHub Pages UI
+   - `WEBAUTHN_ORIGIN` = `https://sameeradsv.github.io` when using the GitHub Pages UI
+   - `WEBAUTHN_RP_NAME` = `canopy`
 5. **Schema initialization:** if this is a new database, initialize it once before disabling startup schema work:
 
 ```bash
