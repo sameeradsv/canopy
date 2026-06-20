@@ -66,7 +66,7 @@ Responsibilities:
 Stack:
 - Python / FastAPI
 - SQLAlchemy 2.0 (sync sessions)
-- No migrations — schema via `Base.metadata.create_all` at startup; additive column changes applied by `_migrate_sqlite()` in `database.py`
+- Lightweight migrations via `Base.metadata.create_all` plus additive helpers in `database.py`. Local/Render startup runs this by default; Vercel should set `INIT_DB_ON_STARTUP=false` after the database is initialized to reduce cold-start work.
 
 Responsibilities:
 - ingestion
@@ -83,7 +83,7 @@ Responsibilities:
 
 Default: **SQLite** (`data/canopy.db`) — zero-config for local and single-user hosted use.
 
-Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connection string (Neon, Render, self-hosted). Docker Compose brings up pgvector-enabled Postgres for local production-shaped dev.
+Production: **PostgreSQL** — set `DATABASE_URL` env var to any Postgres connection string (Neon, Render, self-hosted). Vercel deployments use Neon/PostgreSQL and must not rely on SQLite persistence. Docker Compose brings up pgvector-enabled Postgres for local production-shaped dev.
 
 Stores:
 - entities (Person, Tag)
@@ -124,7 +124,7 @@ Required:
 - Register/login issues a 30-day bearer token stored client-side in `localStorage`.
 - **WebAuthn passkey / biometric sign-in**: `POST /api/auth/webauthn/register/begin|complete` (requires Bearer token) and `/login/begin|complete` (public). Credentials stored in `webauthn_credentials` table (public key + sign_count); challenges in `webauthn_challenges` (2-min TTL, single-use). `PasskeyBanner` post-login prompt; `usePasskey` hook in frontend. WebAuthn's native dependency stack is imported lazily inside these route handlers so ordinary API startup and non-passkey routes do not depend on local passkey runtime health.
 - `optional_auth_user` dependency validates `Authorization: Bearer …` when present; most write endpoints use this.
-- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production — already set in `render.yaml`.
+- `AUTH_REQUIRED=false` by default (local dev). Set `AUTH_REQUIRED=true` in production.
 - Cross-device sync works by logging in with the same credentials on any device pointing at the same backend.
 
 ## Data isolation and caching
