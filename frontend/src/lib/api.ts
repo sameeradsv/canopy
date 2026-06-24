@@ -23,6 +23,7 @@ export interface Interaction {
   outcome: string | null;
   confidence: number;
   energy: number | null;
+  duration_minutes: number | null;
   reflection: Record<string, string> | null;
   created_at: string;
   updated_at: string;
@@ -62,6 +63,7 @@ export interface EnergyEvent {
   delta?: number;
   /** Cumulative energy balance after this event (0–1) */
   running_energy?: number;
+  duration_minutes?: number | null;
   label: "draining" | "neutral" | "energising";
   note: string;
   source: "canopy" | "circuit" | "chef";
@@ -85,6 +87,7 @@ export interface InteractionCreate {
   outcome?: string | null;
   confidence?: number;
   energy?: number | null;
+  duration_minutes?: number | null;
   reflection?: Record<string, string> | null;
   participant_ids?: number[];
   tag_names?: string[];
@@ -97,6 +100,7 @@ export interface InteractionUpdate {
   context?: string | null;
   confidence?: number;
   energy?: number | null;
+  duration_minutes?: number | null;
   reflection?: Record<string, string> | null;
   occurred_at?: string;
   tag_names?: string[];

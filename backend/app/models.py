@@ -66,6 +66,7 @@ class Interaction(Base):
     outcome: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.7)
     energy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reflection_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     updated_at: Mapped[datetime] = mapped_column(

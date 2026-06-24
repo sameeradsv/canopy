@@ -27,6 +27,14 @@ function energyColor(e: number | null | undefined): string {
   return "var(--fg-mute)";
 }
 
+function formatDuration(minutes: number | null | undefined): string | null {
+  if (!minutes) return null;
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem ? `${hours}h ${rem}m` : `${hours}h`;
+}
+
 export function InteractionCard({
   ix,
   showDate = false,
@@ -43,6 +51,7 @@ export function InteractionCard({
 }) {
   const time = fmtTimeIST(ix.occurred_at);
   const date = fmtDateIST(ix.occurred_at, { month: "short", day: "numeric" });
+  const duration = formatDuration(ix.duration_minutes);
 
   return (
     <div className="tl-item">
@@ -81,8 +90,13 @@ export function InteractionCard({
                   <b key={p.id}>{p.name}</b>
                 ))}
                 <span style={{ fontSize: 11, color: "var(--fg-faint)" }}>
-                  · {Math.round(ix.confidence * 100)}% confidence
+                  · {Math.round(ix.confidence * 100)}% confidence{duration ? ` · ${duration}` : ""}
                 </span>
+              </div>
+            )}
+            {ix.participants.length === 0 && duration && (
+              <div style={{ fontSize: 11, color: "var(--fg-faint)", fontFamily: "var(--font-mono)", marginBottom: 4 }}>
+                {duration}
               </div>
             )}
             <div className="note">{ix.observation}</div>

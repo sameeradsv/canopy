@@ -50,6 +50,7 @@ class InteractionBase(BaseModel):
     outcome: Optional[str] = None
     confidence: float = Field(default=0.7, ge=0.0, le=1.0)
     energy: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    duration_minutes: Optional[int] = Field(default=30, ge=1, le=1440)
     reflection: Optional[Dict] = None
     participant_ids: list[int] = Field(default_factory=list)
     tag_names: list[str] = Field(default_factory=list)
@@ -67,6 +68,7 @@ class InteractionUpdate(BaseModel):
     outcome: Optional[str] = None
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
     energy: Optional[float] = Field(None, ge=0.0, le=1.0)
+    duration_minutes: Optional[int] = Field(None, ge=1, le=1440)
     reflection: Optional[Dict] = None
     participant_ids: Optional[list[int]] = None
     tag_names: Optional[list[str]] = None
@@ -81,6 +83,7 @@ class InteractionRead(BaseModel):
     outcome: Optional[str]
     confidence: float
     energy: Optional[float] = None
+    duration_minutes: Optional[int] = None
     reflection: Optional[Dict] = None
     created_at: datetime
     updated_at: datetime

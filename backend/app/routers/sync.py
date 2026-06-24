@@ -26,6 +26,16 @@ _DRAIN_TAGS    = {"stress", "conflict", "difficult", "disagreement", "argument",
 _RESTORE_TAGS  = {"celebration", "win", "support", "joy", "gratitude", "fun", "energizing"}
 
 
+def _duration_multiplier(duration_minutes: Optional[int]) -> float:
+    """
+    Scale interaction impact from a 30-minute baseline.
+    Longer interactions compound impact, capped so a single log cannot dominate.
+    """
+    if not duration_minutes or duration_minutes <= 30:
+        return 1.0
+    return round(min(3.0, (duration_minutes / 30) ** 0.5), 3)
+
+
 def _interaction_delta(interaction: Interaction) -> float:
     """
     Signed energy delta for an interaction.
@@ -36,6 +46,8 @@ def _interaction_delta(interaction: Interaction) -> float:
     Restore-tagged interactions (support, joy, celebration, etc.) give a
     genuine positive delta instead of merely reducing drain.
     """
+    multiplier = _duration_multiplier(interaction.duration_minutes)
+
     if interaction.energy is not None:
         # Map 0–1 → −0.18 to +0.15 (asymmetric: draining interactions cost more)
         delta = (interaction.energy - 0.5) * 0.33
@@ -49,7 +61,7 @@ def _interaction_delta(interaction: Interaction) -> float:
             else 0.0
         )
         delta = base + confidence_adj + tag_mod
-    return round(max(-0.25, min(0.15, delta)), 3)
+    return round(max(-0.25 * multiplier, min(0.15 * multiplier, delta * multiplier)), 3)
 
 
 def _interaction_drain(interaction: Interaction) -> float:
@@ -111,6 +123,7 @@ def energy_timeline(
             "energy":         energy_compat,
             "delta":          delta,
             "running_energy": running,
+            "duration_minutes": ix.duration_minutes,
             "label":          label,
             "note":           ix.observation[:80],
             "source":         "canopy",
@@ -224,6 +237,8 @@ def _collect_export_payload(db: Session, user_id: Optional[int] = None) -> dict:
                 "observation": i.observation,
                 "outcome": i.outcome,
                 "confidence": i.confidence,
+                "energy": i.energy,
+                "duration_minutes": i.duration_minutes,
                 "participant_ids": [p.id for p in i.participants],
                 "tag_names": [t.name for t in i.tags],
             }
@@ -331,6 +346,8 @@ def encrypted_import(
             observation=obs,
             outcome=i_data.get("outcome"),
             confidence=float(i_data.get("confidence", 0.7)),
+            energy=i_data.get("energy"),
+            duration_minutes=i_data.get("duration_minutes"),
         )
         # Link participants using mapped IDs
         participant_ids = [

@@ -97,6 +97,7 @@ export default function CapturePage() {
   const [selectedKind, setSelectedKind] = useState<string>("meeting");
   const [tagsInput, setTagsInput] = useState("");
   const [occurredAt, setOccurredAt] = useState(nowDatetimeLocal);
+  const [durationMinutes, setDurationMinutes] = useState(30);
   const [energy, setEnergy] = useState(50);
   const voice = useVoiceInput();
   const [classifying, setClassifying] = useState(false);
@@ -193,6 +194,7 @@ export default function CapturePage() {
         context: context.trim() || undefined,
         confidence,
         energy: energy / 100,
+        duration_minutes: durationMinutes,
         participant_ids: participantIds,
         tag_names,
         occurred_at: fromISTDatetimeLocal(occurredAt),
@@ -441,6 +443,23 @@ export default function CapturePage() {
                 type="datetime-local"
                 value={occurredAt}
                 onChange={(e) => setOccurredAt(e.target.value)}
+                className="input"
+                style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}
+              />
+            </div>
+
+            <div className="field">
+              <div className="field-label">
+                Duration
+                <Tip text="How long the interaction lasted. Longer interactions scale the energy impact more." />
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                step={5}
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Math.max(1, Math.min(1440, Number(e.target.value) || 1)))}
                 className="input"
                 style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}
               />

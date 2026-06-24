@@ -83,6 +83,19 @@ def _migrate_sqlite_cortex_user_id() -> None:
             )
 
 
+def _migrate_sqlite_interaction_duration() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        tables = inspect(conn).get_table_names()
+        if "interactions" not in tables:
+            return
+        if "duration_minutes" not in _sqlite_column_names(conn, "interactions"):
+            conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN duration_minutes INTEGER")
+
+
 def _migrate_sqlite() -> None:
     if not settings.database_url.startswith("sqlite"):
         return
@@ -108,6 +121,8 @@ def _migrate_sqlite() -> None:
             ix_cols = _sqlite_column_names(conn, "interactions")
             if "energy" not in ix_cols:
                 conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN energy REAL")
+            if "duration_minutes" not in ix_cols:
+                conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN duration_minutes INTEGER")
             if "reflection_json" not in ix_cols:
                 conn.exec_driver_sql("ALTER TABLE interactions ADD COLUMN reflection_json TEXT")
             if "kind" not in ix_cols:
@@ -137,6 +152,8 @@ def _migrate_postgres() -> None:
             existing_ix = {c["name"] for c in inspector.get_columns("interactions")}
             if "energy" not in existing_ix:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN energy FLOAT"))
+            if "duration_minutes" not in existing_ix:
+                conn.execute(text("ALTER TABLE interactions ADD COLUMN duration_minutes INTEGER"))
             if "reflection_json" not in existing_ix:
                 conn.execute(text("ALTER TABLE interactions ADD COLUMN reflection_json TEXT"))
             if "kind" not in existing_ix:
@@ -164,6 +181,21 @@ def _migrate_postgres() -> None:
             ))
 
 
+def _migrate_postgres_interaction_duration() -> None:
+    if not settings.database_url.startswith(("postgresql", "postgres")):
+        return
+    from sqlalchemy import inspect, text
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        tables = inspector.get_table_names()
+        if "interactions" not in tables:
+            return
+        existing_ix = {c["name"] for c in inspector.get_columns("interactions")}
+        if "duration_minutes" not in existing_ix:
+            conn.execute(text("ALTER TABLE interactions ADD COLUMN duration_minutes INTEGER"))
+
+
 def init_db() -> None:
     from pathlib import Path
 
@@ -178,6 +210,8 @@ def init_db() -> None:
         ("sqlite_schema", _migrate_sqlite),
         ("postgres_schema", _migrate_postgres),
         ("sqlite_cortex_user_id", _migrate_sqlite_cortex_user_id),
+        ("sqlite_interaction_duration", _migrate_sqlite_interaction_duration),
+        ("postgres_interaction_duration", _migrate_postgres_interaction_duration),
     ]:
         if not _migration_done(name):
             fn()

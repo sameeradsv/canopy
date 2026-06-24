@@ -38,11 +38,13 @@ def test_capture_flow(client):
             "observation": "Delayed follow-up under deadline pressure",
             "context": "Sprint planning",
             "confidence": 0.6,
+            "duration_minutes": 45,
             "participant_ids": [person["id"]],
             "tag_names": ["work", "deadline"],
         },
     ).json()
     assert interaction["observation"].startswith("Delayed")
+    assert interaction["duration_minutes"] == 45
     assert len(interaction["tags"]) == 2
 
     search = client.get("/api/search", params={"q": "deadline"}).json()
@@ -234,6 +236,7 @@ def test_interaction_patch_can_clear_nullable_fields(client):
             "context": "Office",
             "outcome": "Follow up",
             "energy": 0.8,
+            "duration_minutes": 25,
             "reflection": {"felt_good": "Yes"},
             "participant_ids": [person["id"]],
         },
@@ -241,13 +244,41 @@ def test_interaction_patch_can_clear_nullable_fields(client):
 
     patched = client.patch(
         f"/api/interactions/{interaction['id']}",
-        json={"context": None, "outcome": None, "energy": None, "reflection": None},
+        json={"context": None, "outcome": None, "energy": None, "duration_minutes": 60, "reflection": None},
     ).json()
 
     assert patched["context"] is None
     assert patched["outcome"] is None
     assert patched["energy"] is None
+    assert patched["duration_minutes"] == 60
     assert patched["reflection"] is None
+
+
+def test_energy_timeline_scales_delta_by_duration(client):
+    token = client.post(
+        "/api/auth/register", json={"username": "duration-user", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    client.post(
+        "/api/interactions",
+        json={"observation": "Short draining interaction", "energy": 0.3, "duration_minutes": 30},
+        headers=auth,
+    )
+    client.post(
+        "/api/interactions",
+        json={"observation": "Long draining interaction", "energy": 0.3, "duration_minutes": 120},
+        headers=auth,
+    )
+
+    events = client.get("/api/sync/energy/timeline", headers=auth).json()["events"]
+    short = next(e for e in events if e["note"].startswith("Short"))
+    long = next(e for e in events if e["note"].startswith("Long"))
+
+    assert short["duration_minutes"] == 30
+    assert long["duration_minutes"] == 120
+    assert long["delta"] < short["delta"]
+    assert abs(long["delta"]) == pytest.approx(abs(short["delta"]) * 2, abs=0.002)
 
 
 def test_interactions_invalid_date_returns_400(client):

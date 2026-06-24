@@ -57,6 +57,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
   const [context, setContext] = useState(ix.context ?? "");
   const [confidence, setConfidence] = useState(ix.confidence);
   const [energy, setEnergy] = useState(ix.energy !== null && ix.energy !== undefined ? Math.round(ix.energy * 100) : 50);
+  const [durationMinutes, setDurationMinutes] = useState(ix.duration_minutes ?? 30);
   const [occurredAt, setOccurredAt] = useState(toDatetimeLocal(ix.occurred_at));
   const [tagsInput, setTagsInput] = useState(ix.tags.map((t) => t.name).join(", "));
   const [participantIds, setParticipantIds] = useState<number[]>(ix.participants.map((p) => p.id));
@@ -94,6 +95,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
         context: context.trim() || null,
         confidence,
         energy: energy / 100,
+        duration_minutes: durationMinutes,
         occurred_at: fromISTDatetimeLocal(occurredAt),
         tag_names: tagsInput.split(",").map((t) => t.trim()).filter(Boolean),
         participant_ids: participantIds,
@@ -143,6 +145,19 @@ function EditForm({ ix, onSave, onCancel, people }: {
           <div className="field-label">Context</div>
           <input type="text" value={context} onChange={(e) => setContext(e.target.value)} className="input" placeholder="Where, setting…" />
         </div>
+      </div>
+      <div className="field">
+        <div className="field-label">Duration</div>
+        <input
+          type="number"
+          min={1}
+          max={1440}
+          step={5}
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(Math.max(1, Math.min(1440, Number(e.target.value) || 1)))}
+          className="input"
+          style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}
+        />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div className="field">

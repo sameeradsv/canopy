@@ -55,6 +55,7 @@ def _to_read(interaction: Interaction) -> InteractionRead:
         outcome=interaction.outcome,
         confidence=interaction.confidence,
         energy=interaction.energy,
+        duration_minutes=interaction.duration_minutes,
         reflection=_json.loads(interaction.reflection_json) if interaction.reflection_json else None,
         created_at=interaction.created_at,
         updated_at=interaction.updated_at,
