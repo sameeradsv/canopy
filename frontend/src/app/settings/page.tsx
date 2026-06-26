@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type ReminderSettings } from "@/lib/api";
 import { usePasskey } from "@/lib/usePasskey";
+import { useNotificationToggle } from "@/lib/use-notifications";
 
 type Theme    = "paper" | "ink";
 type FontMode = "editorial" | "typewriter";
@@ -38,6 +39,12 @@ export default function SettingsPage() {
   const { supported: passkeySupported, registered: passkeyRegistered, registerPasskey } = usePasskey();
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyErr, setPasskeyErr] = useState<string | null>(null);
+  const notifications = useNotificationToggle();
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings | null>(null);
+  const [savingReminders, setSavingReminders] = useState(false);
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
+  const [testingNotification, setTestingNotification] = useState(false);
 
   async function handleEnablePasskey() {
     setPasskeyBusy(true);
@@ -55,6 +62,9 @@ export default function SettingsPage() {
     setTheme((localStorage.getItem("canopy.theme")    ?? "paper")     as Theme);
     setFontMode((localStorage.getItem("canopy.fontMode") ?? "editorial") as FontMode);
     setDensity((localStorage.getItem("canopy.density") ?? "regular")  as Density);
+    api.getReminderSettings()
+      .then(setReminderSettings)
+      .catch(() => undefined);
   }, []);
 
   async function handleClassifyAll() {
@@ -74,6 +84,44 @@ export default function SettingsPage() {
   function onTheme(v: Theme) { setTheme(v); apply("data-theme", v, "canopy.theme"); }
   function onFontMode(v: FontMode) { setFontMode(v); apply("data-fontmode", v, "canopy.fontMode"); }
   function onDensity(v: Density) { setDensity(v); apply("data-density", v, "canopy.density"); }
+
+  function updateReminderTime(key: keyof ReminderSettings["times"], value: string) {
+    setReminderSettings((current) => current ? { ...current, times: { ...current.times, [key]: value } } : current);
+  }
+
+  function updateReminderEnabled(enabled: boolean) {
+    setReminderSettings((current) => current ? { ...current, enabled } : current);
+  }
+
+  async function saveReminderSettings() {
+    if (!reminderSettings) return;
+    setSavingReminders(true);
+    setReminderError(null);
+    setReminderMessage(null);
+    try {
+      const saved = await api.setReminderSettings(reminderSettings);
+      setReminderSettings(saved);
+      setReminderMessage("Reminder settings saved.");
+    } catch (err) {
+      setReminderError(err instanceof Error ? err.message : "Could not save reminder settings");
+    } finally {
+      setSavingReminders(false);
+    }
+  }
+
+  async function sendTestNotification() {
+    setTestingNotification(true);
+    setReminderError(null);
+    setReminderMessage(null);
+    try {
+      const result = await api.sendTestNotification();
+      setReminderMessage(result.delivered > 0 ? "Test notification sent." : "No enabled device subscription was found.");
+    } catch (err) {
+      setReminderError(err instanceof Error ? err.message : "Could not send test notification");
+    } finally {
+      setTestingNotification(false);
+    }
+  }
 
   async function handleExport(e: FormEvent) {
     e.preventDefault();
@@ -214,6 +262,77 @@ export default function SettingsPage() {
           <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg)", border: "0.5px solid var(--line)", borderRadius: "var(--r-3)", fontSize: 12, color: "var(--fg-mute)" }}>
             <p style={{ fontWeight: 600, color: "var(--fg)", marginBottom: 4 }}>Done</p>
             <p>Classified: {classifyAllResult.classified} · Errors: {classifyAllResult.errors} · Total: {classifyAllResult.total}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="kicker" style={{ marginBottom: 24 }}>Reminders</div>
+
+      <div className="card" style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Reflection notifications</div>
+            <p className="faint small" style={{ marginBottom: 0 }}>
+              Three quiet daily nudges for morning, afternoon, and evening capture.
+            </p>
+            {notifications.error && <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{notifications.error}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={notifications.toggle}
+            disabled={!notifications.supported || notifications.busy}
+            className={`btn ${notifications.enabled ? "primary" : ""}`}
+            style={{ minHeight: 44, whiteSpace: "nowrap" }}
+          >
+            {notifications.busy ? "Working..." : notifications.enabled ? "Device enabled" : "Enable device"}
+          </button>
+        </div>
+
+        {!notifications.supported && (
+          <p className="faint small" style={{ marginTop: -8 }}>
+            This browser does not support Web Push notifications.
+          </p>
+        )}
+
+        {reminderSettings && (
+          <div style={{ display: "grid", gap: 12 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={reminderSettings.enabled}
+                onChange={(e) => updateReminderEnabled(e.target.checked)}
+              />
+              Send daily reflection reminders
+            </label>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+              {(["morning", "afternoon", "evening"] as const).map((key) => (
+                <label key={key} style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)", textTransform: "capitalize" }}>
+                  {key}
+                  <input
+                    type="time"
+                    value={reminderSettings.times[key]}
+                    onChange={(e) => updateReminderTime(key, e.target.value)}
+                    className="input"
+                    style={{ minHeight: 44 }}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" onClick={() => void saveReminderSettings()} disabled={savingReminders} className="btn primary" style={{ minHeight: 44 }}>
+                {savingReminders ? "Saving..." : "Save reminders"}
+              </button>
+              <button type="button" onClick={() => void sendTestNotification()} disabled={!notifications.enabled || testingNotification} className="btn" style={{ minHeight: 44 }}>
+                {testingNotification ? "Sending..." : "Send test"}
+              </button>
+            </div>
+            {reminderMessage && <p style={{ color: "var(--accent)", fontSize: 13, margin: 0 }}>{reminderMessage}</p>}
+            {reminderError && <p style={{ color: "var(--danger)", fontSize: 13, margin: 0 }}>{reminderError}</p>}
+            <p className="faint small" style={{ margin: 0 }}>
+              Cron calls still need to be set to these same times in production.
+            </p>
           </div>
         )}
       </div>

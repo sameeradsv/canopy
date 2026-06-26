@@ -164,6 +164,30 @@ export interface Preset {
   use: number;
 }
 
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  device_name?: string;
+  platform?: string;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  times: {
+    morning: string;
+    afternoon: string;
+    evening: string;
+  };
+  types: {
+    morning: boolean;
+    afternoon: boolean;
+    evening: boolean;
+  };
+}
+
 import { getAuthToken, setAuthToken } from "@/lib/auth";
 import { apiHostLabel, getApiBase } from "@/lib/api-base";
 
@@ -434,6 +458,36 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ values }),
     }),
+
+  getVapidPublicKey: () =>
+    request<{ public_key: string }>("/api/notifications/vapid-public-key"),
+
+  subscribeNotifications: (payload: PushSubscriptionPayload) =>
+    request<{ id: number; enabled: boolean }>("/api/notifications/subscribe", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  unsubscribeNotifications: (endpoint: string) =>
+    request<{ status: string }>("/api/notifications/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ endpoint }),
+    }),
+
+  getReminderSettings: () =>
+    request<ReminderSettings>("/api/notifications/reminder-settings"),
+
+  setReminderSettings: (settings: ReminderSettings) =>
+    request<ReminderSettings>("/api/notifications/reminder-settings", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
+
+  sendTestNotification: () =>
+    request<{ subscriptions: number; delivered: number; disabled: number; errors: string[] }>(
+      "/api/notifications/test",
+      { method: "POST" },
+    ),
 
   getPatterns: () =>
     request<{

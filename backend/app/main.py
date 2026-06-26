@@ -14,7 +14,7 @@ from app.constants import RELATIONSHIP_DEFAULTS, RELATIONSHIP_TYPES
 from app.deps.auth import require_user
 from app.limiter import limiter
 from app.models import User
-from app.routers import ai, auth, interactions, people, scores, search, sync
+from app.routers import ai, auth, interactions, notifications, people, scores, search, sync
 from app.routers import settings as settings_router
 from app.routers import webauthn as webauthn_router
 from app.schemas import RelationshipDefaults
@@ -55,6 +55,7 @@ app.include_router(settings_router.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
 app.include_router(webauthn_router.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 
 @app.middleware("http")

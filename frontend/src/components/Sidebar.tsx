@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { useNotificationToggle } from "@/lib/use-notifications";
 
 const NAV = [
   { href: "/",             label: "Dashboard",  section: "today" },
@@ -58,9 +59,26 @@ function GearIcon() {
   );
 }
 
+function BellIcon({ enabled }: { enabled: boolean }) {
+  if (enabled) {
+    return (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 22a2.4 2.4 0 0 0 2.35-2h-4.7A2.4 2.4 0 0 0 12 22Zm7-5v-5.2c0-3.2-1.7-5.9-4.7-6.6V4a2.3 2.3 0 0 0-4.6 0v1.2C6.7 5.9 5 8.6 5 11.8V17l-2 2v1h18v-1l-2-2Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </svg>
+  );
+}
+
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const notifications = useNotificationToggle();
 
   return (
     <>
@@ -108,6 +126,28 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 <Link href="/settings" className="settings-icon-btn" title="Settings">
                   <GearIcon />
                 </Link>
+                <button
+                  type="button"
+                  onClick={notifications.toggle}
+                  className="settings-icon-btn"
+                  disabled={!notifications.supported || notifications.permission === "denied" || notifications.busy}
+                  title={
+                    !notifications.supported
+                      ? "Push notifications are not supported in this browser"
+                      : notifications.permission === "denied"
+                        ? "Notifications blocked in browser settings"
+                        : notifications.enabled
+                          ? "Notifications on - click to disable"
+                          : "Enable reflection reminders"
+                  }
+                  aria-label={notifications.enabled ? "Disable notifications" : "Enable notifications"}
+                  style={{
+                    opacity: !notifications.supported || notifications.permission === "denied" ? 0.45 : 1,
+                    cursor: !notifications.supported || notifications.permission === "denied" || notifications.busy ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <BellIcon enabled={notifications.enabled} />
+                </button>
               </div>
               <button
                 onClick={logout}

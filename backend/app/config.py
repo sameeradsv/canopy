@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     cortex_auth_url: str = ""
     # Optional: Groq API key for AI classification
     groq_api_key: str = ""
+    # Web Push configuration for installed-PWA reminders
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:ops@example.com"
+    reminder_cron_secret: str = ""
     # Run schema creation/migrations during API startup. Keep enabled for local
     # dev; disable on Vercel after the database has been initialized.
     init_db_on_startup: bool = True

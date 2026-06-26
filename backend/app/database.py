@@ -196,6 +196,46 @@ def _migrate_postgres_interaction_duration() -> None:
             conn.execute(text("ALTER TABLE interactions ADD COLUMN duration_minutes INTEGER"))
 
 
+def _migrate_push_subscriptions() -> None:
+    from sqlalchemy import inspect, text
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "push_subscriptions" in inspector.get_table_names():
+            return
+        if settings.database_url.startswith("sqlite"):
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS push_subscriptions ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
+                "endpoint TEXT NOT NULL, "
+                "p256dh TEXT NOT NULL, "
+                "auth TEXT NOT NULL, "
+                "device_name VARCHAR(120), "
+                "platform VARCHAR(80), "
+                "enabled BOOLEAN DEFAULT 1, "
+                "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+                "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+                "UNIQUE(user_id, endpoint))"
+            ))
+        else:
+            conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS push_subscriptions ("
+                "id SERIAL PRIMARY KEY, "
+                "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
+                "endpoint TEXT NOT NULL, "
+                "p256dh TEXT NOT NULL, "
+                "auth TEXT NOT NULL, "
+                "device_name VARCHAR(120), "
+                "platform VARCHAR(80), "
+                "enabled BOOLEAN DEFAULT TRUE, "
+                "created_at TIMESTAMP DEFAULT NOW(), "
+                "updated_at TIMESTAMP DEFAULT NOW(), "
+                "UNIQUE(user_id, endpoint))"
+            ))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_push_subscriptions_user ON push_subscriptions (user_id)"))
+
+
 def init_db() -> None:
     from pathlib import Path
 
@@ -212,6 +252,7 @@ def init_db() -> None:
         ("sqlite_cortex_user_id", _migrate_sqlite_cortex_user_id),
         ("sqlite_interaction_duration", _migrate_sqlite_interaction_duration),
         ("postgres_interaction_duration", _migrate_postgres_interaction_duration),
+        ("push_subscriptions", _migrate_push_subscriptions),
     ]:
         if not _migration_done(name):
             fn()

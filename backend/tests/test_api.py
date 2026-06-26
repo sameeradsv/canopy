@@ -403,3 +403,93 @@ def test_cors_allows_github_pages_without_credentials(client):
     assert r.status_code == 200
     assert r.headers.get("access-control-allow-origin") == "https://sameeradsv.github.io"
     assert r.headers.get("access-control-allow-credentials") not in ("true", "True")
+
+
+def test_notification_subscription_and_settings(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.vapid_public_key", "public-key")
+    token = client.post(
+        "/api/auth/register", json={"username": "notify-user", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    key = client.get("/api/notifications/vapid-public-key").json()
+    assert key["public_key"] == "public-key"
+
+    subscribed = client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/device",
+            "keys": {"p256dh": "p256", "auth": "auth"},
+            "device_name": "Phone",
+            "platform": "iOS",
+        },
+    )
+    assert subscribed.status_code == 201
+    assert subscribed.json()["enabled"] is True
+
+    settings_payload = {
+        "enabled": True,
+        "times": {"morning": "08:30", "afternoon": "14:15", "evening": "20:45"},
+        "types": {"morning": True, "afternoon": True, "evening": False},
+    }
+    saved = client.put("/api/notifications/reminder-settings", headers=auth, json=settings_payload)
+    assert saved.status_code == 200
+    assert saved.json()["times"]["morning"] == "08:30"
+    assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
+
+
+def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
+    token = client.post(
+        "/api/auth/register", json={"username": "fixed-reminder", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/good",
+            "keys": {"p256dh": "p256", "auth": "auth"},
+        },
+    )
+    client.put(
+        "/api/notifications/reminder-settings",
+        headers=auth,
+        json={
+            "enabled": True,
+            "times": {"morning": "09:00", "afternoon": "14:00", "evening": "20:00"},
+            "types": {"morning": True, "afternoon": True, "evening": True},
+        },
+    )
+
+    sent = []
+
+    def fake_send(sub, payload):
+        sent.append((sub.endpoint, payload["reminderType"]))
+
+    monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
+    cron = {"Authorization": "Bearer cron-secret"}
+    first = client.post("/api/notifications/reminder/morning", headers=cron)
+    second = client.post("/api/notifications/reminder/morning", headers=cron)
+
+    assert first.status_code == 200
+    assert first.json()["sent"] == 1
+    assert second.json()["sent"] == 0
+    assert sent == [("https://push.example/good", "morning")]
+
+
+def test_unsubscribe_disables_device(client):
+    token = client.post(
+        "/api/auth/register", json={"username": "unsub", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "endpoint": "https://push.example/device",
+        "keys": {"p256dh": "p256", "auth": "auth"},
+    }
+    client.post("/api/notifications/subscribe", headers=auth, json=payload)
+    r = client.post("/api/notifications/unsubscribe", headers=auth, json={"endpoint": payload["endpoint"]})
+    assert r.status_code == 200
+    rows = client.get("/api/notifications/subscriptions", headers=auth).json()
+    assert rows[0]["enabled"] is False
