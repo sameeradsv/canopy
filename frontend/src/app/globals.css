@@ -194,12 +194,12 @@ input, textarea, select { font: inherit; color: inherit; }
 .sidebar-foot-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-left: 36px;
 }
 .settings-icon-btn {
   display: grid; place-items: center;
-  width: 44px; height: 44px; border-radius: var(--r-2);
+  width: 32px; height: 32px; border-radius: var(--r-2);
   border: 0; background: transparent; padding: 0;
   color: var(--fg-faint); flex-shrink: 0;
   font: inherit;
