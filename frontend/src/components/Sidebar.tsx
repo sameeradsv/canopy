@@ -79,6 +79,20 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const notifications = useNotificationToggle();
+  const notificationStatus =
+    !notifications.ready
+      ? null
+      : notifications.busy
+      ? notifications.enabled ? "Turning notifications off..." : "Enabling notifications..."
+      : notifications.error
+        ? notifications.error
+        : !notifications.supported
+          ? "Notifications unavailable in this browser."
+          : notifications.permission === "denied"
+            ? "Notifications are blocked in browser settings."
+            : notifications.enabled
+              ? "Notifications on."
+              : null;
 
   return (
     <>
@@ -142,6 +156,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   }
                   aria-label={notifications.enabled ? "Disable notifications" : "Enable notifications"}
                   style={{
+                    color: notifications.enabled ? "var(--accent)" : undefined,
+                    background: notifications.enabled ? "var(--accent-soft)" : undefined,
                     opacity: !notifications.supported || notifications.permission === "denied" ? 0.45 : 1,
                     cursor: !notifications.supported || notifications.permission === "denied" || notifications.busy ? "not-allowed" : "pointer",
                   }}
@@ -149,6 +165,15 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   <BellIcon enabled={notifications.enabled} />
                 </button>
               </div>
+              {notificationStatus && (
+                <div
+                  className={`sidebar-notification-status${notifications.error ? " error" : ""}`}
+                  role={notifications.error ? "alert" : "status"}
+                  title={notificationStatus}
+                >
+                  {notificationStatus}
+                </div>
+              )}
               <button
                 onClick={logout}
                 className="btn ghost signout-btn"

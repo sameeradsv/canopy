@@ -199,6 +199,18 @@ input, textarea, select { font: inherit; color: inherit; }
   transition: background 0.08s, color 0.08s;
 }
 .settings-icon-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--fg); }
+.sidebar-notification-status {
+  min-height: 18px;
+  margin-left: 36px;
+  margin-top: -4px;
+  color: var(--fg-faint);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-notification-status.error { color: var(--danger); }
 .signout-btn {
   height: 24px; padding: 0 8px; font-size: 11px;
   align-self: flex-start; margin-left: 36px;

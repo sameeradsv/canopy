@@ -55,6 +55,7 @@ export function useNotificationToggle() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,13 +65,17 @@ export function useNotificationToggle() {
       "serviceWorker" in navigator &&
       "PushManager" in window;
     setSupported(canPush);
-    if (!canPush) return;
+    if (!canPush) {
+      setReady(true);
+      return;
+    }
     setPermission(Notification.permission);
     getExistingSubscription()
       .then((sub) => {
         setEnabled(Notification.permission === "granted" && !!sub && localStorage.getItem(STORAGE_KEY) === "true");
       })
-      .catch(() => setEnabled(false));
+      .catch(() => setEnabled(false))
+      .finally(() => setReady(true));
   }, []);
 
   async function enable() {
@@ -127,5 +132,5 @@ export function useNotificationToggle() {
     }
   }
 
-  return { permission, enabled, supported, busy, error, enable, disable, toggle };
+  return { permission, enabled, supported, ready, busy, error, enable, disable, toggle };
 }
