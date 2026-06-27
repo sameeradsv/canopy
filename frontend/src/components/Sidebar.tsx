@@ -90,9 +90,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
           ? "Notifications unavailable in this browser."
           : notifications.permission === "denied"
             ? "Notifications are blocked in browser settings."
-            : notifications.enabled
-              ? "Notifications on."
-              : null;
+            : null;
 
   return (
     <>
@@ -137,6 +135,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                     <div className="user-name">{user.username}</div>
                   </div>
                 </Link>
+              </div>
+              <div className="sidebar-foot-actions">
                 <Link href="/settings" className="settings-icon-btn" title="Settings">
                   <GearIcon />
                 </Link>

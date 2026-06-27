@@ -188,8 +188,15 @@ input, textarea, select { font: inherit; color: inherit; }
 .sidebar-foot-account {
   display: flex; align-items: center; gap: 8px;
   flex: 1; min-width: 0; text-decoration: none;
+  min-height: 44px;
 }
 .sidebar-foot-account:hover .user-name { color: var(--accent); }
+.sidebar-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 36px;
+}
 .settings-icon-btn {
   display: grid; place-items: center;
   width: 44px; height: 44px; border-radius: var(--r-2);
@@ -202,7 +209,6 @@ input, textarea, select { font: inherit; color: inherit; }
 .sidebar-notification-status {
   min-height: 18px;
   margin-left: 36px;
-  margin-top: -4px;
   color: var(--fg-faint);
   font-size: 11px;
   line-height: 1.35;
