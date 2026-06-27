@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -113,6 +114,16 @@ def _payload_for(reminder_type: str) -> dict:
     }
 
 
+def _notification_storage_error(exc: SQLAlchemyError) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=(
+            "Notification storage is not initialized. Run the Canopy database "
+            "migration against the production DATABASE_URL."
+        ),
+    )
+
+
 @router.get("/vapid-public-key")
 def vapid_public_key():
     if not settings.vapid_public_key:
@@ -144,23 +155,27 @@ def list_subscriptions(user: User = Depends(require_user), db: Session = Depends
 
 @router.post("/subscribe", status_code=201)
 def subscribe(payload: SubscribePayload, user: User = Depends(require_user), db: Session = Depends(get_db)):
-    row = (
-        db.query(PushSubscription)
-        .filter(PushSubscription.user_id == user.id, PushSubscription.endpoint == payload.endpoint)
-        .first()
-    )
-    if row is None:
-        row = PushSubscription(user_id=user.id, endpoint=payload.endpoint)
-        db.add(row)
-    row.p256dh = payload.keys.p256dh
-    row.auth = payload.keys.auth
-    row.device_name = payload.device_name
-    row.platform = payload.platform
-    row.enabled = True
-    row.updated_at = _now_utc()
-    db.commit()
-    db.refresh(row)
-    return {"id": row.id, "enabled": bool(row.enabled)}
+    try:
+        row = (
+            db.query(PushSubscription)
+            .filter(PushSubscription.user_id == user.id, PushSubscription.endpoint == payload.endpoint)
+            .first()
+        )
+        if row is None:
+            row = PushSubscription(user_id=user.id, endpoint=payload.endpoint)
+            db.add(row)
+        row.p256dh = payload.keys.p256dh
+        row.auth = payload.keys.auth
+        row.device_name = payload.device_name
+        row.platform = payload.platform
+        row.enabled = True
+        row.updated_at = _now_utc()
+        db.commit()
+        db.refresh(row)
+        return {"id": row.id, "enabled": bool(row.enabled)}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise _notification_storage_error(exc) from exc
 
 
 @router.post("/unsubscribe")

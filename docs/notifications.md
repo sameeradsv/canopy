@@ -64,6 +64,16 @@ Generate VAPID keys:
 npx web-push generate-vapid-keys
 ```
 
+Run the database initializer against the production PostgreSQL database after deploying this feature, because production Vercel normally has `INIT_DB_ON_STARTUP=false`:
+
+```powershell
+cd backend
+$env:DATABASE_URL="postgresql://..."
+python -m app.database
+```
+
+If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the bell shows a network-style error, the usual cause is that `push_subscriptions` has not been created in the production database yet.
+
 ## cron-job.org
 
 Create three jobs. Match the times to the values shown in Canopy Settings:
