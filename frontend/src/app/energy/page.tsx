@@ -61,6 +61,14 @@ function hourLabel(h: number) {
   return h < 12 ? `${h}am` : `${h - 12}pm`;
 }
 
+function minuteLabel(minuteOfDay: number) {
+  const h = Math.floor(minuteOfDay / 60);
+  const m = minuteOfDay % 60;
+  const suffix = h < 12 ? "am" : "pm";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
+}
+
 interface Tip { event: EnergyEvent; svgX: number; svgY: number; runningAfter: number; }
 
 function energyColor(value: number) {
@@ -260,7 +268,15 @@ function EnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEner
 
 // ── Source status pill ─────────────────────────────────────────────────────
 
-function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEnergy: number }) {
+function BatteryEnergyChart({
+  events,
+  startEnergy,
+  displayUntilMinute,
+}: {
+  events: EnergyEvent[];
+  startEnergy: number;
+  displayUntilMinute: number;
+}) {
   const [tip, setTip] = useState<Tip | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const yAxisRef = useRef<SVGGElement>(null);
@@ -281,16 +297,25 @@ function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; st
     );
   };
 
-  const sortedEvents = [...events].sort((a, b) => tm(a.time) - tm(b.time));
+  const sortedEvents = [...events]
+    .filter((e) => tm(e.time) <= displayUntilMinute)
+    .sort((a, b) => tm(a.time) - tm(b.time));
   let runningE = startEnergy;
   let eventCursor = 0;
-  const batteryCells = BATTERY_HOURS.map((hour) => {
+  const batteryCells = BATTERY_HOURS.filter((hour) => hour * 60 < displayUntilMinute).map((hour) => {
+    const startMinute = hour * 60;
     const endMinute = (hour + 1) * 60;
-    while (eventCursor < sortedEvents.length && tm(sortedEvents[eventCursor].time) < endMinute) {
+    const visibleEndMinute = Math.min(endMinute, displayUntilMinute);
+    while (eventCursor < sortedEvents.length && tm(sortedEvents[eventCursor].time) <= visibleEndMinute) {
       runningE = Math.max(0, Math.min(1, runningE + (sortedEvents[eventCursor].delta ?? 0)));
       eventCursor += 1;
     }
-    return { hour, energy: runningE, x: mx(hour * 60) + 2, width: CW / 24 - 4 };
+    return {
+      hour,
+      energy: runningE,
+      x: mx(startMinute) + 2,
+      width: Math.max(2, ((visibleEndMinute - startMinute) / 60) * (CW / 24) - 4),
+    };
   });
 
   let eventRunning = startEnergy;
@@ -308,7 +333,7 @@ function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; st
         <svg viewBox={`0 0 ${VW} ${VH}`} width={SVG_RENDER_W} style={{ display: "block" }} onMouseLeave={() => setTip(null)}>
           <rect x={PL} y={PT - 4} width={CW} height={CH + 8} rx={6} fill="none" stroke="var(--line)" strokeWidth={1} />
           <rect x={PL + CW + 2} y={PT + CH * 0.38} width={8} height={CH * 0.24} rx={2} fill="var(--line)" opacity={0.75} />
-          <rect x={PL + 2} y={PT + CH - startFillH} width={CW / 24 - 4} height={startFillH} rx={3} fill={energyColor(startEnergy)} opacity={0.28} />
+          <rect x={PL + 2} y={PT + CH - startFillH} width={CW / 24 - 4} height={startFillH} rx={3} fill="var(--fg-faint)" opacity={0.18} />
 
           <rect x={PL} y={ey(1)} width={CW} height={ey(0.65) - ey(1)} fill="var(--good)" opacity={0.04} />
           <rect x={PL} y={ey(0.35)} width={CW} height={ey(0) - ey(0.35)} fill="var(--danger)" opacity={0.04} />
@@ -322,7 +347,7 @@ function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; st
             return (
               <g key={cell.hour}>
                 <rect x={cell.x} y={PT} width={cell.width} height={CH} rx={4} fill="var(--panel-2)" stroke="var(--line-soft)" strokeWidth={0.5} />
-                <rect x={cell.x + 1} y={PT + CH - fillH} width={Math.max(1, cell.width - 2)} height={fillH} rx={3} fill={energyColor(cell.energy)} opacity={0.72} />
+                <rect x={cell.x + 1} y={PT + CH - fillH} width={Math.max(1, cell.width - 2)} height={fillH} rx={3} fill="var(--fg-mute)" opacity={0.5} />
                 <line x1={cell.x + cell.width + 2} y1={PT + 5} x2={cell.x + cell.width + 2} y2={PT + CH - 5} stroke="var(--panel)" strokeWidth={1} opacity={0.7} />
               </g>
             );
@@ -426,6 +451,139 @@ function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; st
   );
 }
 
+function AppEnergyChart({
+  events,
+  displayUntilMinute,
+}: {
+  events: EnergyEvent[];
+  displayUntilMinute: number;
+}) {
+  const [tip, setTip] = useState<Tip | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const laneH = 48;
+  const laneGap = 12;
+  const sources = ["canopy", "circuit", "chef"] as Source[];
+  const chartH = sources.length * laneH + (sources.length - 1) * laneGap;
+  const viewH = PT + chartH + PB;
+
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollLeft = DEFAULT_SCROLL_LEFT;
+  }, [events, displayUntilMinute]);
+
+  const eventsUntilNow = events
+    .filter((e) => tm(e.time) <= displayUntilMinute)
+    .sort((a, b) => tm(a.time) - tm(b.time));
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div ref={scrollRef} style={{ overflowX: "auto" }}>
+        <svg viewBox={`0 0 ${VW} ${viewH}`} width={SVG_RENDER_W} style={{ display: "block" }} onMouseLeave={() => setTip(null)}>
+          {HOURS.map((h) => {
+            const x = mx(h * 60);
+            return (
+              <g key={h}>
+                <line x1={x} y1={PT} x2={x} y2={PT + chartH} stroke="var(--line-soft)" strokeWidth={0.5} />
+                <text x={x} y={PT + chartH + 12}
+                  textAnchor={h === 0 ? "start" : h === 24 ? "end" : "middle"}
+                  fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
+                  {hourLabel(h)}
+                </text>
+              </g>
+            );
+          })}
+
+          <line x1={mx(displayUntilMinute)} y1={PT - 4} x2={mx(displayUntilMinute)} y2={PT + chartH}
+            stroke="var(--fg-faint)" strokeWidth={0.75} strokeDasharray="3 3" opacity={0.8} />
+
+          {sources.map((src, laneIndex) => {
+            const yTop = PT + laneIndex * (laneH + laneGap);
+            const yBottom = yTop + laneH;
+            const sourceEvents = eventsUntilNow.filter((e) => e.source === src);
+            const pts = sourceEvents.map((e) => ({
+              e,
+              x: mx(tm(e.time)),
+              y: yTop + (1 - e.energy) * laneH,
+              runningAfter: e.running_energy ?? e.energy,
+            }));
+            return (
+              <g key={src}>
+                <text x={PL - 6} y={yTop + laneH / 2} textAnchor="end" dominantBaseline="middle"
+                  fontSize={8} fill={SRC_COLOR[src]} fontFamily="var(--font-mono)">
+                  {src}
+                </text>
+                <rect x={PL} y={yTop} width={CW} height={laneH} rx={5}
+                  fill="var(--panel-2)" stroke="var(--line-soft)" strokeWidth={0.5} />
+                <line x1={PL} y1={yTop + laneH * 0.35} x2={PL + CW} y2={yTop + laneH * 0.35}
+                  stroke="var(--good)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.35} />
+                <line x1={PL} y1={yTop + laneH * 0.65} x2={PL + CW} y2={yTop + laneH * 0.65}
+                  stroke="var(--danger)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.35} />
+                {pts.length > 1 && (
+                  <path d={pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
+                    fill="none" stroke={SRC_COLOR[src]} strokeWidth={1.5} strokeLinejoin="round" opacity={0.85} />
+                )}
+                {pts.map((p, i) => (
+                  <g key={i}>
+                    <line x1={p.x} y1={yBottom - 3} x2={p.x} y2={p.y}
+                      stroke={SRC_COLOR[src]} strokeWidth={3} strokeLinecap="round" opacity={0.35} />
+                    <circle cx={p.x} cy={p.y} r={4}
+                      fill={SRC_COLOR[src]} stroke="var(--panel)" strokeWidth={1.5}
+                      style={{ cursor: "pointer" }}
+                      onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: p.y, runningAfter: p.runningAfter })}
+                    />
+                  </g>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {tip && (() => {
+        const svgH = Math.round(viewH * SCROLL_SCALE);
+        const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
+        const visibleW = scrollRef.current?.clientWidth ?? SVG_RENDER_W;
+        const px = (tip.svgX / VW) * SVG_RENDER_W - scrollLeft;
+        const py = (tip.svgY / viewH) * svgH;
+        const flipX = px > visibleW * 0.65;
+        return (
+          <div style={{
+            position: "absolute",
+            left: flipX ? undefined : px + 10,
+            right: flipX ? (visibleW - px) + 10 : undefined,
+            top: Math.max(0, py - 20),
+            background: "var(--panel)",
+            border: "0.5px solid var(--line)",
+            borderRadius: "var(--r-3)",
+            padding: "6px 10px",
+            fontSize: 11,
+            pointerEvents: "none",
+            zIndex: 10,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            minWidth: 160,
+            maxWidth: 240,
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", color: SRC_COLOR[tip.event.source as Source], fontSize: 10, marginBottom: 2 }}>
+              {tip.event.source} · {tip.event.time}
+            </div>
+            <div style={{ color: "var(--fg)", fontWeight: 500 }}>
+              {Math.round(tip.event.energy * 100)}% · {tip.event.label}
+            </div>
+            {tip.event.running_energy !== undefined && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", marginTop: 1 }}>
+                → {Math.round(tip.runningAfter * 100)}% running
+              </div>
+            )}
+            <div style={{ color: "var(--fg-mute)", marginTop: 2, fontSize: 10, wordBreak: "break-word" }}>
+              {tip.event.note}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 const SRC_FULL_LABEL: Record<Source, string> = {
   canopy:  "interactions",
   circuit: "tasks",
@@ -490,6 +648,18 @@ function formatDateDisplay(iso: string): string {
   }).format(new Date(iso + "T12:00:00Z"));
 }
 
+function currentMinuteInTZ(): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────
 
 type LoadState = "loading" | "done" | "error";
@@ -504,6 +674,8 @@ interface SourceState {
 
 export default function EnergyPage() {
   const [date, setDate] = useState(todayIST);
+  const [pageOpenMinute] = useState(currentMinuteInTZ);
+  const [chartMode, setChartMode] = useState<"combined" | "apps">("combined");
   const [canopy,  setCanopy]  = useState<SourceState>({ timeline: null, state: "loading" });
   const [circuit, setCircuit] = useState<SourceState>({ timeline: null, state: "loading" });
   const [chef,    setChef]    = useState<SourceState>({ timeline: null, state: "loading" });
@@ -545,11 +717,16 @@ export default function EnergyPage() {
     }
   }, [date]);
 
+  const isToday = date === todayIST();
+  const displayUntilMinute = isToday ? pageOpenMinute : 1440;
+
   const allEvents: EnergyEvent[] = [
     ...(canopy.timeline?.events ?? []),
     ...(circuit.timeline?.events ?? []),
     ...(chef.timeline?.events ?? []),
-  ].sort((a, b) => tm(a.time) - tm(b.time));
+  ]
+    .filter((e) => tm(e.time) <= displayUntilMinute)
+    .sort((a, b) => tm(a.time) - tm(b.time));
 
   // Use Circuit's start_energy (has sleep factor + carry-over); fall back to 0.70
   const startEnergy = circuit.timeline?.start_energy ?? 0.70;
@@ -562,7 +739,6 @@ export default function EnergyPage() {
       )
     : null;
 
-  const isToday = date === todayIST();
   const loading = canopy.state === "loading";
 
   return (
@@ -636,6 +812,34 @@ export default function EnergyPage() {
 
       {/* Chart card */}
       <div className="card" style={{ padding: "20px 16px 12px", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {isToday ? `until ${minuteLabel(displayUntilMinute)}` : "full day"}
+          </div>
+          <div className="view-switcher">
+            {(["combined", "apps"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setChartMode(mode)}
+                style={{
+                  minHeight: 44,
+                  padding: "0 14px",
+                  border: 0,
+                  borderRight: mode === "combined" ? "0.5px solid var(--line)" : 0,
+                  background: chartMode === mode ? "var(--panel-2)" : "transparent",
+                  color: chartMode === mode ? "var(--fg)" : "var(--fg-faint)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  textTransform: "capitalize",
+                  cursor: "pointer",
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
         {loading ? (
           <div style={{ height: 208, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ color: "var(--fg-faint)", fontFamily: "var(--font-mono)", fontSize: 12 }}>Loading…</span>
@@ -644,8 +848,10 @@ export default function EnergyPage() {
           <div style={{ height: 208, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>No events logged on this day.</p>
           </div>
+        ) : chartMode === "apps" ? (
+          <AppEnergyChart events={allEvents} displayUntilMinute={displayUntilMinute} />
         ) : (
-          <BatteryEnergyChart events={allEvents} startEnergy={startEnergy} />
+          <BatteryEnergyChart events={allEvents} startEnergy={startEnergy} displayUntilMinute={displayUntilMinute} />
         )}
 
         {/* Legend */}
@@ -660,7 +866,7 @@ export default function EnergyPage() {
           ))}
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <svg width={16} height={10} style={{ display: "block" }}>
-              <rect x={1} y={1} width={14} height={8} rx={2} fill="var(--accent)" opacity={0.6} />
+              <rect x={1} y={1} width={14} height={8} rx={2} fill="var(--fg-mute)" opacity={0.5} />
             </svg>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)" }}>hourly battery</span>
           </div>

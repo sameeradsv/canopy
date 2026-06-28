@@ -479,6 +479,44 @@ def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monke
     assert sent == [("https://push.example/good", "morning")]
 
 
+def test_fixed_reminder_fails_when_all_push_delivery_fails(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
+    token = client.post(
+        "/api/auth/register", json={"username": "failed-reminder", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/failing",
+            "keys": {"p256dh": "p256", "auth": "auth"},
+        },
+    )
+    client.put(
+        "/api/notifications/reminder-settings",
+        headers=auth,
+        json={
+            "enabled": True,
+            "times": {"morning": "09:00", "afternoon": "14:00", "evening": "20:00"},
+            "types": {"morning": True, "afternoon": True, "evening": True},
+        },
+    )
+
+    def fake_send(_sub, _payload):
+        raise RuntimeError("push provider rejected the request")
+
+    monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
+    r = client.post("/api/notifications/reminder/morning", headers={"Authorization": "Bearer cron-secret"})
+
+    assert r.status_code == 502
+    detail = r.json()["detail"]
+    assert detail["message"] == "Push delivery failed"
+    assert detail["stats"]["attempted_subscriptions"] == 1
+    assert detail["stats"]["delivered"] == 0
+    assert detail["stats"]["delivery_errors"] == 1
+
+
 def test_unsubscribe_disables_device(client):
     token = client.post(
         "/api/auth/register", json={"username": "unsub", "password": "secret99"}

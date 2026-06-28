@@ -1,19 +1,19 @@
 # Canopy Notifications
 
-Canopy uses the lightweight reminder architecture: three fixed daily reflection reminders, Web Push delivery, and no reminders table.
+Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table.
 
 ## Data Model
 
 ```mermaid
 flowchart LR
-  Settings["settings\nnotification_reminders"] --> Cron["cron-job.org\nfixed times"]
+  Settings["settings: notification_reminders"] --> Cron["cron-job.org fixed times"]
   Cron --> Endpoint["/api/notifications/reminder/{type}"]
-  Endpoint --> Subscriptions["push_subscriptions\nregistered devices"]
+  Endpoint --> Subscriptions["push_subscriptions registered devices"]
   Subscriptions --> Push["Web Push + VAPID"]
-  Push --> Worker["/push/sw.js\ninstalled PWA"]
+  Push --> Worker["/canopy/notification-sw.js or /notification-sw.js installed PWA"]
 ```
 
-`push_subscriptions` is the only new table. It stores one row per user device:
+`push_subscriptions` stores one row per user device:
 
 - `id`
 - `user_id`
@@ -28,7 +28,7 @@ flowchart LR
 
 Reminder preferences live in the existing `settings` table under `notification_reminders`.
 
-Duplicate protection also uses `settings`, with one marker per user, date, and reminder type. This preserves the “no reminders table” constraint while preventing duplicate sends if cron-job.org retries the same endpoint.
+Duplicate protection also uses `settings`, with one marker per user, UTC date, and reminder type. This preserves the "no reminders table" constraint while preventing duplicate sends if cron-job.org retries the same endpoint.
 
 ## API
 
@@ -46,6 +46,25 @@ The fixed reminder endpoint requires:
 ```http
 Authorization: Bearer <REMINDER_CRON_SECRET>
 ```
+
+The reminder endpoint returns delivery stats:
+
+```json
+{
+  "users": 1,
+  "attempted_subscriptions": 2,
+  "delivered": 2,
+  "sent": 1,
+  "skipped": 0,
+  "subscriptions_disabled": 0,
+  "delivery_errors": 0,
+  "errors": []
+}
+```
+
+`sent` is the number of users who received at least one notification. `delivered` is the number of device subscriptions that accepted a push. `skipped` means the user had reminders disabled, that reminder type disabled, or a duplicate-send marker already existed for the day.
+
+If Canopy attempts delivery and every attempted push fails, the endpoint returns HTTP 502 with the same stats under `detail.stats`. This lets cron-job.org show a failed run instead of a misleading green success.
 
 ## Production Environment
 
@@ -76,7 +95,7 @@ If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the
 
 ## cron-job.org
 
-Create three jobs. Match the times to the values shown in Canopy Settings:
+Create three jobs. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times, but cron-job.org is still the scheduler.
 
 - `09:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
 - `14:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
@@ -88,8 +107,24 @@ Add the authorization header to each job:
 Authorization: Bearer <REMINDER_CRON_SECRET>
 ```
 
+Set the cron timezone deliberately. Reminder duplicate protection uses the backend's UTC date, so a late-night local run can count against the adjacent UTC date. This only affects duplicate suppression, not whether Web Push can be delivered.
+
 ## Client Flow
 
 The sidebar bell and Settings page both use `useNotificationToggle()`. The hook registers `notification-sw.js`, requests notification permission, subscribes the current device with the VAPID public key, and sends the subscription to the backend.
 
 On GitHub Pages, the hook detects the `/canopy` base path and registers `/canopy/notification-sw.js`. This avoids the common static-export failure where the browser tries to load a service worker from a missing root or app-prefixed path. Notifications are delivered through the service worker, so the installed PWA does not need to be open.
+
+## Troubleshooting
+
+If cron-job.org says success but devices did not receive a notification:
+
+1. Open the cron execution details and inspect the response body, not just the HTTP status.
+2. `sent: 0` with `skipped > 0` means Canopy intentionally skipped the user because reminders/type were disabled or the same UTC date/type had already been sent.
+3. `attempted_subscriptions > 0`, `delivered: 0`, and `delivery_errors > 0` means the push provider rejected delivery. The endpoint now returns HTTP 502 for this all-failed case.
+4. Use Settings -> Reminders -> Send test from the same signed-in account. A zero-delivery result with errors points to VAPID, subscription, browser, or platform delivery issues rather than cron timing.
+5. Confirm the user is signed in and the device was enabled after the current VAPID public key was deployed. Changing VAPID keys usually requires disabling and re-enabling the device subscription.
+6. Confirm these backend variables exist in the hosted API environment: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `REMINDER_CRON_SECRET`.
+7. Confirm `push_subscriptions` exists in the production database by running the database initializer against the production `DATABASE_URL`.
+
+Device settings can be correct and delivery can still fail if the stored browser subscription is stale, was created with a previous VAPID key, or the push provider rejects the request. In that case disable notifications in Canopy, enable them again, and send a test notification before waiting for the next cron run.

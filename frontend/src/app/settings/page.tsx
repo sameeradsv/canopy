@@ -115,7 +115,13 @@ export default function SettingsPage() {
     setReminderMessage(null);
     try {
       const result = await api.sendTestNotification();
-      setReminderMessage(result.delivered > 0 ? "Test notification sent." : "No enabled device subscription was found.");
+      setReminderMessage(
+        result.delivered > 0
+          ? "Test notification sent."
+          : result.subscriptions > 0 && result.errors.length > 0
+            ? `Notification delivery failed: ${result.errors[0]}`
+            : "No enabled device subscription was found.",
+      );
     } catch (err) {
       setReminderError(err instanceof Error ? err.message : "Could not send test notification");
     } finally {

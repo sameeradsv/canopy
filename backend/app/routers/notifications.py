@@ -251,7 +251,13 @@ def _send_to_user(db: Session, user_id: int, payload: dict) -> dict:
         except Exception as exc:  # pragma: no cover - network failures are integration tested
             errors.append(str(exc))
     db.commit()
-    return {"subscriptions": len(subscriptions), "delivered": delivered, "disabled": disabled, "errors": errors[:3]}
+    return {
+        "subscriptions": len(subscriptions),
+        "delivered": delivered,
+        "disabled": disabled,
+        "errors": errors[:3],
+        "error_count": len(errors),
+    }
 
 
 @router.post("/reminder/{reminder_type}")
@@ -270,7 +276,16 @@ def send_fixed_reminder(
     today = _now_utc().date().isoformat()
     users = db.execute(select(PushSubscription.user_id).where(PushSubscription.enabled == True).distinct()).all()  # noqa: E712
     payload = _payload_for(reminder_type)
-    stats = {"users": 0, "sent": 0, "skipped": 0, "subscriptions_disabled": 0}
+    stats = {
+        "users": 0,
+        "attempted_subscriptions": 0,
+        "delivered": 0,
+        "sent": 0,
+        "skipped": 0,
+        "subscriptions_disabled": 0,
+        "delivery_errors": 0,
+        "errors": [],
+    }
 
     for (user_id,) in users:
         reminder_settings = _settings_for_user(db, int(user_id))
@@ -284,9 +299,17 @@ def send_fixed_reminder(
 
         result = _send_to_user(db, int(user_id), payload)
         stats["users"] += 1
+        stats["attempted_subscriptions"] += int(result["subscriptions"])
+        stats["delivered"] += int(result["delivered"])
         stats["sent"] += 1 if result["delivered"] > 0 else 0
         stats["subscriptions_disabled"] += int(result["disabled"])
+        stats["delivery_errors"] += int(result["error_count"])
+        stats["errors"].extend(result["errors"])
         if result["delivered"] > 0:
             set_setting(db, sent_key, json.dumps({"sent_at": _now_utc().isoformat()}), user_id=int(user_id))
+
+    stats["errors"] = stats["errors"][:3]
+    if stats["attempted_subscriptions"] > 0 and stats["delivered"] == 0 and stats["delivery_errors"] > 0:
+        raise HTTPException(status_code=502, detail={"message": "Push delivery failed", "stats": stats})
 
     return stats
