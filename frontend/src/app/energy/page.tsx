@@ -25,8 +25,10 @@ async function fetchExternal(
 
 // ── Chart ─────────────────────────────────────────────────────────────────
 
-const CW = 720, CH = 160, PL = 32, PR = 16, PT = 16, PB = 32;
-const VW = PL + CW + PR, VH = PT + CH + PB;
+const CW = 720, CH = 138, PL = 32, PR = 16, PT = 16, PB = 32;
+const DELTA_GAP = 12;
+const DELTA_H = 38;
+const VW = PL + CW + PR, VH = PT + CH + DELTA_GAP + DELTA_H + PB;
 // Scale factor: SVG renders at 1.5× its viewBox width so 7am–11pm fills a typical screen
 const SCROLL_SCALE = 1.5;
 const SVG_RENDER_W = Math.round(VW * SCROLL_SCALE); // ~1170px
@@ -35,6 +37,11 @@ const DEFAULT_SCROLL_LEFT = Math.round((7 / 24) * CW * SCROLL_SCALE); // ~315px
 
 function mx(min: number) { return PL + (min / 1440) * CW; }
 function ey(e: number)   { return PT + (1 - e) * CH; }
+function dy(delta: number) {
+  const center = PT + CH + DELTA_GAP + DELTA_H / 2;
+  const capped = Math.max(-0.25, Math.min(0.25, delta));
+  return center - (capped / 0.25) * (DELTA_H / 2);
+}
 function tm(t: string)   { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
 
 type Source = "canopy" | "circuit" | "chef";
@@ -46,6 +53,7 @@ const SRC_COLOR: Record<Source, string> = {
 };
 
 const HOURS = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+const BATTERY_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function hourLabel(h: number) {
   if (h === 0 || h === 24) return "12am";
@@ -54,6 +62,12 @@ function hourLabel(h: number) {
 }
 
 interface Tip { event: EnergyEvent; svgX: number; svgY: number; runningAfter: number; }
+
+function energyColor(value: number) {
+  if (value < 0.35) return "var(--danger)";
+  if (value > 0.65) return "var(--good)";
+  return "var(--accent)";
+}
 
 function EnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEnergy: number }) {
   const [tip, setTip] = useState<Tip | null>(null);
@@ -89,13 +103,12 @@ function EnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEner
     {} as Record<Source, EnergyEvent[]>,
   );
 
-  // Combined running-energy line: starts at startEnergy, applies each event's delta in time order
-  let runningE = startEnergy;
+  let fallbackRunningE = startEnergy;
   const combinedLine = [...events]
     .sort((a, b) => tm(a.time) - tm(b.time))
     .map((e) => {
-      runningE = Math.max(0, Math.min(1, runningE + (e.delta ?? 0)));
-      return { x: mx(tm(e.time)), y: ey(runningE), running: runningE };
+      fallbackRunningE = Math.max(0, Math.min(1, fallbackRunningE + (e.delta ?? 0)));
+      return { x: mx(tm(e.time)), y: ey(fallbackRunningE), running: fallbackRunningE };
     });
 
   return (
@@ -246,6 +259,172 @@ function EnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEner
 }
 
 // ── Source status pill ─────────────────────────────────────────────────────
+
+function BatteryEnergyChart({ events, startEnergy }: { events: EnergyEvent[]; startEnergy: number }) {
+  const [tip, setTip] = useState<Tip | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const yAxisRef = useRef<SVGGElement>(null);
+
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollLeft = DEFAULT_SCROLL_LEFT;
+    if (yAxisRef.current) {
+      yAxisRef.current.setAttribute("transform", `translate(${DEFAULT_SCROLL_LEFT / SCROLL_SCALE}, 0)`);
+    }
+  }, [events]);
+
+  const handleScroll = () => {
+    if (!scrollRef.current || !yAxisRef.current) return;
+    yAxisRef.current.setAttribute(
+      "transform",
+      `translate(${scrollRef.current.scrollLeft / SCROLL_SCALE}, 0)`,
+    );
+  };
+
+  const sortedEvents = [...events].sort((a, b) => tm(a.time) - tm(b.time));
+  let runningE = startEnergy;
+  let eventCursor = 0;
+  const batteryCells = BATTERY_HOURS.map((hour) => {
+    const endMinute = (hour + 1) * 60;
+    while (eventCursor < sortedEvents.length && tm(sortedEvents[eventCursor].time) < endMinute) {
+      runningE = Math.max(0, Math.min(1, runningE + (sortedEvents[eventCursor].delta ?? 0)));
+      eventCursor += 1;
+    }
+    return { hour, energy: runningE, x: mx(hour * 60) + 2, width: CW / 24 - 4 };
+  });
+
+  let eventRunning = startEnergy;
+  const eventBars = sortedEvents.map((e) => {
+    eventRunning = Math.max(0, Math.min(1, eventRunning + (e.delta ?? 0)));
+    return { e, x: mx(tm(e.time)), energy: eventRunning, delta: e.delta ?? 0 };
+  });
+
+  const startFillH = CH * Math.max(0, Math.min(1, startEnergy));
+  const deltaCenter = PT + CH + DELTA_GAP + DELTA_H / 2;
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div ref={scrollRef} onScroll={handleScroll} style={{ overflowX: "auto" }}>
+        <svg viewBox={`0 0 ${VW} ${VH}`} width={SVG_RENDER_W} style={{ display: "block" }} onMouseLeave={() => setTip(null)}>
+          <rect x={PL} y={PT - 4} width={CW} height={CH + 8} rx={6} fill="none" stroke="var(--line)" strokeWidth={1} />
+          <rect x={PL + CW + 2} y={PT + CH * 0.38} width={8} height={CH * 0.24} rx={2} fill="var(--line)" opacity={0.75} />
+          <rect x={PL + 2} y={PT + CH - startFillH} width={CW / 24 - 4} height={startFillH} rx={3} fill={energyColor(startEnergy)} opacity={0.28} />
+
+          <rect x={PL} y={ey(1)} width={CW} height={ey(0.65) - ey(1)} fill="var(--good)" opacity={0.04} />
+          <rect x={PL} y={ey(0.35)} width={CW} height={ey(0) - ey(0.35)} fill="var(--danger)" opacity={0.04} />
+
+          {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+            <line key={v} x1={PL} y1={ey(v)} x2={PL + CW} y2={ey(v)} stroke="var(--line-soft)" strokeWidth={0.5} />
+          ))}
+
+          {batteryCells.map((cell) => {
+            const fillH = CH * cell.energy;
+            return (
+              <g key={cell.hour}>
+                <rect x={cell.x} y={PT} width={cell.width} height={CH} rx={4} fill="var(--panel-2)" stroke="var(--line-soft)" strokeWidth={0.5} />
+                <rect x={cell.x + 1} y={PT + CH - fillH} width={Math.max(1, cell.width - 2)} height={fillH} rx={3} fill={energyColor(cell.energy)} opacity={0.72} />
+                <line x1={cell.x + cell.width + 2} y1={PT + 5} x2={cell.x + cell.width + 2} y2={PT + CH - 5} stroke="var(--panel)" strokeWidth={1} opacity={0.7} />
+              </g>
+            );
+          })}
+
+          <line x1={PL} y1={ey(0.35)} x2={PL + CW} y2={ey(0.35)} stroke="var(--danger)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
+          <line x1={PL} y1={ey(0.65)} x2={PL + CW} y2={ey(0.65)} stroke="var(--good)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
+
+          <line x1={PL} y1={deltaCenter} x2={PL + CW} y2={deltaCenter} stroke="var(--line)" strokeWidth={0.5} />
+          {eventBars.map((p, i) => {
+            const y = dy(p.delta);
+            const h = Math.max(2, Math.abs(y - deltaCenter));
+            const barY = p.delta >= 0 ? y : deltaCenter;
+            return (
+              <g key={i}>
+                <rect x={p.x - 3} y={barY} width={6} height={h} rx={2}
+                  fill={p.delta > 0.03 ? "var(--good)" : p.delta < -0.05 ? "var(--danger)" : "var(--fg-faint)"}
+                  opacity={0.72}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: barY, runningAfter: p.energy })}
+                />
+                <circle cx={p.x} cy={PT + CH + 3} r={3}
+                  fill={SRC_COLOR[p.e.source as Source]} stroke="var(--panel)" strokeWidth={1}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={() => setTip({ event: p.e, svgX: p.x, svgY: PT + CH + 3, runningAfter: p.energy })}
+                />
+              </g>
+            );
+          })}
+
+          {HOURS.map((h) => {
+            const x = mx(h * 60);
+            return (
+              <g key={h}>
+                <line x1={x} y1={PT} x2={x} y2={PT + CH + DELTA_GAP + DELTA_H} stroke="var(--line-soft)" strokeWidth={0.5} />
+                <text x={x} y={PT + CH + DELTA_GAP + DELTA_H + 12}
+                  textAnchor={h === 0 ? "start" : h === 24 ? "end" : "middle"}
+                  fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
+                  {hourLabel(h)}
+                </text>
+              </g>
+            );
+          })}
+
+          <g ref={yAxisRef}>
+            <rect x={0} y={0} width={PL - 1} height={VH} fill="var(--panel)" />
+            {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+              <text key={v} x={PL - 5} y={ey(v)} textAnchor="end" dominantBaseline="middle" fontSize={8} fill="var(--fg-faint)" fontFamily="var(--font-mono)">
+                {Math.round(v * 100)}
+              </text>
+            ))}
+            <line x1={PL} y1={PT} x2={PL} y2={PT + CH} stroke="var(--line)" strokeWidth={0.5} />
+          </g>
+        </svg>
+      </div>
+
+      {tip && (() => {
+        const svgH = Math.round(VH * SCROLL_SCALE);
+        const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
+        const visibleW = scrollRef.current?.clientWidth ?? SVG_RENDER_W;
+        const px = (tip.svgX / VW) * SVG_RENDER_W - scrollLeft;
+        const py = (tip.svgY / VH) * svgH;
+        const flipX = px > visibleW * 0.65;
+        return (
+          <div style={{
+            position: "absolute",
+            left: flipX ? undefined : px + 10,
+            right: flipX ? (visibleW - px) + 10 : undefined,
+            top: Math.max(0, py - 20),
+            background: "var(--panel)",
+            border: "0.5px solid var(--line)",
+            borderRadius: "var(--r-3)",
+            padding: "6px 10px",
+            fontSize: 11,
+            pointerEvents: "none",
+            zIndex: 10,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            minWidth: 160,
+            maxWidth: 240,
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", color: SRC_COLOR[tip.event.source as Source], fontSize: 10, marginBottom: 2 }}>
+              {tip.event.source} · {tip.event.time}
+            </div>
+            <div style={{ color: "var(--fg)", fontWeight: 500 }}>
+              {tip.event.delta !== undefined
+                ? `${tip.event.delta > 0 ? "+" : ""}${Math.round(tip.event.delta * 100)}% · ${tip.event.label}`
+                : `${Math.round(tip.event.energy * 100)}% · ${tip.event.label}`}
+            </div>
+            {tip.event.running_energy !== undefined && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", marginTop: 1 }}>
+                → {Math.round(tip.runningAfter * 100)}% running
+              </div>
+            )}
+            <div style={{ color: "var(--fg-mute)", marginTop: 2, fontSize: 10, wordBreak: "break-word" }}>
+              {tip.event.note}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
 
 const SRC_FULL_LABEL: Record<Source, string> = {
   canopy:  "interactions",
@@ -466,7 +645,7 @@ export default function EnergyPage() {
             <p style={{ color: "var(--fg-mute)", fontSize: 13 }}>No events logged on this day.</p>
           </div>
         ) : (
-          <EnergyChart events={allEvents} startEnergy={startEnergy} />
+          <BatteryEnergyChart events={allEvents} startEnergy={startEnergy} />
         )}
 
         {/* Legend */}
@@ -480,10 +659,10 @@ export default function EnergyPage() {
             </div>
           ))}
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <svg width={14} height={4} style={{ display: "block" }}>
-              <line x1={0} y1={2} x2={14} y2={2} stroke="var(--fg)" strokeWidth={1.5} strokeDasharray="4 2" opacity={0.4} />
+            <svg width={16} height={10} style={{ display: "block" }}>
+              <rect x={1} y={1} width={14} height={8} rx={2} fill="var(--accent)" opacity={0.6} />
             </svg>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)" }}>combined</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)" }}>hourly battery</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
