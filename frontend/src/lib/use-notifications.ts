@@ -96,6 +96,10 @@ export function useNotificationToggle() {
         applicationServerKey: urlBase64ToArrayBuffer((await api.getVapidPublicKey()).public_key),
       });
       await api.subscribeNotifications(subscriptionToPayload(subscription));
+      const reminderSettings = await api.getReminderSettings();
+      if (!reminderSettings.enabled) {
+        await api.setReminderSettings({ ...reminderSettings, enabled: true });
+      }
       localStorage.setItem(STORAGE_KEY, "true");
       setEnabled(true);
     } catch (err) {

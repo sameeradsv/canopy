@@ -170,6 +170,12 @@ def subscribe(payload: SubscribePayload, user: User = Depends(require_user), db:
         row.platform = payload.platform
         row.enabled = True
         row.updated_at = _now_utc()
+        if get_setting(db, REMINDER_SETTINGS_KEY, user_id=user.id) is None:
+            defaults = {
+                **DEFAULT_REMINDER_SETTINGS,
+                "enabled": True,
+            }
+            set_setting(db, REMINDER_SETTINGS_KEY, json.dumps(defaults), user_id=user.id)
         db.commit()
         db.refresh(row)
         return {"id": row.id, "enabled": bool(row.enabled)}

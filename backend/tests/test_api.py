@@ -439,6 +439,40 @@ def test_notification_subscription_and_settings(client, monkeypatch):
     assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
 
 
+def test_subscribe_enables_default_reminders_so_cron_does_not_skip(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
+    token = client.post(
+        "/api/auth/register", json={"username": "subscribe-reminder", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/subscribed",
+            "keys": {"p256dh": "p256", "auth": "auth"},
+        },
+    )
+
+    settings = client.get("/api/notifications/reminder-settings", headers=auth).json()
+    assert settings["enabled"] is True
+
+    sent = []
+
+    def fake_send(sub, payload):
+        sent.append((sub.endpoint, payload["reminderType"]))
+
+    monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
+    r = client.post("/api/notifications/reminder/morning", headers={"Authorization": "Bearer cron-secret"})
+
+    assert r.status_code == 200
+    assert r.json()["skipped"] == 0
+    assert r.json()["attempted_subscriptions"] == 1
+    assert r.json()["delivered"] == 1
+    assert sent == [("https://push.example/subscribed", "morning")]
+
+
 def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monkeypatch):
     monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
     token = client.post(
