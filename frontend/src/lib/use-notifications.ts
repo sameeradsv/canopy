@@ -4,7 +4,28 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 const STORAGE_KEY = "canopy.notifications.enabled";
-const SW_FILE = "notification-sw.js";
+const SW_FILE = "sw.js";
+
+function appBasePath(): string {
+  if (typeof window === "undefined") return "";
+
+  const manifest = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  if (manifest?.href) {
+    try {
+      const url = new URL(manifest.href);
+      const path = url.pathname.replace(/\/manifest(?:\.webmanifest)?$/, "");
+      if (url.origin === window.location.origin && path !== "/") return path.replace(/\/$/, "");
+    } catch {
+      // Fall back to the pathname heuristic below.
+    }
+  }
+
+  return window.location.pathname.startsWith("/canopy") ? "/canopy" : "";
+}
+
+function serviceWorkerPath(): string {
+  return `${appBasePath()}/${SW_FILE}`.replace(/\/{2,}/g, "/");
+}
 
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -41,8 +62,15 @@ async function getRegistration() {
   if (!("serviceWorker" in navigator)) {
     throw new Error("Service workers are not supported in this browser");
   }
-  const basePath = window.location.pathname.startsWith("/canopy") ? "/canopy" : "";
-  return navigator.serviceWorker.register(`${basePath}/${SW_FILE}`);
+  try {
+    return await navigator.serviceWorker.register(serviceWorkerPath());
+  } catch (err) {
+    throw new Error(
+      err instanceof Error
+        ? `Unable to register notification service worker: ${err.message}`
+        : "Unable to register notification service worker",
+    );
+  }
 }
 
 async function getExistingSubscription() {
@@ -63,8 +91,12 @@ export function useNotificationToggle() {
       typeof window !== "undefined" &&
       "Notification" in window &&
       "serviceWorker" in navigator &&
-      "PushManager" in window;
+      "PushManager" in window &&
+      window.isSecureContext;
     setSupported(canPush);
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError("Notifications require HTTPS or localhost");
+    }
     if (!canPush) {
       setReady(true);
       return;

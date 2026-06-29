@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from app.services import get_setting, set_setting
 from app.services.push import PushGoneError, send_web_push
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+_IST = ZoneInfo("Asia/Kolkata")
 
 REMINDER_SETTINGS_KEY = "notification_reminders"
 REMINDER_SENT_KEY_PREFIX = "notification_sent"
@@ -62,6 +64,10 @@ class ReminderSettingsPayload(BaseModel):
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _today_ist_key() -> str:
+    return datetime.now(_IST).date().isoformat()
 
 
 def _settings_for_user(db: Session, user_id: int) -> dict:
@@ -279,7 +285,7 @@ def send_fixed_reminder(
     if authorization != f"Bearer {settings.reminder_cron_secret}":
         raise HTTPException(401, "Invalid reminder processor token")
 
-    today = _now_utc().date().isoformat()
+    today = _today_ist_key()
     users = db.execute(select(PushSubscription.user_id).where(PushSubscription.enabled == True).distinct()).all()  # noqa: E712
     payload = _payload_for(reminder_type)
     stats = {

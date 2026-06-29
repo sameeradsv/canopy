@@ -9,12 +9,15 @@ self.addEventListener("push", (event) => {
   }
 
   const title = payload.title || "Canopy reminder";
+  const scopeUrl = new URL(self.registration.scope);
+  const basePath = scopeUrl.pathname.replace(/\/$/, "");
+  const iconUrl = `${basePath}/icons/icon-192x192.png`.replace(/\/{2,}/g, "/");
   const options = {
     body: payload.body || "A quiet moment to reflect.",
     tag: payload.tag || "canopy-reminder",
     renotify: true,
-    icon: "./icons/icon-192x192.png",
-    badge: "./icons/icon-192x192.png",
+    icon: iconUrl,
+    badge: iconUrl,
     timestamp: Date.now(),
     data: {
       url: payload.url || "/capture",
@@ -28,10 +31,10 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const scope = new URL(self.registration.scope);
-  const basePath = scope.pathname.replace(/\/$/, "");
+  const scopeUrl = new URL(self.registration.scope);
+  const basePath = scopeUrl.pathname.replace(/\/$/, "");
   const rawUrl = event.notification.data?.url || "/capture";
-  const targetPath = rawUrl.startsWith(basePath) ? rawUrl : `${basePath}${rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`}`;
+  const targetPath = rawUrl.startsWith("/") ? `${basePath}${rawUrl}`.replace(/\/{2,}/g, "/") : rawUrl;
   const targetUrl = new URL(targetPath, self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
