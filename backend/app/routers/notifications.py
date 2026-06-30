@@ -28,9 +28,9 @@ REMINDER_TYPES = {"morning", "afternoon", "evening"}
 DEFAULT_REMINDER_SETTINGS = {
     "enabled": False,
     "times": {
-        "morning": "09:00",
-        "afternoon": "14:00",
-        "evening": "20:00",
+        "morning": "11:00",
+        "afternoon": "17:00",
+        "evening": "22:00",
     },
     "types": {
         "morning": True,
@@ -97,23 +97,33 @@ def _validate_time(value: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 
-def _payload_for(reminder_type: str) -> dict:
-    copy = {
-        "morning": {
-            "title": "Morning reflection",
-            "body": "Notice the people and intentions that matter today.",
-        },
-        "afternoon": {
-            "title": "Afternoon check-in",
-            "body": "A small pause to capture what changed.",
-        },
-        "evening": {
-            "title": "Evening reflection",
-            "body": "Close the loop on the day while it is still fresh.",
-        },
+def _rotating_message(reminder_type: str) -> dict[str, str]:
+    variants = {
+        "morning": [
+            ("Morning interaction check-in", "Capture any important people moments from the morning."),
+            ("Morning reflection", "Log the conversations, support, or friction worth remembering."),
+            ("Canopy morning note", "A quick pass over who you met, helped, or need to follow up with."),
+        ],
+        "afternoon": [
+            ("Afternoon interaction check-in", "Add what shifted with people since lunch."),
+            ("Afternoon reflection", "Catch the small social signals before the day moves on."),
+            ("Canopy afternoon note", "Save any useful context from the middle of the day."),
+        ],
+        "evening": [
+            ("Evening interaction check-in", "Close the loop on the people moments from today."),
+            ("Evening reflection", "Record the wins, tension, gratitude, or follow-ups while fresh."),
+            ("Canopy evening note", "A final scan for conversations you may want future-you to remember."),
+        ],
     }[reminder_type]
+    day = datetime.now(_IST).toordinal()
+    index = (day + sorted(REMINDER_TYPES).index(reminder_type)) % len(variants)
+    title, body = variants[index]
+    return {"title": title, "body": body}
+
+
+def _payload_for(reminder_type: str) -> dict:
     return {
-        **copy,
+        **_rotating_message(reminder_type),
         "tag": f"canopy-{reminder_type}-reminder",
         "url": "/capture",
         "reminderType": reminder_type,

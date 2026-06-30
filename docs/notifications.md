@@ -1,6 +1,6 @@
 # Canopy Notifications
 
-Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table.
+Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table. Reminder copy rotates through curated variants by IST date so the morning, afternoon, and evening nudges do not use the same fixed message every day. Groq is not called during cron delivery.
 
 ## Data Model
 
@@ -97,9 +97,9 @@ If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the
 
 Create three jobs. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times, but cron-job.org is still the scheduler.
 
-- `09:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
-- `14:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
-- `20:00` -> `POST https://<api-host>/api/notifications/reminder/evening`
+- `11:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
+- `17:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
+- `22:00` -> `POST https://<api-host>/api/notifications/reminder/evening`
 
 Add the authorization header to each job:
 
