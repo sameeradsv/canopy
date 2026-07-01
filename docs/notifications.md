@@ -1,6 +1,6 @@
 # Canopy Notifications
 
-Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table.
+Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table. Reminder copy rotates through curated variants by IST date so the morning, afternoon, and evening nudges do not use the same fixed message every day. Groq is not called during cron delivery.
 
 ## Data Model
 
@@ -10,7 +10,7 @@ flowchart LR
   Cron --> Endpoint["/api/notifications/reminder/{type}"]
   Endpoint --> Subscriptions["push_subscriptions registered devices"]
   Subscriptions --> Push["Web Push + VAPID"]
-  Push --> Worker["/canopy/notification-sw.js or /notification-sw.js installed PWA"]
+  Push --> Worker["/canopy/sw.js or /sw.js installed PWA"]
 ```
 
 `push_subscriptions` stores one row per user device:
@@ -97,9 +97,9 @@ If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the
 
 Create three jobs. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times, but cron-job.org is still the scheduler.
 
-- `09:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
-- `14:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
-- `20:00` -> `POST https://<api-host>/api/notifications/reminder/evening`
+- `11:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
+- `17:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
+- `22:00` -> `POST https://<api-host>/api/notifications/reminder/evening`
 
 Add the authorization header to each job:
 
@@ -111,9 +111,9 @@ Set the cron timezone deliberately. Reminder duplicate protection uses the backe
 
 ## Client Flow
 
-The sidebar bell and Settings page both use `useNotificationToggle()`. The hook registers `notification-sw.js`, requests notification permission, subscribes the current device with the VAPID public key, and sends the subscription to the backend.
+The sidebar bell and Settings page both use `useNotificationToggle()`. The hook registers `sw.js`, requests notification permission, subscribes the current device with the VAPID public key, and sends the subscription to the backend.
 
-On GitHub Pages, the hook detects the `/canopy` base path and registers `/canopy/notification-sw.js`. This avoids the common static-export failure where the browser tries to load a service worker from a missing root or app-prefixed path. Notifications are delivered through the service worker, so the installed PWA does not need to be open.
+On GitHub Pages, the hook detects the `/canopy` base path and registers `/canopy/sw.js`. This avoids the common static-export failure where the browser tries to load a service worker from a missing root or app-prefixed path. Notifications are delivered through the service worker, so the installed PWA does not need to be open.
 
 ## Troubleshooting
 

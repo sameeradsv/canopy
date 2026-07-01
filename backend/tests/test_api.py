@@ -439,6 +439,36 @@ def test_notification_subscription_and_settings(client, monkeypatch):
     assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
 
 
+def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.vapid_public_key", "public-key")
+    token = client.post(
+        "/api/auth/register", json={"username": "notify-defaults", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/defaults",
+            "keys": {"p256dh": "p256", "auth": "auth"},
+        },
+    )
+
+    settings = client.get("/api/notifications/reminder-settings", headers=auth).json()
+    assert settings["times"] == {"morning": "11:00", "afternoon": "17:00", "evening": "22:00"}
+
+    from app.routers.notifications import _payload_for
+
+    payload = _payload_for("morning")
+    assert payload["title"] in {
+        "Morning interaction check-in",
+        "Morning reflection",
+        "Canopy morning note",
+    }
+    assert payload["body"]
+
+
 def test_subscribe_enables_default_reminders_so_cron_does_not_skip(client, monkeypatch):
     monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
     token = client.post(

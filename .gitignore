@@ -222,3 +222,6 @@ node_modules/
 
 # The Python rule `lib/` above would otherwise swallow frontend/src/lib/
 !frontend/src/lib/
+
+# Claude Code local settings (machine-specific tool permissions)
+.claude/settings.local.json
