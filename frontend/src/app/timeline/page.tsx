@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api, type Interaction, type InteractionUpdate, type Person } from "@/lib/api";
 import { InteractionCard } from "@/components/InteractionCard";
 import { TagInput } from "@/components/TagInput";
-import { TZ, fmtDateIST, fmtTimeIST, toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
+import { TZ, fmtDateIST, toISTDatetimeLocal, fromISTDatetimeLocal } from "@/lib/tz";
 
 const KIND_GLYPH: Record<string, string> = {
   meeting: "◧",

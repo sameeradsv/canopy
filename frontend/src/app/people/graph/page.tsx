@@ -45,7 +45,7 @@ function RadarChart({ scores, dims }: { scores: Record<string, number>; dims: st
     pts(s).map(([x, y]) => `${x},${y}`).join(" ")
   );
 
-  const scorePts = pts(1).map(([x, y], i) => {
+  const scorePts = dims.map((_, i) => {
     const v = scores[dims[i]] ?? 0;
     return [cx + v * r * Math.cos((2 * Math.PI * i) / n - Math.PI / 2), cy + v * r * Math.sin((2 * Math.PI * i) / n - Math.PI / 2)];
   });
@@ -135,8 +135,6 @@ export default function GraphPage() {
   const W = 500, H = 400, pad = { top: 20, right: 20, bottom: 50, left: 50 };
   const plotW = W - pad.left - pad.right;
   const plotH = H - pad.top - pad.bottom;
-
-  const maxCount = Math.max(1, ...scoredPeople.map((p) => p.interaction_count));
 
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 

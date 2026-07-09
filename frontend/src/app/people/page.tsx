@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { api, type Person, type PersonUpdate, type RelationshipDefaults } from "@/lib/api";
+import { api, type PersonUpdate, type RelationshipDefaults } from "@/lib/api";
 import {
   FALLBACK_DEFAULTS,
   RELATIONSHIP_LABELS,

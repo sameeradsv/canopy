@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Summary } from "@/lib/api";
 import { InteractionCard } from "@/components/InteractionCard";
-import { istHour, fmtDateIST, TZ } from "@/lib/tz";
+import { istHour, TZ } from "@/lib/tz";
 import { useAuth } from "@/lib/AuthContext";
 
 function greeting() {
