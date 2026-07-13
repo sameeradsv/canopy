@@ -152,7 +152,7 @@ function EditForm({ ix, onSave, onCancel, people }: {
           type="number"
           min={1}
           max={1440}
-          step={5}
+          step={1}
           value={durationMinutes}
           onChange={(e) => setDurationMinutes(Math.max(1, Math.min(1440, Number(e.target.value) || 1)))}
           className="input"
