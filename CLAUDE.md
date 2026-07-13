@@ -139,6 +139,13 @@ Backend tests in `backend/tests/test_api.py` use `TestClient` with an in-memory 
 
 **Never let `app/foo.py` coexist with `app/foo/` as a namespace package**: Python's `FileFinder` gives regular modules (`.py` files) priority over namespace packages (directories without `__init__.py`) in the same parent. If both exist, `from app.foo.bar import …` silently resolves `app.foo` to `foo.py` and then fails to find `bar` as a submodule — raising an unhandled `ModuleNotFoundError` that triggers the CORS bypass above. If a directory needs submodules, give it an `__init__.py`; if a `.py` file and a same-named directory must coexist, one of them needs to be renamed.
 
+## Change workflow
+
+- Follow code changes with appropriate documentation edits in the same work session when behavior, architecture, commands, environment variables, or user-facing workflows change.
+- Always commit and push completed changes to the remote default branch. In this repository, the remote default branch is `main`; do not leave finished work only on feature, Codex, Claude, or other agent-created branches.
+- If changes are accidentally pushed to any branch other than the remote default and are not yet merged into `main`, move/cherry-pick or merge that work onto `main`, push `main`, and verify `main` contains the changes before considering the task complete.
+- Once requested changes are complete, commit and push them without waiting for another prompt, unless the user explicitly asks to wait for approval or review.
+
 ## UI & Responsive Standards
 
 All UI changes must work correctly across **every** combination of these views before being considered done:

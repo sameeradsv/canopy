@@ -95,3 +95,12 @@ This file records intentional divergences from the Tend design spec and consciou
 **Reason:** Usage data showed these modes were rarely selected. Removing them reduces CSS maintenance surface. Paper + Ink covers the light/dark range; Editorial + Typewriter covers serif/mono font preferences.
 
 **Implication:** Settings page offers Paper / Ink themes and Editorial / Typewriter font modes only.
+
+
+## Default-branch push policy (2026-07-13)
+
+**Decision:** Completed work must be committed and pushed to the remote default branch. For this repo, the remote default branch is `main`.
+
+**Reason:** Agent-created branches are easy to strand when work is complete but not merged, which makes the deployed/default line drift from the actual finished state.
+
+**Implication:** If work is pushed to any branch other than `main` before it is merged, move/cherry-pick or merge it onto `main`, push `main`, and verify the default branch contains the change before closing the task.
