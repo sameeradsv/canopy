@@ -111,9 +111,9 @@ Set the cron timezone deliberately. Reminder duplicate protection uses the backe
 
 ## Client Flow
 
-The sidebar bell and Settings page both use `useNotificationToggle()`. The hook registers `sw.js`, requests notification permission, subscribes the current device with the VAPID public key, and sends the subscription to the backend.
+The sidebar bell and Settings page both use `useNotificationToggle()`. The hook registers the static `notification-sw.js` worker, requests notification permission, subscribes the current device with the VAPID public key, and sends the subscription to the backend.
 
-On GitHub Pages, the hook detects the `/canopy` base path and registers `/canopy/sw.js`. This avoids the common static-export failure where the browser tries to load a service worker from a missing root or app-prefixed path. Notifications are delivered through the service worker, so the installed PWA does not need to be open.
+On Pages-style static hosting, the hook detects the `/canopy` base path and registers `/canopy/notification-sw.js`. It preflights that URL before registration so a missing deploy artifact is reported in the UI instead of only as a browser service-worker script-load failure. Notifications are delivered through the service worker, so the installed PWA does not need to be open.
 
 ## Troubleshooting
 

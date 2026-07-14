@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 const STORAGE_KEY = "canopy.notifications.enabled";
-const SW_FILE = "sw.js";
+const SW_FILE = "notification-sw.js";
 
 function appBasePath(): string {
   if (typeof window === "undefined") return "";
@@ -25,6 +25,28 @@ function appBasePath(): string {
 
 function serviceWorkerPath(): string {
   return `${appBasePath()}/${SW_FILE}`.replace(/\/{2,}/g, "/");
+}
+
+async function ensureServiceWorkerScript(path: string) {
+  let response: Response;
+  try {
+    response = await fetch(path, { cache: "no-store", credentials: "same-origin" });
+  } catch (err) {
+    throw new Error(
+      `Notification service worker is unreachable at ${new URL(path, window.location.origin).href}`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Notification service worker is missing at ${new URL(path, window.location.origin).href} (HTTP ${response.status})`,
+    );
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("text/html")) {
+    throw new Error(
+      `Notification service worker URL returned HTML at ${new URL(path, window.location.origin).href}`,
+    );
+  }
 }
 
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
@@ -62,8 +84,10 @@ async function getRegistration() {
   if (!("serviceWorker" in navigator)) {
     throw new Error("Service workers are not supported in this browser");
   }
+  const path = serviceWorkerPath();
   try {
-    return await navigator.serviceWorker.register(serviceWorkerPath());
+    await ensureServiceWorkerScript(path);
+    return await navigator.serviceWorker.register(path);
   } catch (err) {
     throw new Error(
       err instanceof Error
