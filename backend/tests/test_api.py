@@ -436,7 +436,7 @@ def test_notification_subscription_and_settings(client, monkeypatch):
     }
     saved = client.put("/api/notifications/reminder-settings", headers=auth, json=settings_payload)
     assert saved.status_code == 200
-    assert saved.json()["time"] == "20:30"
+    assert saved.json()["time"] == "21:30"
     assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
 
 
@@ -542,7 +542,7 @@ def test_migration_normalizes_legacy_reminder_settings():
         }
 
     assert rows["1:notification_reminders"] == {"enabled": True, "time": "21:30"}
-    assert rows["2:notification_reminders"] == {"enabled": True, "time": "20:30"}
+    assert rows["2:notification_reminders"] == {"enabled": True, "time": "21:30"}
     assert rows["3:notification_reminders"] == {"enabled": False, "time": "21:30"}
 
 

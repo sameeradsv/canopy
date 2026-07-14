@@ -154,7 +154,7 @@ export function useNotificationToggle() {
       await api.subscribeNotifications(subscriptionToPayload(subscription));
       const reminderSettings = await api.getReminderSettings();
       if (!reminderSettings.enabled) {
-        await api.setReminderSettings({ ...reminderSettings, enabled: true });
+        await api.setReminderSettings({ enabled: true, time: "21:30" });
       }
       localStorage.setItem(STORAGE_KEY, "true");
       setEnabled(true);

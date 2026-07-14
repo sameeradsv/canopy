@@ -259,17 +259,9 @@ def _migrate_single_diary_reminder_settings() -> None:
                 loaded = json.loads(row["value"])
             except (TypeError, json.JSONDecodeError):
                 continue
-            legacy_times = loaded.get("times") if isinstance(loaded.get("times"), dict) else {}
-            legacy_default_times = (
-                legacy_times.get("morning") == "11:00"
-                and legacy_times.get("afternoon") in {"15:00", "17:00"}
-                and legacy_times.get("evening") in {"21:30", "22:00"}
-            )
             cleaned = {
                 "enabled": bool(loaded.get("enabled", False)),
-                "time": loaded.get("time")
-                or ("21:30" if legacy_default_times else legacy_times.get("evening"))
-                or "21:30",
+                "time": "21:30",
             }
             conn.execute(
                 text("UPDATE settings SET value = :value WHERE key = :key"),
@@ -295,6 +287,7 @@ def init_db() -> None:
         ("postgres_interaction_duration", _migrate_postgres_interaction_duration),
         ("push_subscriptions", _migrate_push_subscriptions),
         ("single_diary_reminder_settings", _migrate_single_diary_reminder_settings),
+        ("fixed_diary_reminder_time", _migrate_single_diary_reminder_settings),
     ]:
         if not _migration_done(name):
             fn()

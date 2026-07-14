@@ -41,7 +41,6 @@ export default function SettingsPage() {
   const [passkeyErr, setPasskeyErr] = useState<string | null>(null);
   const notifications = useNotificationToggle();
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings | null>(null);
-  const [savingReminders, setSavingReminders] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [testingNotification, setTestingNotification] = useState(false);
@@ -85,27 +84,24 @@ export default function SettingsPage() {
   function onFontMode(v: FontMode) { setFontMode(v); apply("data-fontmode", v, "canopy.fontMode"); }
   function onDensity(v: Density) { setDensity(v); apply("data-density", v, "canopy.density"); }
 
-  function updateReminderTime(value: string) {
-    setReminderSettings((current) => current ? { ...current, time: value } : current);
-  }
-
   function updateReminderEnabled(enabled: boolean) {
     setReminderSettings((current) => current ? { ...current, enabled } : current);
   }
 
-  async function saveReminderSettings() {
-    if (!reminderSettings) return;
-    setSavingReminders(true);
+  async function saveReminderSettings(next?: Partial<ReminderSettings>) {
+    if (!reminderSettings && !next) return;
+    const payload: ReminderSettings = {
+      enabled: next?.enabled ?? reminderSettings?.enabled ?? true,
+      time: "21:30",
+    };
     setReminderError(null);
     setReminderMessage(null);
     try {
-      const saved = await api.setReminderSettings(reminderSettings);
+      const saved = await api.setReminderSettings(payload);
       setReminderSettings(saved);
-      setReminderMessage("Reminder settings saved.");
+      setReminderMessage("Reminder preference saved.");
     } catch (err) {
       setReminderError(err instanceof Error ? err.message : "Could not save reminder settings");
-    } finally {
-      setSavingReminders(false);
     }
   }
 
@@ -306,27 +302,25 @@ export default function SettingsPage() {
               <input
                 type="checkbox"
                 checked={reminderSettings.enabled}
-                onChange={(e) => updateReminderEnabled(e.target.checked)}
+                onChange={(e) => {
+                  updateReminderEnabled(e.target.checked);
+                  void saveReminderSettings({ enabled: e.target.checked });
+                }}
               />
               Send reflection reminders
             </label>
 
-            <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)" }}>
+            <div style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)" }}>
               Diary time
-              <input
-                type="time"
-                step={1800}
-                value={reminderSettings.time}
-                onChange={(e) => updateReminderTime(e.target.value)}
+              <div
                 className="input"
-                style={{ minHeight: 44, maxWidth: 180 }}
-              />
-            </label>
+                style={{ minHeight: 44, maxWidth: 180, display: "flex", alignItems: "center" }}
+              >
+                21:30
+              </div>
+            </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => void saveReminderSettings()} disabled={savingReminders} className="btn primary" style={{ minHeight: 44 }}>
-                {savingReminders ? "Saving..." : "Save reminders"}
-              </button>
               <button type="button" onClick={() => void sendTestNotification()} disabled={!notifications.enabled || testingNotification} className="btn" style={{ minHeight: 44 }}>
                 {testingNotification ? "Sending..." : "Send test"}
               </button>
@@ -334,7 +328,7 @@ export default function SettingsPage() {
             {reminderMessage && <p style={{ color: "var(--accent)", fontSize: 13, margin: 0 }}>{reminderMessage}</p>}
             {reminderError && <p style={{ color: "var(--danger)", fontSize: 13, margin: 0 }}>{reminderError}</p>}
             <p className="faint small" style={{ margin: 0 }}>
-              Cron still needs to be set to this same time in production.
+              Cron sends this reminder at the documented production time.
             </p>
           </div>
         )}

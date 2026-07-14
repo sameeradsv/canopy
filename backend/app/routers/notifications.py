@@ -70,30 +70,10 @@ def _settings_for_user(db: Session, user_id: int) -> dict:
         loaded = json.loads(row.value)
     except json.JSONDecodeError:
         return DEFAULT_REMINDER_SETTINGS.copy()
-    legacy_times = loaded.get("times") if isinstance(loaded.get("times"), dict) else {}
-    legacy_default_times = (
-        legacy_times.get("morning") == "11:00"
-        and legacy_times.get("afternoon") in {"15:00", "17:00"}
-        and legacy_times.get("evening") in {"21:30", "22:00"}
-    )
     return {
         "enabled": bool(loaded.get("enabled", False)),
-        "time": loaded.get("time")
-        or ("21:30" if legacy_default_times else legacy_times.get("evening"))
-        or DEFAULT_REMINDER_SETTINGS["time"],
+        "time": DEFAULT_REMINDER_SETTINGS["time"],
     }
-
-
-def _validate_time(value: str) -> str:
-    try:
-        hour, minute = value.split(":", 1)
-        h = int(hour)
-        m = int(minute)
-    except Exception as exc:
-        raise HTTPException(400, "Reminder time must be HH:MM") from exc
-    if not (0 <= h <= 23 and m in (0, 30)):
-        raise HTTPException(400, "Reminder time must be HH:MM on a 30-minute boundary")
-    return f"{h:02d}:{m:02d}"
 
 
 def _rotating_message() -> dict[str, str]:
@@ -259,7 +239,7 @@ def put_reminder_settings(
 ):
     cleaned = {
         "enabled": payload.enabled,
-        "time": _validate_time(payload.time),
+        "time": DEFAULT_REMINDER_SETTINGS["time"],
     }
     set_setting(db, REMINDER_SETTINGS_KEY, json.dumps(cleaned), user_id=user.id)
     return cleaned
