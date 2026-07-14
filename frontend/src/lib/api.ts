@@ -468,10 +468,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  unsubscribeNotifications: (endpoint: string) =>
+  unsubscribeNotifications: (payload: { endpoint: string; device_name?: string; platform?: string }) =>
     request<{ status: string }>("/api/notifications/unsubscribe", {
       method: "POST",
-      body: JSON.stringify({ endpoint }),
+      body: JSON.stringify(payload),
     }),
 
   getReminderSettings: () =>

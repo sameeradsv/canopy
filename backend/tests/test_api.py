@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.database import Base, engine, init_db
 from app.limiter import limiter
 from app.main import app
+from app.models import PushSubscription
 
 
 @pytest.fixture(autouse=True)
@@ -430,13 +431,51 @@ def test_notification_subscription_and_settings(client, monkeypatch):
 
     settings_payload = {
         "enabled": True,
-        "times": {"morning": "08:30", "afternoon": "14:15", "evening": "20:45"},
+        "times": {"morning": "08:30", "afternoon": "14:30", "evening": "20:30"},
         "types": {"morning": True, "afternoon": True, "evening": False},
     }
     saved = client.put("/api/notifications/reminder-settings", headers=auth, json=settings_payload)
     assert saved.status_code == 200
     assert saved.json()["times"]["morning"] == "08:30"
     assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
+
+
+def test_notification_subscribe_disables_stale_matching_endpoint(client):
+    token = client.post(
+        "/api/auth/register", json={"username": "notify-dedupe", "password": "secret99"}
+    ).json()["token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    first = client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/old-phone",
+            "keys": {"p256dh": "old", "auth": "old"},
+            "device_name": "Phone",
+            "platform": "iOS",
+        },
+    )
+    second = client.post(
+        "/api/notifications/subscribe",
+        headers=auth,
+        json={
+            "endpoint": "https://push.example/new-phone",
+            "keys": {"p256dh": "new", "auth": "new"},
+            "device_name": "Phone",
+            "platform": "iOS",
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    with engine.connect() as conn:
+        rows = {
+            row["endpoint"]: bool(row["enabled"])
+            for row in conn.execute(PushSubscription.__table__.select()).mappings()
+        }
+    assert rows["https://push.example/old-phone"] is False
+    assert rows["https://push.example/new-phone"] is True
 
 
 def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
@@ -456,7 +495,8 @@ def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
     )
 
     settings = client.get("/api/notifications/reminder-settings", headers=auth).json()
-    assert settings["times"] == {"morning": "11:00", "afternoon": "17:00", "evening": "22:00"}
+    assert settings["times"] == {"morning": "11:00", "afternoon": "15:00", "evening": "21:30"}
+    assert settings["types"] == {"morning": False, "afternoon": False, "evening": True}
 
     from app.routers.notifications import _payload_for
 
@@ -469,7 +509,7 @@ def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
     assert payload["body"]
 
 
-def test_subscribe_enables_default_reminders_so_cron_does_not_skip(client, monkeypatch):
+def test_subscribe_enables_default_evening_reminder_so_cron_does_not_skip(client, monkeypatch):
     monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
     token = client.post(
         "/api/auth/register", json={"username": "subscribe-reminder", "password": "secret99"}
@@ -494,13 +534,13 @@ def test_subscribe_enables_default_reminders_so_cron_does_not_skip(client, monke
         sent.append((sub.endpoint, payload["reminderType"]))
 
     monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
-    r = client.post("/api/notifications/reminder/morning", headers={"Authorization": "Bearer cron-secret"})
+    r = client.post("/api/notifications/reminder/evening", headers={"Authorization": "Bearer cron-secret"})
 
     assert r.status_code == 200
     assert r.json()["skipped"] == 0
     assert r.json()["attempted_subscriptions"] == 1
     assert r.json()["delivered"] == 1
-    assert sent == [("https://push.example/subscribed", "morning")]
+    assert sent == [("https://push.example/subscribed", "evening")]
 
 
 def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monkeypatch):

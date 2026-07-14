@@ -93,6 +93,10 @@ export default function SettingsPage() {
     setReminderSettings((current) => current ? { ...current, enabled } : current);
   }
 
+  function updateReminderType(key: keyof ReminderSettings["types"], enabled: boolean) {
+    setReminderSettings((current) => current ? { ...current, types: { ...current.types, [key]: enabled } } : current);
+  }
+
   async function saveReminderSettings() {
     if (!reminderSettings) return;
     setSavingReminders(true);
@@ -279,7 +283,7 @@ export default function SettingsPage() {
           <div>
             <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Reflection notifications</div>
             <p className="faint small" style={{ marginBottom: 0 }}>
-              Three quiet daily nudges for morning, afternoon, and evening capture.
+              A private evening diary prompt, with optional daytime check-ins.
             </p>
             {notifications.error && <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{notifications.error}</p>}
           </div>
@@ -308,15 +312,23 @@ export default function SettingsPage() {
                 checked={reminderSettings.enabled}
                 onChange={(e) => updateReminderEnabled(e.target.checked)}
               />
-              Send daily reflection reminders
+              Send reflection reminders
             </label>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
               {(["morning", "afternoon", "evening"] as const).map((key) => (
                 <label key={key} style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)", textTransform: "capitalize" }}>
-                  {key}
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 44 }}>
+                    {key}
+                    <input
+                      type="checkbox"
+                      checked={reminderSettings.types[key]}
+                      onChange={(e) => updateReminderType(key, e.target.checked)}
+                    />
+                  </span>
                   <input
                     type="time"
+                    step={1800}
                     value={reminderSettings.times[key]}
                     onChange={(e) => updateReminderTime(key, e.target.value)}
                     className="input"

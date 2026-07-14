@@ -1,6 +1,6 @@
 # Canopy Notifications
 
-Canopy uses a lightweight reminder architecture: three opt-in daily reflection reminders, Web Push delivery, and no reminders table. Reminder copy rotates through curated variants by IST date so the morning, afternoon, and evening nudges do not use the same fixed message every day. Groq is not called during cron delivery.
+Canopy uses a lightweight reminder architecture: opt-in reflection reminders, Web Push delivery, and no reminders table. The default is a single evening diary reminder at `21:30` IST; morning and afternoon check-ins remain available but disabled by default. Reminder copy rotates through curated variants by IST date so enabled nudges do not use the same fixed message every day. Groq is not called during cron delivery.
 
 ## Data Model
 
@@ -25,6 +25,8 @@ flowchart LR
 - `enabled`
 - `created_at`
 - `updated_at`
+
+When a device subscribes, Canopy re-enables or creates the current browser endpoint and disables older enabled endpoints with the same `device_name` and `platform`. Unsubscribing sends that same device profile and also retires stale matches. This preserves multi-device delivery while avoiding duplicate reflection reminders when a browser rotates its Web Push endpoint.
 
 Reminder preferences live in the existing `settings` table under `notification_reminders`.
 
@@ -95,11 +97,13 @@ If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the
 
 ## cron-job.org
 
-Create three jobs. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times, but cron-job.org is still the scheduler.
+Create cron jobs for the enabled reminder types. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times and enabled types, but cron-job.org is still the scheduler. Defaults use 30-minute boundaries:
 
 - `11:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
-- `17:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
-- `22:00` -> `POST https://<api-host>/api/notifications/reminder/evening`
+- `15:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
+- `21:30` -> `POST https://<api-host>/api/notifications/reminder/evening`
+
+For the current diary-style setup, keep only the evening job active unless morning or afternoon reminders are explicitly enabled in Settings.
 
 Add the authorization header to each job:
 

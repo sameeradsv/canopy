@@ -29,12 +29,12 @@ DEFAULT_REMINDER_SETTINGS = {
     "enabled": False,
     "times": {
         "morning": "11:00",
-        "afternoon": "17:00",
-        "evening": "22:00",
+        "afternoon": "15:00",
+        "evening": "21:30",
     },
     "types": {
-        "morning": True,
-        "afternoon": True,
+        "morning": False,
+        "afternoon": False,
         "evening": True,
     },
 }
@@ -54,6 +54,8 @@ class SubscribePayload(BaseModel):
 
 class UnsubscribePayload(BaseModel):
     endpoint: str = Field(min_length=1)
+    device_name: Optional[str] = None
+    platform: Optional[str] = None
 
 
 class ReminderSettingsPayload(BaseModel):
@@ -92,8 +94,8 @@ def _validate_time(value: str) -> str:
         m = int(minute)
     except Exception as exc:
         raise HTTPException(400, "Reminder times must be HH:MM") from exc
-    if not (0 <= h <= 23 and 0 <= m <= 59):
-        raise HTTPException(400, "Reminder times must be HH:MM")
+    if not (0 <= h <= 23 and m in (0, 30)):
+        raise HTTPException(400, "Reminder times must be HH:MM on a 30-minute boundary")
     return f"{h:02d}:{m:02d}"
 
 
@@ -138,6 +140,33 @@ def _notification_storage_error(exc: SQLAlchemyError) -> HTTPException:
             "migration against the production DATABASE_URL."
         ),
     )
+
+
+def _disable_matching_device_subscriptions(
+    db: Session,
+    *,
+    user_id: int,
+    current_endpoint: str,
+    device_name: Optional[str],
+    platform: Optional[str],
+    now: datetime,
+) -> None:
+    if not device_name or not platform:
+        return
+    rows = (
+        db.query(PushSubscription)
+        .filter(
+            PushSubscription.user_id == user_id,
+            PushSubscription.device_name == device_name,
+            PushSubscription.platform == platform,
+            PushSubscription.endpoint != current_endpoint,
+            PushSubscription.enabled == True,  # noqa: E712
+        )
+        .all()
+    )
+    for row in rows:
+        row.enabled = False
+        row.updated_at = now
 
 
 @router.get("/vapid-public-key")
@@ -185,7 +214,16 @@ def subscribe(payload: SubscribePayload, user: User = Depends(require_user), db:
         row.device_name = payload.device_name
         row.platform = payload.platform
         row.enabled = True
-        row.updated_at = _now_utc()
+        now = _now_utc()
+        row.updated_at = now
+        _disable_matching_device_subscriptions(
+            db,
+            user_id=user.id,
+            current_endpoint=payload.endpoint,
+            device_name=payload.device_name,
+            platform=payload.platform,
+            now=now,
+        )
         if get_setting(db, REMINDER_SETTINGS_KEY, user_id=user.id) is None:
             defaults = {
                 **DEFAULT_REMINDER_SETTINGS,
@@ -209,7 +247,16 @@ def unsubscribe(payload: UnsubscribePayload, user: User = Depends(require_user),
     )
     if row:
         row.enabled = False
-        row.updated_at = _now_utc()
+        now = _now_utc()
+        row.updated_at = now
+        _disable_matching_device_subscriptions(
+            db,
+            user_id=user.id,
+            current_endpoint=payload.endpoint,
+            device_name=payload.device_name,
+            platform=payload.platform,
+            now=now,
+        )
         db.commit()
     return {"status": "ok"}
 
@@ -233,9 +280,9 @@ def put_reminder_settings(
             "evening": _validate_time(payload.times.get("evening", DEFAULT_REMINDER_SETTINGS["times"]["evening"])),
         },
         "types": {
-            "morning": bool(payload.types.get("morning", True)),
-            "afternoon": bool(payload.types.get("afternoon", True)),
-            "evening": bool(payload.types.get("evening", True)),
+            "morning": bool(payload.types.get("morning", DEFAULT_REMINDER_SETTINGS["types"]["morning"])),
+            "afternoon": bool(payload.types.get("afternoon", DEFAULT_REMINDER_SETTINGS["types"]["afternoon"])),
+            "evening": bool(payload.types.get("evening", DEFAULT_REMINDER_SETTINGS["types"]["evening"])),
         },
     }
     set_setting(db, REMINDER_SETTINGS_KEY, json.dumps(cleaned), user_id=user.id)
@@ -311,7 +358,9 @@ def send_fixed_reminder(
 
     for (user_id,) in users:
         reminder_settings = _settings_for_user(db, int(user_id))
-        if not reminder_settings["enabled"] or not reminder_settings["types"].get(reminder_type, True):
+        if not reminder_settings["enabled"] or not reminder_settings["types"].get(
+            reminder_type, DEFAULT_REMINDER_SETTINGS["types"].get(reminder_type, True)
+        ):
             stats["skipped"] += 1
             continue
         sent_key = f"{REMINDER_SENT_KEY_PREFIX}:{today}:{reminder_type}"
