@@ -1,6 +1,6 @@
 # Canopy Notifications
 
-Canopy uses a lightweight reminder architecture: one opt-in evening diary reminder, Web Push delivery, and no reminders table. The default reminder time is `21:30` IST. Reminder copy rotates through curated variants by IST date so the diary nudge does not use the same fixed message every day. Groq is not called during cron delivery.
+Canopy uses a lightweight reminder architecture: one opt-in evening diary reminder, Web Push delivery, and no reminders table. The default reminder time is `21:30` IST. The `single_diary_reminder_settings` migration rewrites legacy multi-reminder settings to the single-time shape, moving old default schedules to `21:30` while preserving customized evening times. Reminder copy rotates through curated variants by IST date so the diary nudge does not use the same fixed message every day. Groq is not called during cron delivery.
 
 ## Data Model
 

@@ -1,14 +1,15 @@
 import os
+import json
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, engine, init_db
+from app.database import Base, engine, init_db, _migrate_single_diary_reminder_settings
 from app.limiter import limiter
 from app.main import app
-from app.models import PushSubscription
+from app.models import PushSubscription, Setting
 
 
 @pytest.fixture(autouse=True)
@@ -505,6 +506,44 @@ def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
         "Canopy diary note",
     }
     assert payload["body"]
+
+
+def test_migration_normalizes_legacy_reminder_settings():
+    with engine.begin() as conn:
+        conn.execute(Setting.__table__.insert(), [
+            {
+                "key": "1:notification_reminders",
+                "value": json.dumps({
+                    "enabled": True,
+                    "times": {"morning": "11:00", "afternoon": "17:00", "evening": "22:00"},
+                    "types": {"morning": False, "afternoon": False, "evening": True},
+                }),
+            },
+            {
+                "key": "2:notification_reminders",
+                "value": json.dumps({
+                    "enabled": True,
+                    "times": {"morning": "10:00", "afternoon": "15:00", "evening": "20:30"},
+                    "types": {"morning": False, "afternoon": False, "evening": True},
+                }),
+            },
+            {
+                "key": "3:notification_reminders",
+                "value": json.dumps({"enabled": False, "time": "21:30"}),
+            },
+        ])
+
+    _migrate_single_diary_reminder_settings()
+
+    with engine.connect() as conn:
+        rows = {
+            row["key"]: json.loads(row["value"])
+            for row in conn.execute(Setting.__table__.select()).mappings()
+        }
+
+    assert rows["1:notification_reminders"] == {"enabled": True, "time": "21:30"}
+    assert rows["2:notification_reminders"] == {"enabled": True, "time": "20:30"}
+    assert rows["3:notification_reminders"] == {"enabled": False, "time": "21:30"}
 
 
 def test_subscribe_enables_default_evening_reminder_so_cron_does_not_skip(client, monkeypatch):

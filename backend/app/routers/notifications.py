@@ -70,10 +70,17 @@ def _settings_for_user(db: Session, user_id: int) -> dict:
         loaded = json.loads(row.value)
     except json.JSONDecodeError:
         return DEFAULT_REMINDER_SETTINGS.copy()
-    legacy_times = loaded.get("times", {})
+    legacy_times = loaded.get("times") if isinstance(loaded.get("times"), dict) else {}
+    legacy_default_times = (
+        legacy_times.get("morning") == "11:00"
+        and legacy_times.get("afternoon") in {"15:00", "17:00"}
+        and legacy_times.get("evening") in {"21:30", "22:00"}
+    )
     return {
         "enabled": bool(loaded.get("enabled", False)),
-        "time": loaded.get("time") or legacy_times.get("evening") or DEFAULT_REMINDER_SETTINGS["time"],
+        "time": loaded.get("time")
+        or ("21:30" if legacy_default_times else legacy_times.get("evening"))
+        or DEFAULT_REMINDER_SETTINGS["time"],
     }
 
 
