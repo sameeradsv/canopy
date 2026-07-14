@@ -85,16 +85,12 @@ export default function SettingsPage() {
   function onFontMode(v: FontMode) { setFontMode(v); apply("data-fontmode", v, "canopy.fontMode"); }
   function onDensity(v: Density) { setDensity(v); apply("data-density", v, "canopy.density"); }
 
-  function updateReminderTime(key: keyof ReminderSettings["times"], value: string) {
-    setReminderSettings((current) => current ? { ...current, times: { ...current.times, [key]: value } } : current);
+  function updateReminderTime(value: string) {
+    setReminderSettings((current) => current ? { ...current, time: value } : current);
   }
 
   function updateReminderEnabled(enabled: boolean) {
     setReminderSettings((current) => current ? { ...current, enabled } : current);
-  }
-
-  function updateReminderType(key: keyof ReminderSettings["types"], enabled: boolean) {
-    setReminderSettings((current) => current ? { ...current, types: { ...current.types, [key]: enabled } } : current);
   }
 
   async function saveReminderSettings() {
@@ -283,7 +279,7 @@ export default function SettingsPage() {
           <div>
             <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 13 }}>Reflection notifications</div>
             <p className="faint small" style={{ marginBottom: 0 }}>
-              A private evening diary prompt, with optional daytime check-ins.
+              One private evening diary prompt.
             </p>
             {notifications.error && <p style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{notifications.error}</p>}
           </div>
@@ -315,28 +311,17 @@ export default function SettingsPage() {
               Send reflection reminders
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
-              {(["morning", "afternoon", "evening"] as const).map((key) => (
-                <label key={key} style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)", textTransform: "capitalize" }}>
-                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 44 }}>
-                    {key}
-                    <input
-                      type="checkbox"
-                      checked={reminderSettings.types[key]}
-                      onChange={(e) => updateReminderType(key, e.target.checked)}
-                    />
-                  </span>
-                  <input
-                    type="time"
-                    step={1800}
-                    value={reminderSettings.times[key]}
-                    onChange={(e) => updateReminderTime(key, e.target.value)}
-                    className="input"
-                    style={{ minHeight: 44 }}
-                  />
-                </label>
-              ))}
-            </div>
+            <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--fg-mute)" }}>
+              Diary time
+              <input
+                type="time"
+                step={1800}
+                value={reminderSettings.time}
+                onChange={(e) => updateReminderTime(e.target.value)}
+                className="input"
+                style={{ minHeight: 44, maxWidth: 180 }}
+              />
+            </label>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="button" onClick={() => void saveReminderSettings()} disabled={savingReminders} className="btn primary" style={{ minHeight: 44 }}>
@@ -349,7 +334,7 @@ export default function SettingsPage() {
             {reminderMessage && <p style={{ color: "var(--accent)", fontSize: 13, margin: 0 }}>{reminderMessage}</p>}
             {reminderError && <p style={{ color: "var(--danger)", fontSize: 13, margin: 0 }}>{reminderError}</p>}
             <p className="faint small" style={{ margin: 0 }}>
-              Cron calls still need to be set to these same times in production.
+              Cron still needs to be set to this same time in production.
             </p>
           </div>
         )}

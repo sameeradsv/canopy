@@ -23,20 +23,11 @@ _IST = ZoneInfo("Asia/Kolkata")
 
 REMINDER_SETTINGS_KEY = "notification_reminders"
 REMINDER_SENT_KEY_PREFIX = "notification_sent"
-REMINDER_TYPES = {"morning", "afternoon", "evening"}
+REMINDER_TYPE = "diary"
 
 DEFAULT_REMINDER_SETTINGS = {
     "enabled": False,
-    "times": {
-        "morning": "11:00",
-        "afternoon": "15:00",
-        "evening": "21:30",
-    },
-    "types": {
-        "morning": False,
-        "afternoon": False,
-        "evening": True,
-    },
+    "time": "21:30",
 }
 
 
@@ -60,8 +51,7 @@ class UnsubscribePayload(BaseModel):
 
 class ReminderSettingsPayload(BaseModel):
     enabled: bool
-    times: dict[str, str]
-    types: dict[str, bool] = {}
+    time: str
 
 
 def _now_utc() -> datetime:
@@ -80,10 +70,10 @@ def _settings_for_user(db: Session, user_id: int) -> dict:
         loaded = json.loads(row.value)
     except json.JSONDecodeError:
         return DEFAULT_REMINDER_SETTINGS.copy()
+    legacy_times = loaded.get("times", {})
     return {
         "enabled": bool(loaded.get("enabled", False)),
-        "times": {**DEFAULT_REMINDER_SETTINGS["times"], **loaded.get("times", {})},
-        "types": {**DEFAULT_REMINDER_SETTINGS["types"], **loaded.get("types", {})},
+        "time": loaded.get("time") or legacy_times.get("evening") or DEFAULT_REMINDER_SETTINGS["time"],
     }
 
 
@@ -93,42 +83,30 @@ def _validate_time(value: str) -> str:
         h = int(hour)
         m = int(minute)
     except Exception as exc:
-        raise HTTPException(400, "Reminder times must be HH:MM") from exc
+        raise HTTPException(400, "Reminder time must be HH:MM") from exc
     if not (0 <= h <= 23 and m in (0, 30)):
-        raise HTTPException(400, "Reminder times must be HH:MM on a 30-minute boundary")
+        raise HTTPException(400, "Reminder time must be HH:MM on a 30-minute boundary")
     return f"{h:02d}:{m:02d}"
 
 
-def _rotating_message(reminder_type: str) -> dict[str, str]:
-    variants = {
-        "morning": [
-            ("Morning interaction check-in", "Capture any important people moments from the morning."),
-            ("Morning reflection", "Log the conversations, support, or friction worth remembering."),
-            ("Canopy morning note", "A quick pass over who you met, helped, or need to follow up with."),
-        ],
-        "afternoon": [
-            ("Afternoon interaction check-in", "Add what shifted with people since lunch."),
-            ("Afternoon reflection", "Catch the small social signals before the day moves on."),
-            ("Canopy afternoon note", "Save any useful context from the middle of the day."),
-        ],
-        "evening": [
-            ("Evening interaction check-in", "Close the loop on the people moments from today."),
-            ("Evening reflection", "Record the wins, tension, gratitude, or follow-ups while fresh."),
-            ("Canopy evening note", "A final scan for conversations you may want future-you to remember."),
-        ],
-    }[reminder_type]
+def _rotating_message() -> dict[str, str]:
+    variants = [
+        ("Evening interaction check-in", "Close the loop on the people moments from today."),
+        ("Evening reflection", "Record the wins, tension, gratitude, or follow-ups while fresh."),
+        ("Canopy diary note", "A final scan for conversations you may want future-you to remember."),
+    ]
     day = datetime.now(_IST).toordinal()
-    index = (day + sorted(REMINDER_TYPES).index(reminder_type)) % len(variants)
+    index = day % len(variants)
     title, body = variants[index]
     return {"title": title, "body": body}
 
 
-def _payload_for(reminder_type: str) -> dict:
+def _payload_for() -> dict:
     return {
-        **_rotating_message(reminder_type),
-        "tag": f"canopy-{reminder_type}-reminder",
+        **_rotating_message(),
+        "tag": "canopy-diary-reminder",
         "url": "/capture",
-        "reminderType": reminder_type,
+        "reminderType": REMINDER_TYPE,
     }
 
 
@@ -274,16 +252,7 @@ def put_reminder_settings(
 ):
     cleaned = {
         "enabled": payload.enabled,
-        "times": {
-            "morning": _validate_time(payload.times.get("morning", DEFAULT_REMINDER_SETTINGS["times"]["morning"])),
-            "afternoon": _validate_time(payload.times.get("afternoon", DEFAULT_REMINDER_SETTINGS["times"]["afternoon"])),
-            "evening": _validate_time(payload.times.get("evening", DEFAULT_REMINDER_SETTINGS["times"]["evening"])),
-        },
-        "types": {
-            "morning": bool(payload.types.get("morning", DEFAULT_REMINDER_SETTINGS["types"]["morning"])),
-            "afternoon": bool(payload.types.get("afternoon", DEFAULT_REMINDER_SETTINGS["types"]["afternoon"])),
-            "evening": bool(payload.types.get("evening", DEFAULT_REMINDER_SETTINGS["types"]["evening"])),
-        },
+        "time": _validate_time(payload.time),
     }
     set_setting(db, REMINDER_SETTINGS_KEY, json.dumps(cleaned), user_id=user.id)
     return cleaned
@@ -329,14 +298,11 @@ def _send_to_user(db: Session, user_id: int, payload: dict) -> dict:
     }
 
 
-@router.post("/reminder/{reminder_type}")
+@router.post("/reminder")
 def send_fixed_reminder(
-    reminder_type: str,
     authorization: Optional[str] = Header(default=None),
     db: Session = Depends(get_db),
 ):
-    if reminder_type not in REMINDER_TYPES:
-        raise HTTPException(404, "Unknown reminder type")
     if not settings.reminder_cron_secret:
         raise HTTPException(503, "Reminder cron is not configured")
     if authorization != f"Bearer {settings.reminder_cron_secret}":
@@ -344,7 +310,7 @@ def send_fixed_reminder(
 
     today = _today_ist_key()
     users = db.execute(select(PushSubscription.user_id).where(PushSubscription.enabled == True).distinct()).all()  # noqa: E712
-    payload = _payload_for(reminder_type)
+    payload = _payload_for()
     stats = {
         "users": 0,
         "attempted_subscriptions": 0,
@@ -358,12 +324,10 @@ def send_fixed_reminder(
 
     for (user_id,) in users:
         reminder_settings = _settings_for_user(db, int(user_id))
-        if not reminder_settings["enabled"] or not reminder_settings["types"].get(
-            reminder_type, DEFAULT_REMINDER_SETTINGS["types"].get(reminder_type, True)
-        ):
+        if not reminder_settings["enabled"]:
             stats["skipped"] += 1
             continue
-        sent_key = f"{REMINDER_SENT_KEY_PREFIX}:{today}:{reminder_type}"
+        sent_key = f"{REMINDER_SENT_KEY_PREFIX}:{today}:{REMINDER_TYPE}"
         if get_setting(db, sent_key, user_id=int(user_id)):
             stats["skipped"] += 1
             continue

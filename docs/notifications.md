@@ -1,13 +1,13 @@
 # Canopy Notifications
 
-Canopy uses a lightweight reminder architecture: opt-in reflection reminders, Web Push delivery, and no reminders table. The default is a single evening diary reminder at `21:30` IST; morning and afternoon check-ins remain available but disabled by default. Reminder copy rotates through curated variants by IST date so enabled nudges do not use the same fixed message every day. Groq is not called during cron delivery.
+Canopy uses a lightweight reminder architecture: one opt-in evening diary reminder, Web Push delivery, and no reminders table. The default reminder time is `21:30` IST. Reminder copy rotates through curated variants by IST date so the diary nudge does not use the same fixed message every day. Groq is not called during cron delivery.
 
 ## Data Model
 
 ```mermaid
 flowchart LR
   Settings["settings: notification_reminders"] --> Cron["cron-job.org fixed times"]
-  Cron --> Endpoint["/api/notifications/reminder/{type}"]
+  Cron --> Endpoint["/api/notifications/reminder"]
   Endpoint --> Subscriptions["push_subscriptions registered devices"]
   Subscriptions --> Push["Web Push + VAPID"]
   Push --> Worker["/canopy/sw.js or /sw.js installed PWA"]
@@ -30,7 +30,7 @@ When a device subscribes, Canopy re-enables or creates the current browser endpo
 
 Reminder preferences live in the existing `settings` table under `notification_reminders`.
 
-Duplicate protection also uses `settings`, with one marker per user, UTC date, and reminder type. This preserves the "no reminders table" constraint while preventing duplicate sends if cron-job.org retries the same endpoint.
+Duplicate protection also uses `settings`, with one marker per user and UTC date. This preserves the "no reminders table" constraint while preventing duplicate sends if cron-job.org retries the same endpoint.
 
 ## API
 
@@ -41,7 +41,7 @@ Duplicate protection also uses `settings`, with one marker per user, UTC date, a
 - `GET /api/notifications/reminder-settings`
 - `PUT /api/notifications/reminder-settings`
 - `POST /api/notifications/test`
-- `POST /api/notifications/reminder/{morning|afternoon|evening}`
+- `POST /api/notifications/reminder`
 
 The fixed reminder endpoint requires:
 
@@ -64,7 +64,7 @@ The reminder endpoint returns delivery stats:
 }
 ```
 
-`sent` is the number of users who received at least one notification. `delivered` is the number of device subscriptions that accepted a push. `skipped` means the user had reminders disabled, that reminder type disabled, or a duplicate-send marker already existed for the day.
+`sent` is the number of users who received at least one notification. `delivered` is the number of device subscriptions that accepted a push. `skipped` means the user had reminders disabled or a duplicate-send marker already existed for the day.
 
 If Canopy attempts delivery and every attempted push fails, the endpoint returns HTTP 502 with the same stats under `detail.stats`. This lets cron-job.org show a failed run instead of a misleading green success.
 
@@ -97,13 +97,9 @@ If `/api/health` and `/api/notifications/vapid-public-key` work but enabling the
 
 ## cron-job.org
 
-Create cron jobs for the enabled reminder types. Match the job times to the values shown in Canopy Settings. The backend stores the preferred times and enabled types, but cron-job.org is still the scheduler. Defaults use 30-minute boundaries:
+Create one cron job. Match the job time to the value shown in Canopy Settings. The backend stores the preferred time, but cron-job.org is still the scheduler. The default uses a 30-minute boundary:
 
-- `11:00` -> `POST https://<api-host>/api/notifications/reminder/morning`
-- `15:00` -> `POST https://<api-host>/api/notifications/reminder/afternoon`
-- `21:30` -> `POST https://<api-host>/api/notifications/reminder/evening`
-
-For the current diary-style setup, keep only the evening job active unless morning or afternoon reminders are explicitly enabled in Settings.
+- `21:30` -> `POST https://<api-host>/api/notifications/reminder`
 
 Add the authorization header to each job:
 

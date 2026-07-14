@@ -176,16 +176,7 @@ export interface PushSubscriptionPayload {
 
 export interface ReminderSettings {
   enabled: boolean;
-  times: {
-    morning: string;
-    afternoon: string;
-    evening: string;
-  };
-  types: {
-    morning: boolean;
-    afternoon: boolean;
-    evening: boolean;
-  };
+  time: string;
 }
 
 import { getAuthToken, setAuthToken } from "@/lib/auth";

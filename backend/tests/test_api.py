@@ -431,12 +431,11 @@ def test_notification_subscription_and_settings(client, monkeypatch):
 
     settings_payload = {
         "enabled": True,
-        "times": {"morning": "08:30", "afternoon": "14:30", "evening": "20:30"},
-        "types": {"morning": True, "afternoon": True, "evening": False},
+        "time": "20:30",
     }
     saved = client.put("/api/notifications/reminder-settings", headers=auth, json=settings_payload)
     assert saved.status_code == 200
-    assert saved.json()["times"]["morning"] == "08:30"
+    assert saved.json()["time"] == "20:30"
     assert client.get("/api/notifications/reminder-settings", headers=auth).json()["enabled"] is True
 
 
@@ -495,16 +494,15 @@ def test_default_reminder_times_and_rotating_copy(client, monkeypatch):
     )
 
     settings = client.get("/api/notifications/reminder-settings", headers=auth).json()
-    assert settings["times"] == {"morning": "11:00", "afternoon": "15:00", "evening": "21:30"}
-    assert settings["types"] == {"morning": False, "afternoon": False, "evening": True}
+    assert settings == {"enabled": True, "time": "21:30"}
 
     from app.routers.notifications import _payload_for
 
-    payload = _payload_for("morning")
+    payload = _payload_for()
     assert payload["title"] in {
-        "Morning interaction check-in",
-        "Morning reflection",
-        "Canopy morning note",
+        "Evening interaction check-in",
+        "Evening reflection",
+        "Canopy diary note",
     }
     assert payload["body"]
 
@@ -534,13 +532,24 @@ def test_subscribe_enables_default_evening_reminder_so_cron_does_not_skip(client
         sent.append((sub.endpoint, payload["reminderType"]))
 
     monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
-    r = client.post("/api/notifications/reminder/evening", headers={"Authorization": "Bearer cron-secret"})
+    r = client.post("/api/notifications/reminder", headers={"Authorization": "Bearer cron-secret"})
 
     assert r.status_code == 200
     assert r.json()["skipped"] == 0
     assert r.json()["attempted_subscriptions"] == 1
     assert r.json()["delivered"] == 1
-    assert sent == [("https://push.example/subscribed", "evening")]
+    assert sent == [("https://push.example/subscribed", "diary")]
+
+
+def test_typed_reminder_endpoints_are_removed(client, monkeypatch):
+    monkeypatch.setattr("app.config.settings.reminder_cron_secret", "cron-secret")
+
+    assert client.post(
+        "/api/notifications/reminder/morning", headers={"Authorization": "Bearer cron-secret"}
+    ).status_code == 404
+    assert client.post(
+        "/api/notifications/reminder/afternoon", headers={"Authorization": "Bearer cron-secret"}
+    ).status_code == 404
 
 
 def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monkeypatch):
@@ -562,8 +571,7 @@ def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monke
         headers=auth,
         json={
             "enabled": True,
-            "times": {"morning": "09:00", "afternoon": "14:00", "evening": "20:00"},
-            "types": {"morning": True, "afternoon": True, "evening": True},
+            "time": "20:00",
         },
     )
 
@@ -574,13 +582,13 @@ def test_fixed_reminder_sends_once_and_cleans_invalid_subscription(client, monke
 
     monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
     cron = {"Authorization": "Bearer cron-secret"}
-    first = client.post("/api/notifications/reminder/morning", headers=cron)
-    second = client.post("/api/notifications/reminder/morning", headers=cron)
+    first = client.post("/api/notifications/reminder", headers=cron)
+    second = client.post("/api/notifications/reminder", headers=cron)
 
     assert first.status_code == 200
     assert first.json()["sent"] == 1
     assert second.json()["sent"] == 0
-    assert sent == [("https://push.example/good", "morning")]
+    assert sent == [("https://push.example/good", "diary")]
 
 
 def test_fixed_reminder_fails_when_all_push_delivery_fails(client, monkeypatch):
@@ -602,8 +610,7 @@ def test_fixed_reminder_fails_when_all_push_delivery_fails(client, monkeypatch):
         headers=auth,
         json={
             "enabled": True,
-            "times": {"morning": "09:00", "afternoon": "14:00", "evening": "20:00"},
-            "types": {"morning": True, "afternoon": True, "evening": True},
+            "time": "20:00",
         },
     )
 
@@ -611,7 +618,7 @@ def test_fixed_reminder_fails_when_all_push_delivery_fails(client, monkeypatch):
         raise RuntimeError("push provider rejected the request")
 
     monkeypatch.setattr("app.routers.notifications.send_web_push", fake_send)
-    r = client.post("/api/notifications/reminder/morning", headers={"Authorization": "Bearer cron-secret"})
+    r = client.post("/api/notifications/reminder", headers={"Authorization": "Bearer cron-secret"})
 
     assert r.status_code == 502
     detail = r.json()["detail"]
